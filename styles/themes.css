@@ -1,0 +1,134 @@
+.theme-brand {
+  /* Backgrounds */
+  --background:       #F8FAFC;   /* Slate 50 — clean cool off-white */
+  --surface:          #FFFFFF;   /* Card / panel background */
+  --surface-elevated: #F1F5F9;   /* Slate 100 — secondary background */
+
+  /* Primary — Slate Indigo */
+  --primary:              #0F172A;   /* Slate 900 — deep indigo-slate */
+  --primary-hover:        #1E293B;   /* Slate 800 */
+  --primary-foreground:   #FFFFFF;   /* Text on primary */
+  --primary-subtle:       #E2E8F0;   /* Slate 200 — subtle highlight bg */
+
+  /* Accent — Bronze Amber (Actionable Highlights) */
+  --accent:               #B45309;   /* Bronze Amber — rich, premium gold-brown */
+  --accent-hover:         #92400E;   /* Bronze Amber Dark */
+  --accent-foreground:    #FFFFFF;   /* Text on accent buttons */
+  --accent-subtle:        #FFF7ED;   /* Warm orange tint */
+
+  /* Text */
+  --foreground:           #0F172A;   /* Primary text */
+  --muted-foreground:     #64748B;   /* Slate 500 — muted placeholder text */
+
+  /* Borders & Dividers */
+  --border:               #E2E8F0;   /* Slate 200 — extra-thin border */
+  --border-strong:        #CBD5E1;   /* Slate 300 — focus & active borders */
+  --ring:                 #0F172A;   /* Focus ring — same as primary */
+
+  /* UI Elements */
+  --input:                #FFFFFF;   /* Input background */
+  --radius:               6px;       /* Global border radius */
+
+  /* Semantic Colors */
+  --destructive:          #DC2626;   /* Error / Reject (Red 600) */
+  --destructive-foreground: #FFFFFF;
+  --success:              #16A34A;   /* Success / Delivered (Green 600) */
+  --success-foreground:   #FFFFFF;
+  --warning:              #CA8A04;   /* Warning / Pending (Yellow 600) */
+  --warning-foreground:   #FFFFFF;
+  --info:                 #0284C7;   /* Info (Cyan/Blue 600) */
+  --info-foreground:      #FFFFFF;
+
+  /* Muted / Inactive */
+  --muted:                #F1F5F9;
+  --secondary:            #E2E8F0;
+  --secondary-foreground: #0F172A;
+  --popover:              #FFFFFF;
+  --popover-foreground:   #0F172A;
+
+  /* Status badges */
+  --status-draft:      #94A3B8;
+  --status-pending:    #D97706;
+  --status-queried:    #7C3AED;
+  --status-processing: #2563EB;
+  --status-delivery:   #0891B2;
+  --status-success:    #16A34A;
+  --status-danger:     #DC2626;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md:  0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-lg:  0 4px 16px rgba(0, 0, 0, 0.12);
+
+  /* Transitions */
+  --transition-fast:   150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow:   300ms ease;
+
+  /* Fonts */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", SFMono-Regular, ui-monospace, "SF Pro Mono", Consolas, monospace;
+}
+
+.dark.theme-brand {
+  /* Backgrounds */
+  --background:       #0B0F19;   /* Deep luxury midnight navy */
+  --surface:          #0F1524;   /* Deep navy card surface */
+  --surface-elevated: #172033;   /* Elevated midnight navy panels */
+
+  /* Primary — Ice/Sky Blue */
+  --primary:              #38BDF8;   /* Sky blue 400 */
+  --primary-hover:        #7DD3FC;   /* Sky blue 300 */
+  --primary-foreground:   #090D16;   /* Dark text on sky blue buttons */
+  --primary-subtle:       #1E293B;   /* Slate 800 */
+
+  /* Accent — Amber */
+  --accent:               #F59E0B;   /* Amber 500 */
+  --accent-hover:         #FBBF24;   /* Amber 400 */
+  --accent-foreground:    #090D16;   /* Dark text on bright accent buttons */
+  --accent-subtle:        #451A03;   /* Warm dark amber tint */
+
+  /* Text */
+  --foreground:           #E2E8F0;   /* Slate 200 */
+  --muted-foreground:     #94A3B8;   /* Slate 400 */
+
+  /* Borders */
+  --border:               #1E293B;   /* Slate 800 */
+  --border-strong:        #334155;   /* Slate 700 */
+  --ring:                 #38BDF8;
+
+  /* UI Elements */
+  --input:                #0F1524;
+  --radius:               6px;
+
+  /* Semantic Colors */
+  --destructive:          #EF4444;   /* Red 500 */
+  --destructive-foreground: #FFFFFF;
+  --success:              #22C55E;   /* Green 500 */
+  --success-foreground:   #0B0F19;
+  --warning:              #EAB308;   /* Yellow 500 */
+  --warning-foreground:   #0B0F19;
+  --info:                 #38BDF8;   /* Sky blue */
+  --info-foreground:      #0B0F19;
+
+  /* Muted / Inactive */
+  --muted:                #172033;
+  --secondary:            #1E293B;
+  --secondary-foreground: #E2E8F0;
+  --popover:              #0F1524;
+  --popover-foreground:   #E2E8F0;
+
+  /* Status badges (dark mode overrides) */
+  --status-draft:      #64748B;
+  --status-pending:    #F59E0B;
+  --status-queried:    #A78BFA;
+  --status-processing: #60A5FA;
+  --status-delivery:   #22D3EE;
+  --status-success:    #22C55E;
+  --status-danger:     #EF4444;
+
+  /* Shadows (dark mode overrides) */
+  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md:  0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-lg:  0 4px 16px rgba(0, 0, 0, 0.4);
+}
