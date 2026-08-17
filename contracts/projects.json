@@ -1,0 +1,16 @@
+{
+  "$schema": "contract.v1",
+  "name": "projects",
+  "label": "Projects",
+  "version": "1.0.0",
+  "description": "A construction engagement/contract. The master container holding the tender PDF and the BOQ item list (items live in project_items, linked by projectId).",
+  "fields": [
+    { "field": "name", "label": "Project Name", "type": "string", "input": "text", "required": true, "unique": true },
+    { "field": "tenderPdfUrl", "label": "Tender PDF", "type": "string", "input": "file", "required": false, "help": "Uploaded to Convex/R2 file storage; URL is stored here." },
+    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "active", "validation": { "enum": ["active", "on_hold", "completed"] } }
+  ],
+  "statuses": ["active", "on_hold", "completed"],
+  "relations": {},
+  "indexes": [ ["name"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "contract.v1",
+  "name": "sites",
+  "label": "Sites",
+  "version": "1.0.0",
+  "description": "A physical construction location under a project. Optional layer: a project may have zero or many sites; material is delivered to a site.",
+  "fields": [
+    { "field": "name", "label": "Site Name", "type": "string", "input": "text", "required": true, "help": "e.g. Tower A, Basement Block." },
+    { "field": "address", "label": "Address", "type": "text", "input": "textarea", "required": false },
+    { "field": "projectId", "label": "Project", "type": "reference", "input": "select", "required": true, "optionsFrom": "projects", "relation": { "table": "projects" } }
+  ],
+  "statuses": ["active", "inactive"],
+  "relations": { "projectId": "projects" },
+  "indexes": [ ["projectId"], ["name"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

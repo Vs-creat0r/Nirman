@@ -1,0 +1,28 @@
+{
+  "$schema": "contract.v1",
+  "name": "purchase_order",
+  "label": "Purchase Order",
+  "version": "1.0.0",
+  "description": "A purchase order raised after a cost comparison is approved, or created directly from project items when a vendor is pre-selected.",
+  "fields": [
+    { "field": "ccId", "label": "Cost Comparison", "type": "reference", "input": "select", "required": false, "optionsFrom": "cost_comparison", "relation": { "table": "cost_comparison" }, "help": "Optional — required only for the RFQ->CC->PO path. Direct POs have no CC." },
+    { "field": "vendorId", "label": "Vendor", "type": "reference", "input": "autocomplete", "required": true, "optionsFrom": "vendors", "relation": { "table": "vendors" } },
+    { "field": "lineItems", "label": "Line Items", "type": "array", "input": "item-list", "required": true, "items": { "type": "object", "fields": [
+      { "field": "itemName", "label": "Item", "type": "string", "input": "autocomplete", "optionsFrom": "project_items", "required": true },
+      { "field": "quantity", "label": "Qty", "type": "number", "input": "number", "required": true, "validation": { "min": 1 } },
+      { "field": "unit", "label": "Unit", "type": "string", "input": "text", "required": true },
+      { "field": "unitPrice", "label": "Unit Price", "type": "number", "input": "number", "required": true, "validation": { "min": 0 } }
+    ]} },
+    { "field": "paymentTerms", "label": "Payment Terms", "type": "string", "input": "text", "required": false },
+    { "field": "sourcePath", "label": "Source Path", "type": "enum", "input": "readonly-badge", "required": true, "default": "from_request", "validation": { "enum": ["from_request", "direct_po", "from_inventory"] } },
+    { "field": "sourceItemIds", "label": "Source Project Items", "type": "array", "input": "item-list", "required": false, "items": { "type": "reference", "relation": { "table": "project_items" } } },
+    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "draft" },
+    { "field": "pdfUrl", "label": "PO PDF", "type": "string", "input": "file", "required": false },
+    { "field": "deliveredQty", "label": "Delivered Qty", "type": "number", "input": "number", "required": false, "default": 0, "validation": { "min": 0 } },
+    { "field": "pendingQty", "label": "Pending Qty", "type": "number", "input": "number", "required": false, "default": 0, "validation": { "min": 0 } }
+  ],
+  "statuses": ["draft", "review_po", "pending_po", "queried", "rejected", "delivered"],
+  "relations": { "ccId": "cost_comparison", "vendorId": "vendors" },
+  "indexes": [ ["vendorId"], ["status"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

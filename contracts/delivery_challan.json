@@ -1,0 +1,27 @@
+{
+  "$schema": "contract.v1",
+  "name": "delivery_challan",
+  "label": "Delivery Challan",
+  "version": "1.0.0",
+  "description": "Records dispatch of material to a site. Created from an approved PO, or directly from inventory when stock is available.",
+  "fields": [
+    { "field": "poId", "label": "Purchase Order", "type": "reference", "input": "select", "required": false, "optionsFrom": "purchase_order", "relation": { "table": "purchase_order" }, "help": "Optional — required for the PO->DC path. Inventory-direct DCs have no PO." },
+    { "field": "siteId", "label": "Delivery Site", "type": "reference", "input": "select", "required": false, "optionsFrom": "sites", "relation": { "table": "sites" }, "help": "Optional — enables 1-hop 'Out for Delivery' queries by site." },
+    { "field": "sourcePath", "label": "Source Path", "type": "enum", "input": "readonly-badge", "required": true, "default": "from_po", "validation": { "enum": ["from_po", "from_inventory"] } },
+    { "field": "sourceItemIds", "label": "Source Project Items", "type": "array", "input": "item-list", "required": false, "items": { "type": "reference", "relation": { "table": "project_items" } } },
+    { "field": "vehicleNo", "label": "Vehicle No", "type": "string", "input": "text", "required": true },
+    { "field": "driverName", "label": "Driver Name", "type": "string", "input": "text", "required": true },
+    { "field": "dispatchedItems", "label": "Dispatched Items", "type": "array", "input": "item-list", "required": true, "items": { "type": "object", "fields": [
+      { "field": "itemName", "label": "Item", "type": "string", "input": "autocomplete", "optionsFrom": "project_items", "required": true },
+      { "field": "quantity", "label": "Qty", "type": "number", "input": "number", "required": true, "validation": { "min": 1 } },
+      { "field": "unit", "label": "Unit", "type": "string", "input": "text", "required": true }
+    ]} },
+    { "field": "isPartial", "label": "Partial Delivery", "type": "boolean", "input": "toggle", "required": true, "default": false, "help": "If true, remaining qty stays in Pending Purchase Orders." },
+    { "field": "expectedArrival", "label": "Expected Arrival", "type": "date", "input": "date", "required": false },
+    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "draft" }
+  ],
+  "statuses": ["draft", "delivery_processing", "delivered"],
+  "relations": { "poId": "purchase_order", "siteId": "sites" },
+  "indexes": [ ["poId"], ["siteId"], ["status"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

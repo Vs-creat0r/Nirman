@@ -1,0 +1,24 @@
+{
+  "$schema": "contract.v1",
+  "name": "material_request",
+  "label": "Material Request",
+  "version": "1.0.0",
+  "description": "A request raised by a Site Supervisor for materials at a site. Site is optional: when the project has sites, a site must be selected; otherwise the project is the delivery location.",
+  "fields": [
+    { "field": "project", "label": "Project", "type": "reference", "input": "select", "required": true, "optionsFrom": "projects", "relation": { "table": "projects" } },
+    { "field": "site", "label": "Site", "type": "reference", "input": "select", "required": false, "optionsFrom": "sites", "relation": { "table": "sites" }, "help": "Optional. Required only when the selected project has sites." },
+    { "field": "category", "label": "Category", "type": "enum", "input": "select", "required": false, "validation": { "enum": ["cement", "steel", "aggregate", "electrical", "plumbing", "paint", "other"] } },
+    { "field": "items", "label": "Items", "type": "array", "input": "item-list", "required": true, "items": { "type": "object", "fields": [
+      { "field": "itemName", "label": "Item", "type": "string", "input": "autocomplete", "optionsFrom": "project_items", "required": true },
+      { "field": "quantity", "label": "Qty", "type": "number", "input": "number", "required": true, "validation": { "min": 1 } },
+      { "field": "unit", "label": "Unit", "type": "string", "input": "text", "required": true }
+    ]} },
+    { "field": "notes", "label": "Notes", "type": "text", "input": "textarea", "required": false },
+    { "field": "priority", "label": "Priority", "type": "enum", "input": "select", "required": true, "default": "normal", "validation": { "enum": ["low", "normal", "high", "urgent"] } },
+    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "draft" }
+  ],
+  "statuses": ["draft", "pending", "ready_for_cc", "queried", "rejected", "out_for_delivery", "delivered"],
+  "relations": { "project": "projects", "site": "sites" },
+  "indexes": [ ["project"], ["site"], ["status"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

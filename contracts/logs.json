@@ -1,0 +1,19 @@
+{
+  "$schema": "contract.v1",
+  "name": "logs",
+  "label": "Audit Logs",
+  "version": "1.0.0",
+  "description": "Append-only audit trail of every action. Written automatically by the backend on state-changing operations.",
+  "fields": [
+    { "field": "actorId", "label": "Actor", "type": "reference", "input": "select", "required": true, "optionsFrom": "users", "relation": { "table": "users" } },
+    { "field": "action", "label": "Action", "type": "string", "input": "text", "required": true, "help": "e.g. create, approve, reject, query, deliver." },
+    { "field": "documentType", "label": "Document Type", "type": "enum", "input": "select", "required": true, "validation": { "enum": ["material_request", "rfq", "cost_comparison", "purchase_order", "delivery_challan", "grn", "inventory", "vendor", "user", "project", "site"] } },
+    { "field": "documentId", "label": "Document", "type": "string", "input": "text", "required": true, "help": "Convex ID of the affected document." },
+    { "field": "referenceId", "label": "Reference", "type": "string", "input": "text", "required": false, "help": "Optional secondary ID (e.g. related RFQ when approving a CC)." },
+    { "field": "timestamp", "label": "Timestamp", "type": "date", "input": "date", "required": true }
+  ],
+  "statuses": [],
+  "relations": { "actorId": "users" },
+  "indexes": [ ["actorId"], ["documentType"], ["documentId"] ],
+  "audit": { "enabled": false }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "contract.v1",
+  "name": "project_items",
+  "label": "Project Items (BOQ)",
+  "version": "1.0.0",
+  "description": "The master tender/BOQ item list per project. Source for project-scoped item autocomplete in MR and RFQ forms.",
+  "fields": [
+    { "field": "projectId", "label": "Project", "type": "reference", "input": "select", "required": true, "optionsFrom": "projects", "relation": { "table": "projects" } },
+    { "field": "name", "label": "Item Name", "type": "string", "input": "text", "required": true, "help": "e.g. Cement 50kg." },
+    { "field": "unit", "label": "Unit", "type": "string", "input": "text", "required": true, "help": "e.g. bag, kg, nos." },
+    { "field": "qty", "label": "Quantity", "type": "number", "input": "number", "required": true, "validation": { "min": 0 } },
+    { "field": "description", "label": "Description", "type": "text", "input": "textarea", "required": false }
+  ],
+  "statuses": ["active", "inactive"],
+  "relations": { "projectId": "projects" },
+  "indexes": [ ["projectId"], ["name"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

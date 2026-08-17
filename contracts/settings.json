@@ -1,0 +1,14 @@
+{
+  "$schema": "contract.v1",
+  "name": "settings",
+  "label": "System Settings",
+  "version": "1.0.0",
+  "description": "Single-document system-wide configuration row. Controls approval chain behavior across the platform.",
+  "fields": [
+    { "field": "requireManagerApprovalForRequests", "label": "Require Manager Approval for Requests", "type": "boolean", "input": "toggle", "required": true, "default": true, "help": "When OFF, approved-by-default: requests route straight to 'ready_for_cc' without manager sign-off." }
+  ],
+  "statuses": [],
+  "relations": {},
+  "indexes": [],
+  "audit": { "enabled": true, "trackUpdatedAt": true }
+}

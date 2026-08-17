@@ -1,0 +1,21 @@
+{
+  "$schema": "contract.v1",
+  "name": "users",
+  "label": "Users",
+  "version": "1.0.0",
+  "description": "System users with role-based access control. Created by Admin only.",
+  "fields": [
+    { "field": "name", "label": "Name", "type": "string", "input": "text", "required": true, "validation": { "minLength": 1 } },
+    { "field": "email", "label": "Email", "type": "string", "input": "text", "required": true, "unique": true, "validation": { "pattern": "^[\\w.+-]+@[\\w-]+\\.[\\w.]{2,}$" } },
+    { "field": "phone", "label": "Phone", "type": "string", "input": "text", "required": false, "validation": { "pattern": "^\\+?\\d{10,15}$" } },
+    { "field": "role", "label": "Role", "type": "enum", "input": "select", "required": true, "validation": { "enum": ["admin", "project_manager", "procurement_officer", "site_supervisor"] } },
+    { "field": "isActive", "label": "Active", "type": "boolean", "input": "toggle", "required": true, "default": true },
+    { "field": "assignedSite", "label": "Assigned Site", "type": "reference", "input": "select", "required": false, "relation": { "table": "sites" }, "optionsFrom": "sites", "help": "Required for Site Supervisors." },
+    { "field": "assignedProject", "label": "Assigned Project", "type": "reference", "input": "select", "required": false, "relation": { "table": "projects" }, "optionsFrom": "projects", "help": "Project under which this user operates." },
+    { "field": "passwordHash", "label": "Password", "type": "string", "input": "text", "required": true, "help": "Stored hashed (bcrypt). Never displayed in plain text." }
+  ],
+  "statuses": ["active", "inactive"],
+  "relations": { "assignedSite": "sites", "assignedProject": "projects" },
+  "indexes": [ ["email"], ["role"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

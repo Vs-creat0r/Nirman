@@ -1,0 +1,19 @@
+{
+  "$schema": "contract.v1",
+  "name": "inventory",
+  "label": "Inventory",
+  "version": "1.0.0",
+  "description": "Global inventory database. Source for the 'Show from Inventory' item autocomplete fallback across all forms.",
+  "fields": [
+    { "field": "name", "label": "Item Name", "type": "string", "input": "text", "required": true, "unique": true, "help": "Normalized item name to prevent duplicates like 'Cement 50kg' vs 'Cement 50 kg'." },
+    { "field": "materialCategory", "label": "Material Category", "type": "string", "input": "select", "required": false, "validation": { "enum": ["cement", "steel", "aggregate", "electrical", "plumbing", "paint", "other"] } },
+    { "field": "quantity", "label": "Quantity", "type": "number", "input": "number", "required": true, "default": 0, "validation": { "min": 0 } },
+    { "field": "unit", "label": "Unit", "type": "string", "input": "text", "required": true },
+    { "field": "warehouseLocation", "label": "Warehouse Location", "type": "string", "input": "text", "required": false },
+    { "field": "lastUpdated", "label": "Last Updated", "type": "date", "input": "date", "required": false }
+  ],
+  "statuses": ["in_stock", "low", "out_of_stock"],
+  "relations": {},
+  "indexes": [ ["name"], ["materialCategory"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

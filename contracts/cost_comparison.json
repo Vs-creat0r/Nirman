@@ -1,0 +1,25 @@
+{
+  "$schema": "contract.v1",
+  "name": "cost_comparison",
+  "label": "Cost Comparison",
+  "version": "1.0.0",
+  "description": "Side-by-side vendor quotes for an RFQ. A minimum of 2 vendor quotes is required before submission for manager approval.",
+  "fields": [
+    { "field": "rfqId", "label": "RFQ", "type": "reference", "input": "select", "required": true, "optionsFrom": "rfq", "relation": { "table": "rfq" } },
+    { "field": "vendorQuotes", "label": "Vendor Quotes", "type": "array", "input": "item-list", "required": true, "help": "Minimum 2 vendor quotes required.", "items": { "type": "object", "fields": [
+      { "field": "vendorId", "label": "Vendor", "type": "reference", "input": "autocomplete", "optionsFrom": "vendors", "required": true, "relation": { "table": "vendors" } },
+      { "field": "unitPrice", "label": "Unit Price", "type": "number", "input": "number", "required": true, "validation": { "min": 0 } },
+      { "field": "taxRate", "label": "Tax %", "type": "number", "input": "number", "required": false, "default": 0, "validation": { "min": 0, "max": 100 } },
+      { "field": "deliveryTerms", "label": "Delivery Terms", "type": "string", "input": "text", "required": false },
+      { "field": "deliveryDays", "label": "Delivery (days)", "type": "number", "input": "number", "required": false, "validation": { "min": 0 } }
+    ]} },
+    { "field": "selectedVendorId", "label": "Selected Vendor", "type": "reference", "input": "select", "required": false, "optionsFrom": "vendors", "relation": { "table": "vendors" } },
+    { "field": "approvedBy", "label": "Approved By", "type": "reference", "input": "select", "required": false, "optionsFrom": "users", "relation": { "table": "users" } },
+    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "draft" },
+    { "field": "notes", "label": "Notes", "type": "text", "input": "textarea", "required": false }
+  ],
+  "statuses": ["draft", "review_cc", "ready_for_po", "queried", "rejected"],
+  "relations": { "rfqId": "rfq", "selectedVendorId": "vendors", "approvedBy": "users" },
+  "indexes": [ ["rfqId"], ["status"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

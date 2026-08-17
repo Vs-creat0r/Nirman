@@ -1,0 +1,19 @@
+{
+  "$schema": "contract.v1",
+  "name": "rfq",
+  "label": "Request for Quotation",
+  "version": "1.0.0",
+  "description": "A request for quotations sent to one or more vendors. Item suggestions are scoped to the selected project; vendors come from the central vendor list.",
+  "fields": [
+    { "field": "project", "label": "Project", "type": "reference", "input": "select", "required": true, "optionsFrom": "projects", "relation": { "table": "projects" }, "help": "Mandatory — items are suggested from this project only." },
+    { "field": "linkedRequestIds", "label": "Linked Material Requests", "type": "array", "input": "item-list", "required": false, "items": { "type": "reference", "relation": { "table": "material_request" } } },
+    { "field": "projectItemIds", "label": "Project Items", "type": "array", "input": "item-list", "required": false, "items": { "type": "reference", "relation": { "table": "project_items" } } },
+    { "field": "vendorIds", "label": "Vendors", "type": "array", "input": "item-list", "required": true, "items": { "type": "reference", "relation": { "table": "vendors" } } },
+    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "draft" },
+    { "field": "notes", "label": "Notes", "type": "text", "input": "textarea", "required": false }
+  ],
+  "statuses": ["draft", "sent", "quotes_received", "cc_created", "closed"],
+  "relations": { "project": "projects" },
+  "indexes": [ ["project"], ["status"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}

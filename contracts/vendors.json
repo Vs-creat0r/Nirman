@@ -1,0 +1,19 @@
+{
+  "$schema": "contract.v1",
+  "name": "vendors",
+  "label": "Vendors",
+  "version": "1.0.0",
+  "description": "Centralized vendor database. Source for vendor autocomplete in RFQ, CC, and PO forms.",
+  "fields": [
+    { "field": "name", "label": "Vendor Name", "type": "string", "input": "text", "required": true, "unique": true },
+    { "field": "contact", "label": "Contact", "type": "string", "input": "text", "required": false, "validation": { "pattern": "^\\+?\\d{10,15}$" }, "help": "Phone used for WhatsApp RFQ sends." },
+    { "field": "gstNo", "label": "GST No", "type": "string", "input": "text", "required": false },
+    { "field": "address", "label": "Address", "type": "text", "input": "textarea", "required": false },
+    { "field": "category", "label": "Category", "type": "string", "input": "select", "required": false, "validation": { "enum": ["cement", "steel", "aggregate", "electrical", "plumbing", "paint", "other"] } },
+    { "field": "isActive", "label": "Active", "type": "boolean", "input": "toggle", "required": true, "default": true }
+  ],
+  "statuses": ["active", "inactive"],
+  "relations": {},
+  "indexes": [ ["name"], ["category"] ],
+  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+}
