@@ -1,0 +1,115 @@
+{
+  "$schema": "contract.v1",
+  "name": "users",
+  "label": "User",
+  "version": "1.0.0",
+  "description": "A person with access to the system. Created by Admin only; there is no self-registration.",
+  "fields": [
+    {
+      "field": "name",
+      "label": "Full name",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "minLength": 2,
+        "maxLength": 120
+      }
+    },
+    {
+      "field": "email",
+      "label": "Email",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+        "maxLength": 180
+      }
+    },
+    {
+      "field": "role",
+      "label": "Role",
+      "type": "enum",
+      "input": "select",
+      "required": true,
+      "validation": {
+        "enum": [
+          "admin",
+          "project_manager",
+          "procurement_officer",
+          "site_supervisor"
+        ]
+      }
+    },
+    {
+      "field": "phone",
+      "label": "Phone",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "pattern": "^[0-9+\\-\\s]{7,20}$"
+      }
+    },
+    {
+      "field": "assignedProjectIds",
+      "label": "Projects",
+      "type": "array",
+      "input": "multi-select",
+      "required": false,
+      "relation": {
+        "table": "projects"
+      },
+      "optionsFrom": "projects"
+    },
+    {
+      "field": "assignedSiteIds",
+      "label": "Sites",
+      "type": "array",
+      "input": "multi-select",
+      "required": false,
+      "relation": {
+        "table": "sites"
+      },
+      "optionsFrom": "sites"
+    },
+    {
+      "field": "isActive",
+      "label": "Active",
+      "type": "boolean",
+      "input": "toggle",
+      "required": true,
+      "default": true
+    },
+    {
+      "field": "authAccountId",
+      "label": "Auth account",
+      "type": "string",
+      "input": "hidden",
+      "required": false,
+      "help": "Link to the auth provider identity subject"
+    }
+  ],
+  "relations": {
+    "assignedProjectIds": "projects",
+    "assignedSiteIds": "sites"
+  },
+  "indexes": [
+    [
+      "email"
+    ],
+    [
+      "role"
+    ],
+    [
+      "isActive"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
+}

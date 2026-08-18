@@ -1,0 +1,128 @@
+{
+  "$schema": "contract.v1",
+  "name": "inventory",
+  "label": "Inventory",
+  "version": "1.0.0",
+  "description": "Stock levels on site and in the office warehouse. DEFERRED TO SPRINT 2.",
+  "fields": [
+    {
+      "field": "itemName",
+      "label": "Item",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "minLength": 1,
+        "maxLength": 180
+      }
+    },
+    {
+      "field": "category",
+      "label": "Category",
+      "type": "string",
+      "input": "select",
+      "required": false,
+      "validation": {
+        "enum": [
+          "cement",
+          "steel",
+          "aggregates",
+          "consumables",
+          "electrical",
+          "plumbing",
+          "finishes",
+          "other"
+        ]
+      }
+    },
+    {
+      "field": "quantity",
+      "label": "Quantity",
+      "type": "number",
+      "input": "number",
+      "required": true,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "unit",
+      "label": "Unit",
+      "type": "string",
+      "input": "select",
+      "required": true,
+      "validation": {
+        "enum": [
+          "bags",
+          "MT",
+          "kg",
+          "nos",
+          "cum",
+          "brass",
+          "sqm",
+          "ltr",
+          "rmt"
+        ]
+      }
+    },
+    {
+      "field": "siteId",
+      "label": "Site",
+      "type": "reference",
+      "input": "select",
+      "required": false,
+      "relation": {
+        "table": "sites"
+      },
+      "optionsFrom": "sites"
+    },
+    {
+      "field": "location",
+      "label": "Location",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "maxLength": 120
+      },
+      "help": "Warehouse or yard within the site; blank means office store"
+    },
+    {
+      "field": "reorderLevel",
+      "label": "Reorder level",
+      "type": "number",
+      "input": "number",
+      "required": false,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "lastUpdated",
+      "label": "Last updated",
+      "type": "date",
+      "input": "readonly",
+      "required": false
+    }
+  ],
+  "relations": {
+    "siteId": "sites"
+  },
+  "indexes": [
+    [
+      "itemName"
+    ],
+    [
+      "siteId"
+    ],
+    [
+      "category"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
+}

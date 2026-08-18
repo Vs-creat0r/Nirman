@@ -1,0 +1,14 @@
+{
+  "name": "nirman",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen": "node scripts/generate-from-contracts.mjs",
+    "gen:check": "node scripts/generate-from-contracts.mjs --check"
+  },
+  "dependencies": {
+    "convex": "^1.44.0",
+    "typescript": "^5.9.3",
+    "zod": "^3.25.76"
+  }
+}

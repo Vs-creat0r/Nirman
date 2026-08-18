@@ -1,0 +1,184 @@
+{
+  "$schema": "contract.v1",
+  "name": "grn",
+  "label": "Goods Receipt Note",
+  "version": "1.0.0",
+  "description": "Auto-generated when delivery is confirmed. Never submitted as a form; the confirming user supplies photos only.",
+  "fields": [
+    {
+      "field": "refNo",
+      "label": "Reference",
+      "type": "string",
+      "input": "readonly-badge",
+      "required": true
+    },
+    {
+      "field": "purchaseOrderId",
+      "label": "Purchase order",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "purchase_order"
+      }
+    },
+    {
+      "field": "deliveryChallanId",
+      "label": "Delivery challan",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "delivery_challan"
+      }
+    },
+    {
+      "field": "vendorId",
+      "label": "Vendor",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "vendors"
+      }
+    },
+    {
+      "field": "siteId",
+      "label": "Site",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "sites"
+      }
+    },
+    {
+      "field": "receivedItems",
+      "label": "Items received",
+      "type": "array",
+      "input": "readonly",
+      "required": true,
+      "items": {
+        "type": "object",
+        "fields": [
+          {
+            "field": "itemName",
+            "label": "Item",
+            "type": "string",
+            "input": "text",
+            "required": true
+          },
+          {
+            "field": "expectedQty",
+            "label": "Expected",
+            "type": "number",
+            "input": "readonly",
+            "required": true
+          },
+          {
+            "field": "receivedQty",
+            "label": "Received",
+            "type": "number",
+            "input": "number",
+            "required": true,
+            "validation": {
+              "min": 0
+            }
+          },
+          {
+            "field": "unit",
+            "label": "Unit",
+            "type": "string",
+            "input": "text",
+            "required": true
+          }
+        ]
+      },
+      "validation": {
+        "minLength": 1
+      }
+    },
+    {
+      "field": "photos",
+      "label": "Unloading photos",
+      "type": "array",
+      "input": "file",
+      "required": true,
+      "validation": {
+        "minLength": 1
+      },
+      "help": "Mandatory proof of unloading; stored via Convex file storage"
+    },
+    {
+      "field": "invoiceNumber",
+      "label": "Invoice number",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "maxLength": 60
+      }
+    },
+    {
+      "field": "poCreatedAt",
+      "label": "PO date",
+      "type": "date",
+      "input": "readonly",
+      "required": false
+    },
+    {
+      "field": "deliveredAt",
+      "label": "Delivery date",
+      "type": "date",
+      "input": "readonly",
+      "required": true
+    },
+    {
+      "field": "confirmedBy",
+      "label": "Confirmed by",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "users"
+      }
+    },
+    {
+      "field": "remarks",
+      "label": "Remarks",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 600
+      }
+    }
+  ],
+  "relations": {
+    "purchaseOrderId": "purchase_order",
+    "deliveryChallanId": "delivery_challan",
+    "vendorId": "vendors",
+    "siteId": "sites",
+    "confirmedBy": "users"
+  },
+  "indexes": [
+    [
+      "refNo"
+    ],
+    [
+      "purchaseOrderId"
+    ],
+    [
+      "siteId"
+    ],
+    [
+      "deliveredAt"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
+}

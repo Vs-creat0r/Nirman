@@ -1,0 +1,211 @@
+{
+  "$schema": "contract.v1",
+  "name": "rfq",
+  "label": "Request for Quotation",
+  "version": "1.0.0",
+  "description": "Sent to vendors to collect quotes. DEFERRED TO SPRINT 2 — contract defined now so the schema is stable.",
+  "fields": [
+    {
+      "field": "refNo",
+      "label": "Reference",
+      "type": "string",
+      "input": "readonly-badge",
+      "required": true
+    },
+    {
+      "field": "materialRequestId",
+      "label": "Material request",
+      "type": "reference",
+      "input": "select",
+      "required": false,
+      "relation": {
+        "table": "material_request"
+      }
+    },
+    {
+      "field": "projectItemIds",
+      "label": "BOQ items",
+      "type": "array",
+      "input": "multi-select",
+      "required": false,
+      "relation": {
+        "table": "project_items"
+      }
+    },
+    {
+      "field": "vendorIds",
+      "label": "Vendors",
+      "type": "array",
+      "input": "multi-select",
+      "required": true,
+      "relation": {
+        "table": "vendors"
+      },
+      "optionsFrom": "vendors",
+      "validation": {
+        "minLength": 1
+      }
+    },
+    {
+      "field": "items",
+      "label": "Items",
+      "type": "array",
+      "input": "item-list",
+      "required": true,
+      "items": {
+        "type": "object",
+        "fields": [
+          {
+            "field": "itemName",
+            "label": "Item",
+            "type": "string",
+            "input": "autocomplete",
+            "required": true,
+            "optionsFrom": "project_items",
+            "validation": {
+              "minLength": 1,
+              "maxLength": 180
+            }
+          },
+          {
+            "field": "quantity",
+            "label": "Qty",
+            "type": "number",
+            "input": "number",
+            "required": true,
+            "validation": {
+              "min": 0.001
+            }
+          },
+          {
+            "field": "unit",
+            "label": "Unit",
+            "type": "string",
+            "input": "select",
+            "required": true,
+            "validation": {
+              "enum": [
+                "bags",
+                "MT",
+                "kg",
+                "nos",
+                "cum",
+                "brass",
+                "sqm",
+                "ltr",
+                "rmt"
+              ]
+            }
+          },
+          {
+            "field": "projectItemId",
+            "label": "BOQ item",
+            "type": "reference",
+            "input": "hidden",
+            "required": false,
+            "relation": {
+              "table": "project_items"
+            }
+          },
+          {
+            "field": "remarks",
+            "label": "Remarks",
+            "type": "string",
+            "input": "text",
+            "required": false,
+            "validation": {
+              "maxLength": 300
+            }
+          }
+        ]
+      },
+      "validation": {
+        "minLength": 1
+      }
+    },
+    {
+      "field": "sentVia",
+      "label": "Sent via",
+      "type": "enum",
+      "input": "select",
+      "required": false,
+      "validation": {
+        "enum": [
+          "whatsapp",
+          "email",
+          "manual"
+        ]
+      }
+    },
+    {
+      "field": "sentAt",
+      "label": "Sent at",
+      "type": "date",
+      "input": "readonly",
+      "required": false
+    },
+    {
+      "field": "responseByDate",
+      "label": "Quotes needed by",
+      "type": "date",
+      "input": "date",
+      "required": false
+    },
+    {
+      "field": "notes",
+      "label": "Notes",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "field": "status",
+      "label": "Status",
+      "type": "enum",
+      "input": "readonly-badge",
+      "required": true,
+      "validation": {
+        "enum": [
+          "draft",
+          "submitted",
+          "queried",
+          "rejected",
+          "approved"
+        ]
+      },
+      "default": "draft"
+    }
+  ],
+  "statuses": [
+    "draft",
+    "submitted",
+    "queried",
+    "rejected",
+    "approved"
+  ],
+  "relations": {
+    "materialRequestId": "material_request",
+    "vendorIds": "vendors",
+    "projectItemIds": "project_items"
+  },
+  "indexes": [
+    [
+      "refNo"
+    ],
+    [
+      "status"
+    ],
+    [
+      "materialRequestId"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
+}

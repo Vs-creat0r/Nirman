@@ -1,0 +1,336 @@
+{
+  "$schema": "contract.v1",
+  "name": "cost_comparison",
+  "label": "Cost Comparison",
+  "version": "1.0.0",
+  "description": "Side-by-side vendor quotes. Requires a minimum of 2 quotes; the Project Manager approves by selecting a vendor.",
+  "fields": [
+    {
+      "field": "refNo",
+      "label": "Reference",
+      "type": "string",
+      "input": "readonly-badge",
+      "required": true
+    },
+    {
+      "field": "materialRequestId",
+      "label": "Material request",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "material_request"
+      }
+    },
+    {
+      "field": "rfqId",
+      "label": "RFQ",
+      "type": "reference",
+      "input": "hidden",
+      "required": false,
+      "relation": {
+        "table": "rfq"
+      }
+    },
+    {
+      "field": "projectId",
+      "label": "Project",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "projects"
+      }
+    },
+    {
+      "field": "siteId",
+      "label": "Site",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "sites"
+      }
+    },
+    {
+      "field": "vendorQuotes",
+      "label": "Vendor quotes",
+      "type": "array",
+      "input": "quote-grid",
+      "required": true,
+      "items": {
+        "type": "object",
+        "fields": [
+          {
+            "field": "vendorId",
+            "label": "Vendor",
+            "type": "reference",
+            "input": "select",
+            "required": true,
+            "relation": {
+              "table": "vendors"
+            },
+            "optionsFrom": "vendors"
+          },
+          {
+            "field": "items",
+            "label": "Quoted items",
+            "type": "array",
+            "input": "item-list",
+            "required": true,
+            "items": {
+              "type": "object",
+              "fields": [
+                {
+                  "field": "itemName",
+                  "label": "Item",
+                  "type": "string",
+                  "input": "text",
+                  "required": true
+                },
+                {
+                  "field": "quantity",
+                  "label": "Qty",
+                  "type": "number",
+                  "input": "number",
+                  "required": true,
+                  "validation": {
+                    "min": 0.001
+                  }
+                },
+                {
+                  "field": "unit",
+                  "label": "Unit",
+                  "type": "string",
+                  "input": "text",
+                  "required": true
+                },
+                {
+                  "field": "rate",
+                  "label": "Rate",
+                  "type": "number",
+                  "input": "number",
+                  "required": true,
+                  "validation": {
+                    "min": 0
+                  }
+                },
+                {
+                  "field": "amount",
+                  "label": "Amount",
+                  "type": "number",
+                  "input": "readonly",
+                  "required": true,
+                  "help": "quantity x rate, computed server-side"
+                }
+              ]
+            }
+          },
+          {
+            "field": "subtotal",
+            "label": "Subtotal",
+            "type": "number",
+            "input": "readonly",
+            "required": true,
+            "validation": {
+              "min": 0
+            }
+          },
+          {
+            "field": "taxRate",
+            "label": "GST %",
+            "type": "number",
+            "input": "number",
+            "required": true,
+            "validation": {
+              "min": 0,
+              "max": 100
+            },
+            "default": 18
+          },
+          {
+            "field": "taxAmount",
+            "label": "GST amount",
+            "type": "number",
+            "input": "readonly",
+            "required": true,
+            "validation": {
+              "min": 0
+            }
+          },
+          {
+            "field": "freight",
+            "label": "Freight",
+            "type": "number",
+            "input": "number",
+            "required": false,
+            "validation": {
+              "min": 0
+            },
+            "default": 0
+          },
+          {
+            "field": "total",
+            "label": "Total",
+            "type": "number",
+            "input": "readonly",
+            "required": true,
+            "validation": {
+              "min": 0
+            }
+          },
+          {
+            "field": "deliveryDays",
+            "label": "Delivery (days)",
+            "type": "number",
+            "input": "number",
+            "required": false,
+            "validation": {
+              "min": 0
+            }
+          },
+          {
+            "field": "paymentTerms",
+            "label": "Payment terms",
+            "type": "string",
+            "input": "select",
+            "required": false,
+            "validation": {
+              "enum": [
+                "advance",
+                "on_delivery",
+                "7_days",
+                "15_days",
+                "30_days",
+                "45_days"
+              ]
+            }
+          },
+          {
+            "field": "quoteFileId",
+            "label": "Quote attachment",
+            "type": "file",
+            "input": "file",
+            "required": false
+          },
+          {
+            "field": "notes",
+            "label": "Notes",
+            "type": "text",
+            "input": "textarea",
+            "required": false,
+            "validation": {
+              "maxLength": 500
+            }
+          }
+        ]
+      },
+      "validation": {
+        "minLength": 2
+      },
+      "help": "Minimum 2 quotes enforced server-side"
+    },
+    {
+      "field": "selectedVendorId",
+      "label": "Selected vendor",
+      "type": "reference",
+      "input": "select",
+      "required": false,
+      "relation": {
+        "table": "vendors"
+      },
+      "help": "Set only on approval; required for the approve transition"
+    },
+    {
+      "field": "selectionJustification",
+      "label": "Justification",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      },
+      "help": "Required when the selected vendor is not the lowest total"
+    },
+    {
+      "field": "status",
+      "label": "Status",
+      "type": "enum",
+      "input": "readonly-badge",
+      "required": true,
+      "validation": {
+        "enum": [
+          "draft",
+          "submitted",
+          "queried",
+          "rejected",
+          "approved"
+        ]
+      },
+      "default": "draft"
+    },
+    {
+      "field": "reviewNote",
+      "label": "Reviewer note",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "field": "reviewedBy",
+      "label": "Reviewed by",
+      "type": "reference",
+      "input": "readonly",
+      "required": false,
+      "relation": {
+        "table": "users"
+      }
+    },
+    {
+      "field": "reviewedAt",
+      "label": "Reviewed at",
+      "type": "date",
+      "input": "readonly",
+      "required": false
+    }
+  ],
+  "statuses": [
+    "draft",
+    "submitted",
+    "queried",
+    "rejected",
+    "approved"
+  ],
+  "relations": {
+    "materialRequestId": "material_request",
+    "rfqId": "rfq",
+    "projectId": "projects",
+    "siteId": "sites",
+    "selectedVendorId": "vendors",
+    "reviewedBy": "users"
+  },
+  "indexes": [
+    [
+      "refNo"
+    ],
+    [
+      "status"
+    ],
+    [
+      "materialRequestId"
+    ],
+    [
+      "projectId",
+      "status"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
+}

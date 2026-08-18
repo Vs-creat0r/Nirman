@@ -1,0 +1,317 @@
+{
+  "$schema": "contract.v1",
+  "name": "purchase_order",
+  "label": "Purchase Order",
+  "version": "1.0.0",
+  "description": "Formal order to the selected vendor. Line items are snapshotted from the approved cost comparison.",
+  "fields": [
+    {
+      "field": "refNo",
+      "label": "Reference",
+      "type": "string",
+      "input": "readonly-badge",
+      "required": true
+    },
+    {
+      "field": "costComparisonId",
+      "label": "Cost comparison",
+      "type": "reference",
+      "input": "hidden",
+      "required": false,
+      "relation": {
+        "table": "cost_comparison"
+      }
+    },
+    {
+      "field": "materialRequestId",
+      "label": "Material request",
+      "type": "reference",
+      "input": "hidden",
+      "required": false,
+      "relation": {
+        "table": "material_request"
+      }
+    },
+    {
+      "field": "vendorId",
+      "label": "Vendor",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "vendors"
+      },
+      "optionsFrom": "vendors"
+    },
+    {
+      "field": "projectId",
+      "label": "Project",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "projects"
+      }
+    },
+    {
+      "field": "siteId",
+      "label": "Deliver to site",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "sites"
+      },
+      "optionsFrom": "sites"
+    },
+    {
+      "field": "lineItems",
+      "label": "Line items",
+      "type": "array",
+      "input": "item-list",
+      "required": true,
+      "items": {
+        "type": "object",
+        "fields": [
+          {
+            "field": "itemName",
+            "label": "Item",
+            "type": "string",
+            "input": "text",
+            "required": true
+          },
+          {
+            "field": "quantity",
+            "label": "Qty",
+            "type": "number",
+            "input": "number",
+            "required": true,
+            "validation": {
+              "min": 0.001
+            }
+          },
+          {
+            "field": "unit",
+            "label": "Unit",
+            "type": "string",
+            "input": "text",
+            "required": true
+          },
+          {
+            "field": "rate",
+            "label": "Rate",
+            "type": "number",
+            "input": "number",
+            "required": true,
+            "validation": {
+              "min": 0
+            }
+          },
+          {
+            "field": "amount",
+            "label": "Amount",
+            "type": "number",
+            "input": "readonly",
+            "required": true,
+            "help": "quantity x rate, computed server-side"
+          }
+        ]
+      },
+      "validation": {
+        "minLength": 1
+      }
+    },
+    {
+      "field": "subtotal",
+      "label": "Subtotal",
+      "type": "number",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "freight",
+      "label": "Freight",
+      "type": "number",
+      "input": "number",
+      "required": false,
+      "validation": {
+        "min": 0
+      },
+      "default": 0
+    },
+    {
+      "field": "taxRate",
+      "label": "GST %",
+      "type": "number",
+      "input": "number",
+      "required": true,
+      "validation": {
+        "min": 0,
+        "max": 100
+      },
+      "default": 18
+    },
+    {
+      "field": "taxAmount",
+      "label": "GST amount",
+      "type": "number",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "totalAmount",
+      "label": "Total",
+      "type": "number",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "paymentTerms",
+      "label": "Payment terms",
+      "type": "enum",
+      "input": "select",
+      "required": true,
+      "validation": {
+        "enum": [
+          "advance",
+          "on_delivery",
+          "7_days",
+          "15_days",
+          "30_days",
+          "45_days"
+        ]
+      },
+      "default": "30_days"
+    },
+    {
+      "field": "expectedDelivery",
+      "label": "Expected delivery",
+      "type": "date",
+      "input": "date",
+      "required": false
+    },
+    {
+      "field": "deliveredQty",
+      "label": "Delivered qty",
+      "type": "number",
+      "input": "readonly",
+      "required": false,
+      "validation": {
+        "min": 0
+      },
+      "default": 0,
+      "help": "Sprint 2: drives partial delivery / Pending POs"
+    },
+    {
+      "field": "pendingQty",
+      "label": "Pending qty",
+      "type": "number",
+      "input": "readonly",
+      "required": false,
+      "validation": {
+        "min": 0
+      },
+      "default": 0
+    },
+    {
+      "field": "pdfFileId",
+      "label": "PO document",
+      "type": "file",
+      "input": "readonly",
+      "required": false
+    },
+    {
+      "field": "status",
+      "label": "Status",
+      "type": "enum",
+      "input": "readonly-badge",
+      "required": true,
+      "validation": {
+        "enum": [
+          "draft",
+          "submitted",
+          "queried",
+          "rejected",
+          "approved"
+        ]
+      },
+      "default": "draft"
+    },
+    {
+      "field": "reviewNote",
+      "label": "Reviewer note",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "field": "reviewedBy",
+      "label": "Reviewed by",
+      "type": "reference",
+      "input": "readonly",
+      "required": false,
+      "relation": {
+        "table": "users"
+      }
+    },
+    {
+      "field": "reviewedAt",
+      "label": "Reviewed at",
+      "type": "date",
+      "input": "readonly",
+      "required": false
+    }
+  ],
+  "statuses": [
+    "draft",
+    "submitted",
+    "queried",
+    "rejected",
+    "approved"
+  ],
+  "relations": {
+    "costComparisonId": "cost_comparison",
+    "materialRequestId": "material_request",
+    "vendorId": "vendors",
+    "projectId": "projects",
+    "siteId": "sites",
+    "reviewedBy": "users"
+  },
+  "indexes": [
+    [
+      "refNo"
+    ],
+    [
+      "status"
+    ],
+    [
+      "vendorId"
+    ],
+    [
+      "projectId",
+      "status"
+    ],
+    [
+      "siteId",
+      "status"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
+}

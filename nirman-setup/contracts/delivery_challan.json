@@ -1,0 +1,203 @@
+{
+  "$schema": "contract.v1",
+  "name": "delivery_challan",
+  "label": "Delivery Challan",
+  "version": "1.0.0",
+  "description": "Dispatch record against an approved purchase order. Partial quantities are Sprint 2.",
+  "fields": [
+    {
+      "field": "refNo",
+      "label": "Reference",
+      "type": "string",
+      "input": "readonly-badge",
+      "required": true
+    },
+    {
+      "field": "purchaseOrderId",
+      "label": "Purchase order",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "purchase_order"
+      }
+    },
+    {
+      "field": "vendorId",
+      "label": "Vendor",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "vendors"
+      }
+    },
+    {
+      "field": "siteId",
+      "label": "Deliver to site",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "sites"
+      }
+    },
+    {
+      "field": "vehicleNo",
+      "label": "Vehicle number",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "pattern": "^[A-Z0-9\\-\\s]{4,20}$"
+      }
+    },
+    {
+      "field": "driverName",
+      "label": "Driver name",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "minLength": 2,
+        "maxLength": 120
+      }
+    },
+    {
+      "field": "driverPhone",
+      "label": "Driver contact",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "pattern": "^[0-9+\\-\\s]{7,20}$"
+      }
+    },
+    {
+      "field": "dispatchedItems",
+      "label": "Items dispatched",
+      "type": "array",
+      "input": "item-list",
+      "required": true,
+      "items": {
+        "type": "object",
+        "fields": [
+          {
+            "field": "itemName",
+            "label": "Item",
+            "type": "string",
+            "input": "text",
+            "required": true
+          },
+          {
+            "field": "orderedQty",
+            "label": "Ordered",
+            "type": "number",
+            "input": "readonly",
+            "required": true
+          },
+          {
+            "field": "dispatchedQty",
+            "label": "Dispatching",
+            "type": "number",
+            "input": "number",
+            "required": true,
+            "validation": {
+              "min": 0.001
+            }
+          },
+          {
+            "field": "unit",
+            "label": "Unit",
+            "type": "string",
+            "input": "text",
+            "required": true
+          }
+        ]
+      },
+      "validation": {
+        "minLength": 1
+      }
+    },
+    {
+      "field": "isPartial",
+      "label": "Partial delivery",
+      "type": "boolean",
+      "input": "readonly",
+      "required": false,
+      "default": false
+    },
+    {
+      "field": "dispatchDate",
+      "label": "Dispatch date",
+      "type": "date",
+      "input": "date",
+      "required": true
+    },
+    {
+      "field": "expectedArrival",
+      "label": "Expected arrival",
+      "type": "date",
+      "input": "date",
+      "required": true
+    },
+    {
+      "field": "notes",
+      "label": "Notes",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "field": "status",
+      "label": "Status",
+      "type": "enum",
+      "input": "readonly-badge",
+      "required": true,
+      "validation": {
+        "enum": [
+          "draft",
+          "delivery_processing",
+          "delivered",
+          "cancelled"
+        ]
+      },
+      "default": "draft"
+    }
+  ],
+  "statuses": [
+    "draft",
+    "delivery_processing",
+    "delivered",
+    "cancelled"
+  ],
+  "relations": {
+    "purchaseOrderId": "purchase_order",
+    "vendorId": "vendors",
+    "siteId": "sites"
+  },
+  "indexes": [
+    [
+      "refNo"
+    ],
+    [
+      "status"
+    ],
+    [
+      "purchaseOrderId"
+    ],
+    [
+      "siteId",
+      "status"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
+}
