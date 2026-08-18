@@ -88,7 +88,7 @@ Manager Dashboard → "Create New" Dropdown
 ### 3.4 Review Cost Comparison
 ```
 CC Review queue → Click CC → View vendor quotes side-by-side
-  ├── [Approve] (select vendor) → Status: ready_for_po
+  ├── [Approve] (select winning vendor) → Status: ready_for_po (vendor & rates locked for auto-filled PO)
   ├── [Query]   → CC relisted in RFQ section; Procurement Officer must resubmit with revised rates/vendor
   └── [Reject]  → CC closed permanently; stored in list as rejected (filterable)
 ```
@@ -137,7 +137,8 @@ Step 2 — Create CC:
 
 Step 3 — Create PO (after CC approved):
   → Universal Document Form (type: PURCHASE_ORDER)
-  → Vendor info and item details auto-filled from approved CC
+  → Selected Vendor, Line Items, Quantities, and Negotiated Rates are 100% AUTO-FILLED from approved CC
+  → User does NOT manually select vendor or re-type items (zero manual entry)
   → PDF auto-generated on creation
   → Submit → Status: review_po (Manager review pending)
 
