@@ -1,16 +1,92 @@
 {
   "$schema": "contract.v1",
   "name": "projects",
-  "label": "Projects",
+  "label": "Project",
   "version": "1.0.0",
-  "description": "A construction engagement/contract. The master container holding the tender PDF and the BOQ item list (items live in project_items, linked by projectId).",
+  "description": "A construction project / tender under which sites and BOQ items live.",
   "fields": [
-    { "field": "name", "label": "Project Name", "type": "string", "input": "text", "required": true, "unique": true },
-    { "field": "tenderPdfUrl", "label": "Tender PDF", "type": "string", "input": "file", "required": false, "help": "Uploaded to Convex/R2 file storage; URL is stored here." },
-    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "active", "validation": { "enum": ["active", "on_hold", "completed"] } }
+    {
+      "field": "name",
+      "label": "Project name",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "minLength": 2,
+        "maxLength": 180
+      }
+    },
+    {
+      "field": "code",
+      "label": "Project code",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "pattern": "^[A-Z0-9\\-]{2,20}$"
+      },
+      "help": "Short uppercase code used in document reference numbers"
+    },
+    {
+      "field": "client",
+      "label": "Client",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "maxLength": 180
+      }
+    },
+    {
+      "field": "startDate",
+      "label": "Start date",
+      "type": "date",
+      "input": "date",
+      "required": false
+    },
+    {
+      "field": "endDate",
+      "label": "Target completion",
+      "type": "date",
+      "input": "date",
+      "required": false
+    },
+    {
+      "field": "tenderFileId",
+      "label": "Tender document",
+      "type": "file",
+      "input": "file",
+      "required": false
+    },
+    {
+      "field": "status",
+      "label": "Status",
+      "type": "enum",
+      "input": "readonly-badge",
+      "required": true,
+      "validation": {
+        "enum": [
+          "active",
+          "on_hold",
+          "closed"
+        ]
+      },
+      "default": "active"
+    }
   ],
-  "statuses": ["active", "on_hold", "completed"],
   "relations": {},
-  "indexes": [ ["name"] ],
-  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+  "indexes": [
+    [
+      "code"
+    ],
+    [
+      "status"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
 }

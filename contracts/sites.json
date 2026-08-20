@@ -1,16 +1,77 @@
 {
   "$schema": "contract.v1",
   "name": "sites",
-  "label": "Sites",
+  "label": "Site",
   "version": "1.0.0",
-  "description": "A physical construction location under a project. Optional layer: a project may have zero or many sites; material is delivered to a site.",
+  "description": "A physical construction site belonging to a project.",
   "fields": [
-    { "field": "name", "label": "Site Name", "type": "string", "input": "text", "required": true, "help": "e.g. Tower A, Basement Block." },
-    { "field": "address", "label": "Address", "type": "text", "input": "textarea", "required": false },
-    { "field": "projectId", "label": "Project", "type": "reference", "input": "select", "required": true, "optionsFrom": "projects", "relation": { "table": "projects" } }
+    {
+      "field": "name",
+      "label": "Site name",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "minLength": 2,
+        "maxLength": 180
+      }
+    },
+    {
+      "field": "code",
+      "label": "Site code",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "pattern": "^[A-Z0-9\\-]{1,12}$"
+      }
+    },
+    {
+      "field": "projectId",
+      "label": "Project",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "projects"
+      },
+      "optionsFrom": "projects"
+    },
+    {
+      "field": "address",
+      "label": "Address",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 400
+      }
+    },
+    {
+      "field": "isActive",
+      "label": "Active",
+      "type": "boolean",
+      "input": "toggle",
+      "required": true,
+      "default": true
+    }
   ],
-  "statuses": ["active", "inactive"],
-  "relations": { "projectId": "projects" },
-  "indexes": [ ["projectId"], ["name"] ],
-  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+  "relations": {
+    "projectId": "projects"
+  },
+  "indexes": [
+    [
+      "projectId"
+    ],
+    [
+      "projectId",
+      "isActive"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
 }

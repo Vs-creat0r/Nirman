@@ -3,22 +3,251 @@
   "name": "material_request",
   "label": "Material Request",
   "version": "1.0.0",
-  "description": "A request raised by a Site Supervisor for materials at a site. Site is optional: when the project has sites, a site must be selected; otherwise the project is the delivery location.",
+  "description": "Raised by a Site Supervisor (or a Project Manager, in which case it is auto-approved) for materials at a site.",
   "fields": [
-    { "field": "project", "label": "Project", "type": "reference", "input": "select", "required": true, "optionsFrom": "projects", "relation": { "table": "projects" } },
-    { "field": "site", "label": "Site", "type": "reference", "input": "select", "required": false, "optionsFrom": "sites", "relation": { "table": "sites" }, "help": "Optional. Required only when the selected project has sites." },
-    { "field": "category", "label": "Category", "type": "enum", "input": "select", "required": false, "validation": { "enum": ["cement", "steel", "aggregate", "electrical", "plumbing", "paint", "other"] } },
-    { "field": "items", "label": "Items", "type": "array", "input": "item-list", "required": true, "items": { "type": "object", "fields": [
-      { "field": "itemName", "label": "Item", "type": "string", "input": "autocomplete", "optionsFrom": "project_items", "required": true },
-      { "field": "quantity", "label": "Qty", "type": "number", "input": "number", "required": true, "validation": { "min": 1 } },
-      { "field": "unit", "label": "Unit", "type": "string", "input": "text", "required": true }
-    ]} },
-    { "field": "notes", "label": "Notes", "type": "text", "input": "textarea", "required": false },
-    { "field": "priority", "label": "Priority", "type": "enum", "input": "select", "required": true, "default": "normal", "validation": { "enum": ["low", "normal", "high", "urgent"] } },
-    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "draft" }
+    {
+      "field": "refNo",
+      "label": "Reference",
+      "type": "string",
+      "input": "readonly-badge",
+      "required": true,
+      "help": "MR-YYYY-NNNN, generated server-side"
+    },
+    {
+      "field": "projectId",
+      "label": "Project",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "projects"
+      },
+      "optionsFrom": "projects"
+    },
+    {
+      "field": "siteId",
+      "label": "Site",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "sites"
+      },
+      "optionsFrom": "sites"
+    },
+    {
+      "field": "items",
+      "label": "Items",
+      "type": "array",
+      "input": "item-list",
+      "required": true,
+      "items": {
+        "type": "object",
+        "fields": [
+          {
+            "field": "itemName",
+            "label": "Item",
+            "type": "string",
+            "input": "autocomplete",
+            "required": true,
+            "optionsFrom": "project_items",
+            "validation": {
+              "minLength": 1,
+              "maxLength": 180
+            }
+          },
+          {
+            "field": "quantity",
+            "label": "Qty",
+            "type": "number",
+            "input": "number",
+            "required": true,
+            "validation": {
+              "min": 0.001
+            }
+          },
+          {
+            "field": "unit",
+            "label": "Unit",
+            "type": "string",
+            "input": "select",
+            "required": true,
+            "validation": {
+              "enum": [
+                "bags",
+                "MT",
+                "kg",
+                "nos",
+                "cum",
+                "brass",
+                "sqm",
+                "ltr",
+                "rmt"
+              ]
+            }
+          },
+          {
+            "field": "projectItemId",
+            "label": "BOQ item",
+            "type": "reference",
+            "input": "hidden",
+            "required": false,
+            "relation": {
+              "table": "project_items"
+            }
+          },
+          {
+            "field": "hsnSacCode",
+            "label": "HSN/SAC Code",
+            "type": "string",
+            "input": "text",
+            "required": false,
+            "validation": {
+              "maxLength": 20
+            }
+          },
+          {
+            "field": "remarks",
+            "label": "Remarks",
+            "type": "string",
+            "input": "text",
+            "required": false,
+            "validation": {
+              "maxLength": 300
+            }
+          }
+        ]
+      },
+      "validation": {
+        "minLength": 1
+      }
+    },
+    {
+      "field": "priority",
+      "label": "Priority",
+      "type": "enum",
+      "input": "select",
+      "required": true,
+      "validation": {
+        "enum": [
+          "low",
+          "normal",
+          "high",
+          "urgent"
+        ]
+      },
+      "default": "normal"
+    },
+    {
+      "field": "requiredBy",
+      "label": "Required by",
+      "type": "date",
+      "input": "date",
+      "required": false
+    },
+    {
+      "field": "notes",
+      "label": "Notes",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "field": "status",
+      "label": "Status",
+      "type": "enum",
+      "input": "readonly-badge",
+      "required": true,
+      "validation": {
+        "enum": [
+          "draft",
+          "pending",
+          "queried",
+          "rejected",
+          "ready_for_cc",
+          "review_cc",
+          "ready_for_po",
+          "review_po",
+          "pending_po",
+          "delivery_processing",
+          "delivered"
+        ]
+      },
+      "default": "draft"
+    },
+    {
+      "field": "reviewNote",
+      "label": "Reviewer note",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      },
+      "help": "Mandatory when the manager rejects or queries"
+    },
+    {
+      "field": "reviewedBy",
+      "label": "Reviewed by",
+      "type": "reference",
+      "input": "readonly",
+      "required": false,
+      "relation": {
+        "table": "users"
+      }
+    },
+    {
+      "field": "reviewedAt",
+      "label": "Reviewed at",
+      "type": "date",
+      "input": "readonly",
+      "required": false
+    }
   ],
-  "statuses": ["draft", "pending", "ready_for_cc", "queried", "rejected", "out_for_delivery", "delivered"],
-  "relations": { "project": "projects", "site": "sites" },
-  "indexes": [ ["project"], ["site"], ["status"] ],
-  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+  "statuses": [
+    "draft",
+    "pending",
+    "queried",
+    "rejected",
+    "ready_for_cc",
+    "review_cc",
+    "ready_for_po",
+    "review_po",
+    "pending_po",
+    "delivery_processing",
+    "delivered"
+  ],
+  "relations": {
+    "projectId": "projects",
+    "siteId": "sites",
+    "reviewedBy": "users"
+  },
+  "indexes": [
+    [
+      "refNo"
+    ],
+    [
+      "status"
+    ],
+    [
+      "siteId",
+      "status"
+    ],
+    [
+      "createdBy",
+      "status"
+    ],
+    [
+      "projectId"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
 }

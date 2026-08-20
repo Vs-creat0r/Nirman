@@ -1,18 +1,130 @@
 {
   "$schema": "contract.v1",
   "name": "project_items",
-  "label": "Project Items (BOQ)",
+  "label": "Project Item (BOQ)",
   "version": "1.0.0",
-  "description": "The master tender/BOQ item list per project. Source for project-scoped item autocomplete in MR and RFQ forms.",
+  "description": "A line on the project's master tender / BOQ item list.",
   "fields": [
-    { "field": "projectId", "label": "Project", "type": "reference", "input": "select", "required": true, "optionsFrom": "projects", "relation": { "table": "projects" } },
-    { "field": "name", "label": "Item Name", "type": "string", "input": "text", "required": true, "help": "e.g. Cement 50kg." },
-    { "field": "unit", "label": "Unit", "type": "string", "input": "text", "required": true, "help": "e.g. bag, kg, nos." },
-    { "field": "qty", "label": "Quantity", "type": "number", "input": "number", "required": true, "validation": { "min": 0 } },
-    { "field": "description", "label": "Description", "type": "text", "input": "textarea", "required": false }
+    {
+      "field": "projectId",
+      "label": "Project",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "projects"
+      },
+      "optionsFrom": "projects"
+    },
+    {
+      "field": "itemName",
+      "label": "Item",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "minLength": 1,
+        "maxLength": 180
+      }
+    },
+    {
+      "field": "category",
+      "label": "Category",
+      "type": "string",
+      "input": "select",
+      "required": false,
+      "validation": {
+        "enum": [
+          "cement",
+          "steel",
+          "aggregates",
+          "consumables",
+          "electrical",
+          "plumbing",
+          "finishes",
+          "other"
+        ]
+      }
+    },
+    {
+      "field": "unit",
+      "label": "Unit",
+      "type": "string",
+      "input": "select",
+      "required": true,
+      "validation": {
+        "enum": [
+          "bags",
+          "MT",
+          "kg",
+          "nos",
+          "cum",
+          "brass",
+          "sqm",
+          "ltr",
+          "rmt"
+        ]
+      }
+    },
+    {
+      "field": "boqQty",
+      "label": "BOQ quantity",
+      "type": "number",
+      "input": "number",
+      "required": true,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "procuredQty",
+      "label": "Procured to date",
+      "type": "number",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "min": 0
+      },
+      "default": 0,
+      "help": "Maintained by the system as POs are approved"
+    },
+    {
+      "field": "estimatedRate",
+      "label": "Estimated rate",
+      "type": "number",
+      "input": "number",
+      "required": false,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "description",
+      "label": "Description",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 600
+      }
+    }
   ],
-  "statuses": ["active", "inactive"],
-  "relations": { "projectId": "projects" },
-  "indexes": [ ["projectId"], ["name"] ],
-  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+  "relations": {
+    "projectId": "projects"
+  },
+  "indexes": [
+    [
+      "projectId"
+    ],
+    [
+      "projectId",
+      "category"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
 }

@@ -1,8 +1,27 @@
+/**
+ * @fileoverview User queries and mutations.
+ * Uses authAccountId (from the auth provider's subject) to link
+ * Convex user records to auth identities.
+ *
+ * @module convex/users
+ */
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { requireRole } from "./rbac";
 
 /**
- * Get current logged in user details using Clerk auth token.
+ * Test mutation to verify RBAC protection (requires admin role).
+ */
+export const testAdminOnly = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireRole(ctx, ["admin"]);
+    return { success: true, message: "You are an admin!" };
+  },
+});
+
+/**
+ * Get current logged-in user details using the auth provider's identity.
  */
 export const getMyUser = query({
   args: {},
@@ -11,16 +30,19 @@ export const getMyUser = query({
     if (!identity) {
       return null;
     }
-    
-    return await ctx.db
+
+    // Look up user by email (works regardless of auth provider)
+    const user = await ctx.db
       .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
+      .withIndex("by_email", (q) => q.eq("email", identity.email ?? ""))
       .unique();
+
+    return user;
   },
 });
 
 /**
- * Upsert user profile info when logging in via Clerk.
+ * Upsert user profile info when logging in via auth provider.
  */
 export const upsertUser = mutation({
   args: {
@@ -41,7 +63,7 @@ export const upsertUser = mutation({
 
     const existing = await ctx.db
       .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", identity.subject))
+      .withIndex("by_email", (q) => q.eq("email", args.email))
       .unique();
 
     if (existing) {
@@ -49,22 +71,27 @@ export const upsertUser = mutation({
         name: args.name,
         email: args.email,
         role: args.role,
+        authAccountId: identity.subject,
       });
       return existing._id;
     } else {
-      return await ctx.db.insert("users", {
+      // For new user registration, insert user without createdBy first, then patch self-reference
+      const userId = await ctx.db.insert("users", {
         name: args.name,
         email: args.email,
         role: args.role,
-        clerkUserId: identity.subject,
+        authAccountId: identity.subject,
         isActive: true,
       });
+      // Self-reference: the user record references its own ID as createdBy
+      await ctx.db.patch(userId, { createdBy: userId });
+      return userId;
     }
   },
 });
 
 /**
- * List all users.
+ * List all active users.
  */
 export const list = query({
   args: {},

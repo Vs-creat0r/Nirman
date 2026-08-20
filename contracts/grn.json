@@ -3,23 +3,182 @@
   "name": "grn",
   "label": "Goods Receipt Note",
   "version": "1.0.0",
-  "description": "Confirmation of goods receipt at the site. Auto-created when the Site Supervisor clicks 'Delivered' on an out-for-delivery request.",
+  "description": "Auto-generated when delivery is confirmed. Never submitted as a form; the confirming user supplies photos only.",
   "fields": [
-    { "field": "poId", "label": "Purchase Order", "type": "reference", "input": "select", "required": true, "optionsFrom": "purchase_order", "relation": { "table": "purchase_order" } },
-    { "field": "dcId", "label": "Delivery Challan", "type": "reference", "input": "select", "required": false, "optionsFrom": "delivery_challan", "relation": { "table": "delivery_challan" }, "help": "Optional — links the GRN to the dispatch record." },
-    { "field": "receivedItems", "label": "Received Items", "type": "array", "input": "item-list", "required": true, "items": { "type": "object", "fields": [
-      { "field": "itemName", "label": "Item", "type": "string", "input": "autocomplete", "optionsFrom": "project_items", "required": true },
-      { "field": "receivedQty", "label": "Received Qty", "type": "number", "input": "number", "required": true, "validation": { "min": 0 } },
-      { "field": "unit", "label": "Unit", "type": "string", "input": "text", "required": true }
-    ]} },
-    { "field": "photos", "label": "Unloading Photos", "type": "array", "input": "file", "required": false, "items": { "type": "string" } },
-    { "field": "invoiceNumber", "label": "Invoice No", "type": "string", "input": "text", "required": false },
-    { "field": "confirmedBy", "label": "Confirmed By", "type": "reference", "input": "select", "required": false, "optionsFrom": "users", "relation": { "table": "users" } },
-    { "field": "confirmedAt", "label": "Confirmed At", "type": "date", "input": "date", "required": false },
-    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "pending" }
+    {
+      "field": "refNo",
+      "label": "Reference",
+      "type": "string",
+      "input": "readonly-badge",
+      "required": true
+    },
+    {
+      "field": "purchaseOrderId",
+      "label": "Purchase order",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "purchase_order"
+      }
+    },
+    {
+      "field": "deliveryChallanId",
+      "label": "Delivery challan",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "delivery_challan"
+      }
+    },
+    {
+      "field": "vendorId",
+      "label": "Vendor",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "vendors"
+      }
+    },
+    {
+      "field": "siteId",
+      "label": "Site",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "sites"
+      }
+    },
+    {
+      "field": "receivedItems",
+      "label": "Items received",
+      "type": "array",
+      "input": "readonly",
+      "required": true,
+      "items": {
+        "type": "object",
+        "fields": [
+          {
+            "field": "itemName",
+            "label": "Item",
+            "type": "string",
+            "input": "text",
+            "required": true
+          },
+          {
+            "field": "expectedQty",
+            "label": "Expected",
+            "type": "number",
+            "input": "readonly",
+            "required": true
+          },
+          {
+            "field": "receivedQty",
+            "label": "Received",
+            "type": "number",
+            "input": "number",
+            "required": true,
+            "validation": {
+              "min": 0
+            }
+          },
+          {
+            "field": "unit",
+            "label": "Unit",
+            "type": "string",
+            "input": "text",
+            "required": true
+          }
+        ]
+      },
+      "validation": {
+        "minLength": 1
+      }
+    },
+    {
+      "field": "photos",
+      "label": "Unloading photos",
+      "type": "array",
+      "input": "file",
+      "required": true,
+      "validation": {
+        "minLength": 1
+      },
+      "help": "Mandatory proof of unloading; stored via Convex file storage"
+    },
+    {
+      "field": "invoiceNumber",
+      "label": "Invoice number",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "maxLength": 60
+      }
+    },
+    {
+      "field": "poCreatedAt",
+      "label": "PO date",
+      "type": "date",
+      "input": "readonly",
+      "required": false
+    },
+    {
+      "field": "deliveredAt",
+      "label": "Delivery date",
+      "type": "date",
+      "input": "readonly",
+      "required": true
+    },
+    {
+      "field": "confirmedBy",
+      "label": "Confirmed by",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "users"
+      }
+    },
+    {
+      "field": "remarks",
+      "label": "Remarks",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 600
+      }
+    }
   ],
-  "statuses": ["pending", "confirmed"],
-  "relations": { "poId": "purchase_order", "dcId": "delivery_challan", "confirmedBy": "users" },
-  "indexes": [ ["poId"], ["status"] ],
-  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+  "relations": {
+    "purchaseOrderId": "purchase_order",
+    "deliveryChallanId": "delivery_challan",
+    "vendorId": "vendors",
+    "siteId": "sites",
+    "confirmedBy": "users"
+  },
+  "indexes": [
+    [
+      "refNo"
+    ],
+    [
+      "purchaseOrderId"
+    ],
+    [
+      "siteId"
+    ],
+    [
+      "deliveredAt"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
 }

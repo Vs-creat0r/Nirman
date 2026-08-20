@@ -3,25 +3,211 @@
   "name": "delivery_challan",
   "label": "Delivery Challan",
   "version": "1.0.0",
-  "description": "Records dispatch of material to a site. Created from an approved PO, or directly from inventory when stock is available.",
+  "description": "Dispatch record against an approved purchase order. Partial quantities are Sprint 2.",
   "fields": [
-    { "field": "poId", "label": "Purchase Order", "type": "reference", "input": "select", "required": false, "optionsFrom": "purchase_order", "relation": { "table": "purchase_order" }, "help": "Optional — required for the PO->DC path. Inventory-direct DCs have no PO." },
-    { "field": "siteId", "label": "Delivery Site", "type": "reference", "input": "select", "required": false, "optionsFrom": "sites", "relation": { "table": "sites" }, "help": "Optional — enables 1-hop 'Out for Delivery' queries by site." },
-    { "field": "sourcePath", "label": "Source Path", "type": "enum", "input": "readonly-badge", "required": true, "default": "from_po", "validation": { "enum": ["from_po", "from_inventory"] } },
-    { "field": "sourceItemIds", "label": "Source Project Items", "type": "array", "input": "item-list", "required": false, "items": { "type": "reference", "relation": { "table": "project_items" } } },
-    { "field": "vehicleNo", "label": "Vehicle No", "type": "string", "input": "text", "required": true },
-    { "field": "driverName", "label": "Driver Name", "type": "string", "input": "text", "required": true },
-    { "field": "dispatchedItems", "label": "Dispatched Items", "type": "array", "input": "item-list", "required": true, "items": { "type": "object", "fields": [
-      { "field": "itemName", "label": "Item", "type": "string", "input": "autocomplete", "optionsFrom": "project_items", "required": true },
-      { "field": "quantity", "label": "Qty", "type": "number", "input": "number", "required": true, "validation": { "min": 1 } },
-      { "field": "unit", "label": "Unit", "type": "string", "input": "text", "required": true }
-    ]} },
-    { "field": "isPartial", "label": "Partial Delivery", "type": "boolean", "input": "toggle", "required": true, "default": false, "help": "If true, remaining qty stays in Pending Purchase Orders." },
-    { "field": "expectedArrival", "label": "Expected Arrival", "type": "date", "input": "date", "required": false },
-    { "field": "status", "label": "Status", "type": "enum", "input": "readonly-badge", "required": true, "default": "draft" }
+    {
+      "field": "refNo",
+      "label": "Reference",
+      "type": "string",
+      "input": "readonly-badge",
+      "required": true
+    },
+    {
+      "field": "purchaseOrderId",
+      "label": "Purchase order",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "purchase_order"
+      }
+    },
+    {
+      "field": "vendorId",
+      "label": "Vendor",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "vendors"
+      }
+    },
+    {
+      "field": "siteId",
+      "label": "Deliver to site",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "sites"
+      }
+    },
+    {
+      "field": "vehicleNo",
+      "label": "Vehicle number",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "pattern": "^[A-Z0-9\\-\\s]{4,20}$"
+      }
+    },
+    {
+      "field": "driverName",
+      "label": "Driver name",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "minLength": 2,
+        "maxLength": 120
+      }
+    },
+    {
+      "field": "driverPhone",
+      "label": "Driver contact",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "pattern": "^[0-9+\\-\\s]{7,20}$"
+      }
+    },
+    {
+      "field": "dispatchedItems",
+      "label": "Items dispatched",
+      "type": "array",
+      "input": "item-list",
+      "required": true,
+      "items": {
+        "type": "object",
+        "fields": [
+          {
+            "field": "itemName",
+            "label": "Item",
+            "type": "string",
+            "input": "text",
+            "required": true
+          },
+          {
+            "field": "orderedQty",
+            "label": "Ordered",
+            "type": "number",
+            "input": "readonly",
+            "required": true
+          },
+          {
+            "field": "dispatchedQty",
+            "label": "Dispatching",
+            "type": "number",
+            "input": "number",
+            "required": true,
+            "validation": {
+              "min": 0.001
+            }
+          },
+          {
+            "field": "unit",
+            "label": "Unit",
+            "type": "string",
+            "input": "text",
+            "required": true
+          },
+          {
+            "field": "hsnSacCode",
+            "label": "HSN/SAC Code",
+            "type": "string",
+            "input": "text",
+            "required": false,
+            "validation": {
+              "maxLength": 20
+            }
+          }
+        ]
+      },
+      "validation": {
+        "minLength": 1
+      }
+    },
+    {
+      "field": "isPartial",
+      "label": "Partial delivery",
+      "type": "boolean",
+      "input": "readonly",
+      "required": false,
+      "default": false
+    },
+    {
+      "field": "dispatchDate",
+      "label": "Dispatch date",
+      "type": "date",
+      "input": "date",
+      "required": true
+    },
+    {
+      "field": "expectedArrival",
+      "label": "Expected arrival",
+      "type": "date",
+      "input": "date",
+      "required": true
+    },
+    {
+      "field": "notes",
+      "label": "Notes",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "field": "status",
+      "label": "Status",
+      "type": "enum",
+      "input": "readonly-badge",
+      "required": true,
+      "validation": {
+        "enum": [
+          "draft",
+          "delivery_processing",
+          "delivered",
+          "cancelled"
+        ]
+      },
+      "default": "draft"
+    }
   ],
-  "statuses": ["draft", "delivery_processing", "delivered"],
-  "relations": { "poId": "purchase_order", "siteId": "sites" },
-  "indexes": [ ["poId"], ["siteId"], ["status"] ],
-  "audit": { "enabled": true, "trackCreatedBy": true, "trackUpdatedAt": true }
+  "statuses": [
+    "draft",
+    "delivery_processing",
+    "delivered",
+    "cancelled"
+  ],
+  "relations": {
+    "purchaseOrderId": "purchase_order",
+    "vendorId": "vendors",
+    "siteId": "sites"
+  },
+  "indexes": [
+    [
+      "refNo"
+    ],
+    [
+      "status"
+    ],
+    [
+      "purchaseOrderId"
+    ],
+    [
+      "siteId",
+      "status"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
 }

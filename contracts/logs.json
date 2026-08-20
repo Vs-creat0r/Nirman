@@ -1,19 +1,144 @@
 {
   "$schema": "contract.v1",
   "name": "logs",
-  "label": "Audit Logs",
+  "label": "Audit Log",
   "version": "1.0.0",
-  "description": "Append-only audit trail of every action. Written automatically by the backend on state-changing operations.",
+  "description": "One row per state transition. Written exclusively by the transition() helper; never edited or deleted.",
   "fields": [
-    { "field": "actorId", "label": "Actor", "type": "reference", "input": "select", "required": true, "optionsFrom": "users", "relation": { "table": "users" } },
-    { "field": "action", "label": "Action", "type": "string", "input": "text", "required": true, "help": "e.g. create, approve, reject, query, deliver." },
-    { "field": "documentType", "label": "Document Type", "type": "enum", "input": "select", "required": true, "validation": { "enum": ["material_request", "rfq", "cost_comparison", "purchase_order", "delivery_challan", "grn", "inventory", "vendor", "user", "project", "site"] } },
-    { "field": "documentId", "label": "Document", "type": "string", "input": "text", "required": true, "help": "Convex ID of the affected document." },
-    { "field": "referenceId", "label": "Reference", "type": "string", "input": "text", "required": false, "help": "Optional secondary ID (e.g. related RFQ when approving a CC)." },
-    { "field": "timestamp", "label": "Timestamp", "type": "date", "input": "date", "required": true }
+    {
+      "field": "actorId",
+      "label": "Actor",
+      "type": "reference",
+      "input": "readonly",
+      "required": true,
+      "relation": {
+        "table": "users"
+      }
+    },
+    {
+      "field": "actorRole",
+      "label": "Actor role",
+      "type": "enum",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "enum": [
+          "admin",
+          "project_manager",
+          "procurement_officer",
+          "site_supervisor"
+        ]
+      }
+    },
+    {
+      "field": "action",
+      "label": "Action",
+      "type": "string",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "maxLength": 60
+      },
+      "help": "e.g. mr_submitted, mr_approved, cc_queried, po_approved, delivered"
+    },
+    {
+      "field": "documentType",
+      "label": "Document type",
+      "type": "enum",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "enum": [
+          "material_request",
+          "rfq",
+          "cost_comparison",
+          "purchase_order",
+          "delivery_challan",
+          "grn",
+          "vendors",
+          "users",
+          "projects"
+        ]
+      }
+    },
+    {
+      "field": "documentId",
+      "label": "Document id",
+      "type": "string",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "maxLength": 60
+      }
+    },
+    {
+      "field": "referenceId",
+      "label": "Reference",
+      "type": "string",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "maxLength": 40
+      },
+      "help": "Human-readable ref such as MR-2026-0148; links back to the document"
+    },
+    {
+      "field": "fromStatus",
+      "label": "From",
+      "type": "string",
+      "input": "readonly",
+      "required": false,
+      "validation": {
+        "maxLength": 40
+      }
+    },
+    {
+      "field": "toStatus",
+      "label": "To",
+      "type": "string",
+      "input": "readonly",
+      "required": false,
+      "validation": {
+        "maxLength": 40
+      }
+    },
+    {
+      "field": "note",
+      "label": "Note",
+      "type": "text",
+      "input": "readonly",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "field": "timestamp",
+      "label": "Timestamp",
+      "type": "date",
+      "input": "readonly",
+      "required": true
+    }
   ],
-  "statuses": [],
-  "relations": { "actorId": "users" },
-  "indexes": [ ["actorId"], ["documentType"], ["documentId"] ],
-  "audit": { "enabled": false }
+  "relations": {
+    "actorId": "users"
+  },
+  "indexes": [
+    [
+      "timestamp"
+    ],
+    [
+      "documentType",
+      "documentId"
+    ],
+    [
+      "actorId"
+    ],
+    [
+      "referenceId"
+    ]
+  ],
+  "audit": {
+    "enabled": false
+  }
 }
