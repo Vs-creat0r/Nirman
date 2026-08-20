@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ClientOnlyProvider } from "../components/providers/client-only-provider";
+import { ConvexClientProvider } from "../components/providers/convex-client-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,8 +14,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="theme-brand h-full antialiased" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        <ClientOnlyProvider>{children}</ClientOnlyProvider>
+      <body className="min-h-full flex flex-col bg-background text-foreground font-sans" suppressHydrationWarning>
+        <ConvexClientProvider>{children}</ConvexClientProvider>
       </body>
     </html>
   );

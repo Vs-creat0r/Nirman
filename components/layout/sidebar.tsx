@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronRight, LogOut, PanelLeftClose, PanelLeft } from "lucide-react";
 import { useRole } from "../../hooks/use-role";
+import { useSession } from "../providers/auth-provider";
 import { navConfig, type NavItem } from "../../lib/nav-config";
 import { ProjectSelector } from "./project-selector";
 import { cn } from "../../lib/cn";
-import { useClerk } from "@clerk/nextjs";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../ui/tooltip";
 
 interface SidebarProps {
@@ -17,7 +17,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { signOut } = useClerk();
+  const { logout } = useSession();
   const { role, user } = useRole();
   
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -162,7 +162,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             )}
             {!isCollapsed && (
               <button
-                onClick={() => signOut()}
+                onClick={() => logout()}
                 className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
                 title="Log Out"
               >

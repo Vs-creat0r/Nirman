@@ -14,22 +14,19 @@ export type UserRole =
  * Fetches the current user from the database using their Clerk JWT identity.
  * Returns null if not authenticated or not found in our users table.
  */
-export async function getCurrentUser(ctx: MutationCtx | QueryCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) return null;
+export async function getCurrentUser(ctx: MutationCtx | QueryCtx, token?: string) {
+  if (!token) return null;
 
-  if (identity.email) {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", identity.email!))
-      .unique();
-    if (user) return user;
+  const session = await ctx.db
+    .query("sessions")
+    .withIndex("by_token", (q) => q.eq("token", token))
+    .unique();
+
+  if (!session || session.expiresAt < Date.now()) {
+    return null;
   }
 
-  return await ctx.db
-    .query("users")
-    .filter((q) => q.eq(q.field("authAccountId"), identity.subject))
-    .first();
+  return await ctx.db.get(session.userId);
 }
 
 /**
@@ -46,9 +43,10 @@ export async function getCurrentUser(ctx: MutationCtx | QueryCtx) {
  */
 export async function requireRole(
   ctx: MutationCtx | QueryCtx,
-  allowedRoles: UserRole[]
+  allowedRoles: UserRole[],
+  token?: string
 ) {
-  const user = await getCurrentUser(ctx);
+  const user = await getCurrentUser(ctx, token);
 
   if (!user) {
     throw new Error("Unauthorized: You must be logged in to perform this action.");

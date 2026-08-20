@@ -10,20 +10,49 @@ import { Id } from "./_generated/dataModel";
 export const seedAll = mutation({
   args: {},
   handler: async (ctx) => {
+    // ── 0. MIGRATE & DEDUPLICATE USERS ───────────────────────────────────
+    const allUsers = await ctx.db.query("users").collect();
+    for (const u of allUsers) {
+      if (!u.username || !u.passwordHash) {
+        if (u.role === "admin") {
+          await ctx.db.patch(u._id, { username: "admin", passwordHash: "admin123" });
+        } else if (u.role === "site_supervisor") {
+          await ctx.db.patch(u._id, { username: "supervisor", passwordHash: "supervisor123" });
+        } else if (u.role === "project_manager") {
+          await ctx.db.patch(u._id, { username: "manager", passwordHash: "manager123" });
+        } else if (u.role === "procurement_officer") {
+          await ctx.db.patch(u._id, { username: "procurement", passwordHash: "procurement123" });
+        }
+      }
+    }
+
+    // Deduplicate any repeated users by username
+    const currentUsers = await ctx.db.query("users").collect();
+    const seenUsernames = new Set<string>();
+    for (const u of currentUsers) {
+      if (u.username) {
+        if (seenUsernames.has(u.username)) {
+          await ctx.db.delete(u._id);
+        } else {
+          seenUsernames.add(u.username);
+        }
+      }
+    }
+
     // ── 1. USERS (4 roles) ──────────────────────────────────────────────
     let admin = await ctx.db
       .query("users")
-      .withIndex("by_email", (q) => q.eq("email", "admin@example.com"))
-      .unique();
+      .withIndex("by_username", (q) => q.eq("username", "admin"))
+      .first();
 
     let adminId: Id<"users">;
     if (!admin) {
       adminId = await ctx.db.insert("users", {
         name: "Dev Admin",
-        email: "admin@example.com",
+        username: "admin",
+        passwordHash: "admin123",
         role: "admin",
         isActive: true,
-        authAccountId: "mock_admin",
       });
       await ctx.db.patch(adminId, { createdBy: adminId });
     } else {
@@ -33,29 +62,29 @@ export const seedAll = mutation({
     const otherUserSeeds = [
       {
         name: "Ravi Supervisor",
-        email: "supervisor@example.com",
+        username: "supervisor",
+        passwordHash: "supervisor123",
         role: "site_supervisor" as const,
-        authAccountId: "mock_supervisor",
       },
       {
         name: "Anil Manager",
-        email: "manager@example.com",
+        username: "manager",
+        passwordHash: "manager123",
         role: "project_manager" as const,
-        authAccountId: "mock_manager",
       },
       {
         name: "Priya Procurement",
-        email: "procurement@example.com",
+        username: "procurement",
+        passwordHash: "procurement123",
         role: "procurement_officer" as const,
-        authAccountId: "mock_procurement",
       },
     ];
 
     for (const u of otherUserSeeds) {
       const existing = await ctx.db
         .query("users")
-        .withIndex("by_email", (q) => q.eq("email", u.email))
-        .unique();
+        .withIndex("by_username", (q) => q.eq("username", u.username))
+        .first();
       if (!existing) {
         await ctx.db.insert("users", {
           ...u,

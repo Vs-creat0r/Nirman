@@ -1,15 +1,19 @@
 "use client";
 import * as React from "react";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
-import { Menu, Bell, Sparkles } from "lucide-react";
+import { Menu, Bell, Sparkles, LogOut } from "lucide-react";
 import { Button } from "../ui/button";
+import { useRole } from "../../hooks/use-role";
+import { useSession } from "../providers/auth-provider";
 
 interface HeaderProps {
   onMenuToggle?: () => void;
 }
 
 export function Header({ onMenuToggle }: HeaderProps) {
+  const { user, role } = useRole();
+  const { logout } = useSession();
+
   return (
     <header className="sticky top-0 z-40 w-full h-16 border-b border-border bg-surface flex items-center justify-between px-4 md:px-6 shadow-sm select-none">
       {/* Left side: Hamburger (mobile) & Brand */}
@@ -49,7 +53,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
         </button>
       </div>
 
-      {/* Right side: Alert & Profile UserButton */}
+      {/* Right side: Alert & Profile */}
       <div className="flex items-center gap-3">
         {/* Notification Bell */}
         <Button
@@ -62,15 +66,19 @@ export function Header({ onMenuToggle }: HeaderProps) {
           <span className="sr-only">Notifications</span>
         </Button>
 
-        {/* User Avatar with Profile Manager Dropdown */}
-        <div className="flex items-center pl-1 border-l border-border h-6">
-          <UserButton
-            appearance={{
-              elements: {
-                avatarBox: "h-7 w-7 rounded-full border border-border shadow-sm",
-              },
-            }}
-          />
+        {/* User Badge */}
+        <div className="flex items-center gap-2 pl-2 border-l border-border">
+          <div className="h-7 w-7 rounded-full bg-accent text-accent-foreground font-bold text-xs flex items-center justify-center select-none shadow-sm">
+            {user?.name ? user.name.substring(0, 2).toUpperCase() : "US"}
+          </div>
+          <div className="hidden lg:flex flex-col text-left">
+            <span className="text-xs font-semibold text-foreground leading-none truncate max-w-[120px]">
+              {user?.name || "User"}
+            </span>
+            <span className="text-[10px] text-muted-foreground capitalize leading-none mt-0.5">
+              {(role || "guest").replace("_", " ")}
+            </span>
+          </div>
         </div>
       </div>
     </header>

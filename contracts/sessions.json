@@ -1,0 +1,47 @@
+{
+  "$schema": "contract.v1",
+  "name": "sessions",
+  "label": "Session",
+  "version": "1.0.0",
+  "description": "User sessions for native auth.",
+  "fields": [
+    {
+      "field": "userId",
+      "label": "User",
+      "type": "reference",
+      "input": "hidden",
+      "required": true,
+      "relation": {
+        "table": "users"
+      }
+    },
+    {
+      "field": "token",
+      "label": "Token",
+      "type": "string",
+      "input": "hidden",
+      "required": true
+    },
+    {
+      "field": "expiresAt",
+      "label": "Expires At",
+      "type": "number",
+      "input": "hidden",
+      "required": true
+    }
+  ],
+  "relations": {
+    "userId": "users"
+  },
+  "indexes": [
+    [
+      "token"
+    ],
+    [
+      "userId"
+    ]
+  ],
+  "audit": {
+    "enabled": false
+  }
+}

@@ -152,24 +152,20 @@ export default defineSchema({
   material_request: defineTable({
     refNo: v.string(),
     projectId: v.id("projects"),
-    siteId: v.id("sites"),
+    siteId: v.optional(v.id("sites")),
     items: v.array(
       v.object({
         itemName: v.string(),
+        description: v.optional(v.string()),
         quantity: v.number(),
         unit: v.string(),
         projectItemId: v.optional(v.id("project_items")),
-        hsnSacCode: v.optional(v.string()),
-        remarks: v.optional(v.string()),
       })
     ),
     priority: v.union(v.literal("low"), v.literal("normal"), v.literal("high"), v.literal("urgent")),
     requiredBy: v.optional(v.string()),
     notes: v.optional(v.string()),
     status: v.union(v.literal("draft"), v.literal("pending"), v.literal("queried"), v.literal("rejected"), v.literal("ready_for_cc"), v.literal("review_cc"), v.literal("ready_for_po"), v.literal("review_po"), v.literal("pending_po"), v.literal("delivery_processing"), v.literal("delivered")),
-    reviewNote: v.optional(v.string()),
-    reviewedBy: v.optional(v.id("users")),
-    reviewedAt: v.optional(v.string()),
     createdBy: v.id("users"),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.string()),
@@ -283,6 +279,15 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_materialRequestId", ["materialRequestId"]),
 
+  // Session — User sessions for native auth.
+  sessions: defineTable({
+    userId: v.id("users"),
+    token: v.string(),
+    expiresAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_userId", ["userId"]),
+
   // System Settings — Single-document system-wide configuration row. Controls approval chain behavior across the platform.
   settings: defineTable({
     requireManagerApprovalForRequests: v.boolean(),
@@ -306,7 +311,9 @@ export default defineSchema({
   // User — A person with access to the system. Created by Admin only; there is no self-registration.
   users: defineTable({
     name: v.string(),
-    email: v.string(),
+    username: v.optional(v.string()),
+    passwordHash: v.optional(v.string()),
+    email: v.optional(v.string()),
     role: v.union(v.literal("admin"), v.literal("project_manager"), v.literal("procurement_officer"), v.literal("site_supervisor")),
     phone: v.optional(v.string()),
     assignedProjectIds: v.optional(v.array(v.id("projects"))),
@@ -317,7 +324,7 @@ export default defineSchema({
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.string()),
   })
-    .index("by_email", ["email"])
+    .index("by_username", ["username"])
     .index("by_role", ["role"])
     .index("by_isActive", ["isActive"]),
 

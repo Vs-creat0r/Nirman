@@ -17,11 +17,29 @@
       }
     },
     {
+      "field": "username",
+      "label": "User ID",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "minLength": 3,
+        "maxLength": 50
+      }
+    },
+    {
+      "field": "passwordHash",
+      "label": "Password Hash",
+      "type": "string",
+      "input": "hidden",
+      "required": false
+    },
+    {
       "field": "email",
       "label": "Email",
       "type": "string",
       "input": "text",
-      "required": true,
+      "required": false,
       "validation": {
         "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
         "maxLength": 180
@@ -97,7 +115,7 @@
   },
   "indexes": [
     [
-      "email"
+      "username"
     ],
     [
       "role"

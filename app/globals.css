@@ -67,6 +67,17 @@
     font-size: 14px;
     line-height: 1.5;
   }
+
+  /* Global Number Input Rules: Hide stepper spin buttons / arrows */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+  }
 }
 
 /* Reduced Motion Settings */

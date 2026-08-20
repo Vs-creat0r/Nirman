@@ -1,19 +1,15 @@
 "use client";
 import * as React from "react";
-import { ClerkProvider, useAuth } from "@clerk/nextjs";
-import { ConvexProviderWithClerk } from "convex/react-clerk";
-import { ConvexReactClient } from "convex/react";
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ThemeProvider } from "next-themes";
+import { AuthProvider } from "./auth-provider";
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
 
 export function ConvexClientProvider({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider 
-      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      afterSignOutUrl="/"
-    >
-      <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+    <AuthProvider>
+      <ConvexProvider client={convex}>
         <ThemeProvider
           attribute="class"
           storageKey="nirman-theme"
@@ -22,7 +18,7 @@ export function ConvexClientProvider({ children }: { children: React.ReactNode }
         >
           {children}
         </ThemeProvider>
-      </ConvexProviderWithClerk>
-    </ClerkProvider>
+      </ConvexProvider>
+    </AuthProvider>
   );
 }

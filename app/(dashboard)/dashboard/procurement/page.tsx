@@ -1,12 +1,12 @@
 "use client";
 import * as React from "react";
-import { useUser } from "@clerk/nextjs";
+import { useRole } from "../../../../hooks/use-role";
 import { ShoppingBag, Truck, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";
 
 export default function ProcurementDashboard() {
-  const { user } = useUser();
+  const { user } = useRole();
 
   return (
     <div className="space-y-6">
@@ -19,7 +19,7 @@ export default function ProcurementDashboard() {
           <Badge variant="queried">Procurement Officer</Badge>
         </div>
         <p className="text-xs text-muted-foreground select-none">
-          Welcome back, {user?.fullName || "Procurement Officer"}. Access tender lists, negotiate quotes, and issue POs.
+          Welcome back, {user?.name || "Procurement Officer"}. Access tender lists, negotiate quotes, and issue POs.
         </p>
       </div>
 

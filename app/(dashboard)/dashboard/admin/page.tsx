@@ -1,12 +1,12 @@
 "use client";
 import * as React from "react";
-import { useUser } from "@clerk/nextjs";
+import { useRole } from "../../../../hooks/use-role";
 import { Users, Shield, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../../components/ui/card";
 import { Badge } from "../../../../components/ui/badge";
 
 export default function AdminDashboard() {
-  const { user } = useUser();
+  const { user } = useRole();
 
   return (
     <div className="space-y-6">
@@ -19,7 +19,7 @@ export default function AdminDashboard() {
           <Badge variant="danger">System Admin</Badge>
         </div>
         <p className="text-xs text-muted-foreground select-none">
-          Welcome back, {user?.fullName || "Admin"}. Control system permissions, user directories, and system-wide logs.
+          Welcome back, {user?.name || "Admin"}. Control system permissions, user directories, and system-wide logs.
         </p>
       </div>
 

@@ -32,7 +32,7 @@ export const navConfig: Record<UserRole, NavGroup[]> = {
       label: "Main",
       items: [
         { title: "Dashboard", href: "/dashboard/supervisor", icon: Home },
-        { title: "Material Requests", href: "/dashboard/requests", icon: FileText },
+        { title: "Material Requests", href: "/dashboard/supervisor/material-requests", icon: FileText },
         { title: "Deliveries", href: "/dashboard/deliveries", icon: Truck },
       ]
     },
@@ -50,6 +50,7 @@ export const navConfig: Record<UserRole, NavGroup[]> = {
       label: "Main",
       items: [
         { title: "Dashboard", href: "/dashboard/manager", icon: Home },
+        { title: "Material Requests", href: "/dashboard/manager/material-requests", icon: FileText },
         { title: "RFQs", href: "/dashboard/rfq", icon: FileSignature },
         { title: "Purchase Orders", href: "/dashboard/po", icon: ShoppingBag },
         { title: "Deliveries", href: "/dashboard/deliveries", icon: Truck },

@@ -29,11 +29,12 @@
       "label": "Site",
       "type": "reference",
       "input": "select",
-      "required": true,
+      "required": false,
       "relation": {
         "table": "sites"
       },
-      "optionsFrom": "sites"
+      "optionsFrom": "sites",
+      "help": "Optional if the project has no separate sites"
     },
     {
       "field": "items",
@@ -57,8 +58,18 @@
             }
           },
           {
+            "field": "description",
+            "label": "Description",
+            "type": "string",
+            "input": "text",
+            "required": false,
+            "validation": {
+              "maxLength": 300
+            }
+          },
+          {
             "field": "quantity",
-            "label": "Qty",
+            "label": "Quantity",
             "type": "number",
             "input": "number",
             "required": true,
@@ -94,26 +105,6 @@
             "required": false,
             "relation": {
               "table": "project_items"
-            }
-          },
-          {
-            "field": "hsnSacCode",
-            "label": "HSN/SAC Code",
-            "type": "string",
-            "input": "text",
-            "required": false,
-            "validation": {
-              "maxLength": 20
-            }
-          },
-          {
-            "field": "remarks",
-            "label": "Remarks",
-            "type": "string",
-            "input": "text",
-            "required": false,
-            "validation": {
-              "maxLength": 300
             }
           }
         ]
@@ -177,34 +168,6 @@
         ]
       },
       "default": "draft"
-    },
-    {
-      "field": "reviewNote",
-      "label": "Reviewer note",
-      "type": "text",
-      "input": "textarea",
-      "required": false,
-      "validation": {
-        "maxLength": 1000
-      },
-      "help": "Mandatory when the manager rejects or queries"
-    },
-    {
-      "field": "reviewedBy",
-      "label": "Reviewed by",
-      "type": "reference",
-      "input": "readonly",
-      "required": false,
-      "relation": {
-        "table": "users"
-      }
-    },
-    {
-      "field": "reviewedAt",
-      "label": "Reviewed at",
-      "type": "date",
-      "input": "readonly",
-      "required": false
     }
   ],
   "statuses": [
@@ -222,8 +185,7 @@
   ],
   "relations": {
     "projectId": "projects",
-    "siteId": "sites",
-    "reviewedBy": "users"
+    "siteId": "sites"
   },
   "indexes": [
     [
