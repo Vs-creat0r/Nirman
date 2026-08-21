@@ -2,6 +2,7 @@ import {
   Home, 
   FileText, 
   FileSignature, 
+  FileBarChart2,
   ShoppingBag, 
   Truck, 
   Users, 
@@ -51,15 +52,15 @@ export const navConfig: Record<UserRole, NavGroup[]> = {
       items: [
         { title: "Dashboard", href: "/dashboard/manager", icon: Home },
         { title: "Material Requests", href: "/dashboard/manager/material-requests", icon: FileText },
-        { title: "RFQs", href: "/dashboard/rfq", icon: FileSignature },
-        { title: "Purchase Orders", href: "/dashboard/po", icon: ShoppingBag },
+        { title: "Cost Comparisons", href: "/dashboard/manager/cost-comparisons", icon: FileBarChart2 },
+        { title: "Purchase Orders", href: "/dashboard/manager/purchase-orders", icon: ShoppingBag },
         { title: "Deliveries", href: "/dashboard/deliveries", icon: Truck },
       ]
     },
     {
       label: "Supply",
       items: [
-        { title: "Vendors", href: "/dashboard/vendors", icon: Users },
+        { title: "Vendors", href: "/dashboard/procurement/vendors", icon: Users },
         { title: "Inventory", href: "/dashboard/inventory", icon: Package },
         { title: "GRN Receipts", href: "/dashboard/grn", icon: ClipboardCheck },
         { title: "System Logs", href: "/dashboard/logs", icon: Activity },
@@ -71,15 +72,15 @@ export const navConfig: Record<UserRole, NavGroup[]> = {
       label: "Main",
       items: [
         { title: "Dashboard", href: "/dashboard/procurement", icon: Home },
-        { title: "RFQs", href: "/dashboard/rfq", icon: FileSignature },
-        { title: "Purchase Orders", href: "/dashboard/po", icon: ShoppingBag },
+        { title: "Cost Comparisons", href: "/dashboard/procurement/cost-comparisons", icon: FileBarChart2 },
+        { title: "Purchase Orders", href: "/dashboard/procurement/purchase-orders", icon: ShoppingBag },
         { title: "Deliveries", href: "/dashboard/deliveries", icon: Truck },
       ]
     },
     {
       label: "Supply",
       items: [
-        { title: "Vendors", href: "/dashboard/vendors", icon: Users },
+        { title: "Vendors", href: "/dashboard/procurement/vendors", icon: Users },
         { title: "Inventory", href: "/dashboard/inventory", icon: Package },
         { title: "GRN Logs", href: "/dashboard/grn", icon: ClipboardCheck },
         { title: "System Logs", href: "/dashboard/logs", icon: Activity },
@@ -102,3 +103,4 @@ export const navConfig: Record<UserRole, NavGroup[]> = {
     }
   ]
 };
+
