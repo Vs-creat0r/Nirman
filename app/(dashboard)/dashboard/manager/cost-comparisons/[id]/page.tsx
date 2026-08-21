@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
 import { Id } from "@/convex/_generated/dataModel";
 import { StatusBadge } from "@/components/document/status-badge";
+import { DocumentLineageBar } from "@/components/document/document-lineage-bar";
 import { CCComparisonView } from "@/components/document/cc-comparison-view";
 import { CCApproveModal } from "@/components/document/cc-approve-modal";
 import { ActionModal, type ActionType } from "@/components/document/action-modal";
@@ -186,8 +187,17 @@ export default function ManagerCCDetailPage() {
         </div>
       )}
 
+      {/* ── Document Lineage / Traceability Stepper ── */}
+      <DocumentLineageBar
+        currentType="cc"
+        mr={cc.materialRequest ? { id: cc.materialRequest._id, refNo: cc.materialRequest.refNo, status: cc.materialRequest.status } : undefined}
+        cc={{ id: cc._id, refNo: cc.refNo, status: cc.status }}
+        userRole="project_manager"
+      />
+
       {/* Main Document Summary Card */}
       <Card>
+
         <CardHeader className="border-b border-border pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>

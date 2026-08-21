@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
 import { Id } from "@/convex/_generated/dataModel";
 import { StatusBadge } from "@/components/document/status-badge";
+import { DocumentLineageBar } from "@/components/document/document-lineage-bar";
 import { CCComparisonView } from "@/components/document/cc-comparison-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,8 @@ export default function ProcurementCCDetailPage() {
     id && token ? { id, token } : "skip"
   );
   const submitCCMutation = useMutation(api.cost_comparisons.submitCC);
+
+  const createPOMutation = useMutation(api.purchase_orders.createPOFromCC);
 
   const [isActionLoading, setIsActionLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -81,6 +84,22 @@ export default function ProcurementCCDetailPage() {
     }
   };
 
+  const handleGeneratePO = async () => {
+    setError(null);
+    setIsActionLoading(true);
+    try {
+      const result = await createPOMutation({
+        costComparisonId: id,
+        submitImmediately: false,
+        token: token || undefined,
+      });
+      router.push(`/dashboard/procurement/purchase-orders/${result.id}`);
+    } catch (err: any) {
+      setError(err.message || "Failed to generate Purchase Order.");
+      setIsActionLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Top Nav Back Link & Actions */}
@@ -107,6 +126,19 @@ export default function ProcurementCCDetailPage() {
             </Button>
           )}
 
+          {/* Action Button for Approved status: Generate PO */}
+          {isApproved && (
+            <Button
+              size="sm"
+              onClick={handleGeneratePO}
+              disabled={isActionLoading}
+              className="gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {isActionLoading ? "Generating PO…" : "Generate Purchase Order"}
+            </Button>
+          )}
+
           {/* Action Button for Queried status */}
           {isQueried && (
             <Link href={`/dashboard/procurement/cost-comparisons/${id}/edit`}>
@@ -127,6 +159,15 @@ export default function ProcurementCCDetailPage() {
           {error}
         </div>
       )}
+
+      {/* ── Document Lineage / Traceability Stepper ── */}
+      <DocumentLineageBar
+        currentType="cc"
+        mr={cc.materialRequest ? { id: cc.materialRequest._id, refNo: cc.materialRequest.refNo, status: cc.materialRequest.status } : undefined}
+        cc={{ id: cc._id, refNo: cc.refNo, status: cc.status }}
+        userRole="procurement"
+      />
+
 
       {/* Queried Notice Alert Box */}
       {isQueried && (

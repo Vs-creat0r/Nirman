@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
 import { Id } from "@/convex/_generated/dataModel";
 import { StatusBadge } from "@/components/document/status-badge";
+import { DocumentLineageBar } from "@/components/document/document-lineage-bar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -124,23 +125,17 @@ export default function MaterialRequestDetailPage() {
         </div>
       )}
 
-      {/* Queried Notice Alert Box */}
-      {isQueried && (
-        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h3 className="text-xs font-bold text-amber-500">
-              Queried by Manager
-            </h3>
-            <p className="text-xs text-foreground">
-              {mr.reviewNote || "Reviewer requested changes on this material request."}
-            </p>
-          </div>
-        </div>
-      )}
+      {/* ── Document Lineage / Traceability Stepper ── */}
+      <DocumentLineageBar
+        currentType="mr"
+        mr={{ id: mr._id, refNo: mr.refNo, status: mr.status }}
+        userRole="site_supervisor"
+      />
+
 
       {/* Main Document Summary Card */}
       <Card>
+
         <CardHeader className="border-b border-border pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
