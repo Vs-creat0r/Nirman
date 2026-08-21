@@ -44,6 +44,9 @@ export const createPOFromCC = mutation({
   args: {
     costComparisonId: v.id("cost_comparison"),
     expectedDelivery: v.optional(v.string()),
+    validUntil: v.optional(v.string()),
+    termsAndConditions: v.optional(v.string()),
+    tcTemplateId: v.optional(v.id("tc_templates")),
     submitImmediately: v.optional(v.boolean()),
     token: v.optional(v.string()),
   },
@@ -76,17 +79,29 @@ export const createPOFromCC = mutation({
       throw new Error("Winning vendor quote could not be located in the cost comparison.");
     }
 
+    // Load parent MR items if available to inherit HSN/SAC code
+    const mr = cc.materialRequestId ? await ctx.db.get(cc.materialRequestId) : null;
+    const mrItemMap = new Map<string, string | undefined>();
+    if (mr && mr.items) {
+      for (const item of mr.items) {
+        if (item.itemName && item.hsnSacCode) {
+          mrItemMap.set(item.itemName.toLowerCase().trim(), item.hsnSacCode);
+        }
+      }
+    }
+
     // Snapshot line items with amounts
     const snapshottedLineItems = winningQuote.items.map((item) => {
       const qty = Number(item.quantity) || 0;
       const rate = Number(item.rate) || 0;
+      const hsnSacCode = mrItemMap.get(item.itemName.toLowerCase().trim()) || undefined;
       return {
         itemName: item.itemName,
         quantity: qty,
         unit: item.unit,
         rate: rate,
         amount: Math.round(qty * rate * 100) / 100,
-        hsnSacCode: undefined,
+        hsnSacCode: hsnSacCode,
       };
     });
 
@@ -134,6 +149,9 @@ export const createPOFromCC = mutation({
       totalAmount,
       paymentTerms,
       expectedDelivery: args.expectedDelivery || undefined,
+      validUntil: args.validUntil || undefined,
+      termsAndConditions: args.termsAndConditions || undefined,
+      tcTemplateId: args.tcTemplateId || undefined,
       deliveredQty: 0,
       pendingQty: snapshottedLineItems.reduce((acc, cur) => acc + cur.quantity, 0),
       status: initialStatus,
@@ -144,6 +162,7 @@ export const createPOFromCC = mutation({
       updatedBy: user._id,
       updatedAt: now,
     });
+
 
     const vendor = await ctx.db.get(cc.selectedVendorId);
     const vendorName = vendor?.name || "Vendor";
@@ -409,6 +428,8 @@ export const resubmitPO = mutation({
       v.literal("45_days")
     ),
     expectedDelivery: v.optional(v.string()),
+    validUntil: v.optional(v.string()),
+    termsAndConditions: v.optional(v.string()),
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -450,6 +471,8 @@ export const resubmitPO = mutation({
         totalAmount,
         paymentTerms: args.paymentTerms,
         expectedDelivery: args.expectedDelivery || undefined,
+        validUntil: args.validUntil || undefined,
+        termsAndConditions: args.termsAndConditions || undefined,
       },
     });
   },
@@ -604,11 +627,18 @@ export const getPO = query({
       ? ((await ctx.db.get(po.reviewedBy)) as { name?: string } | null)
       : null;
 
-    // Fetch associated Delivery Challans if any
-    const dcs = await ctx.db
-      .query("delivery_challan")
-      .withIndex("by_purchaseOrderId", (q) => q.eq("purchaseOrderId", po._id))
-      .collect();
+    // Fetch company profile settings
+    const settingsDoc = await ctx.db.query("settings").first();
+    const buyerCompany = {
+      companyName: settingsDoc?.companyName || "Nirman Construction & Infra Pvt Ltd",
+      companyGstNo: settingsDoc?.companyGstNo || "27AABCN1234F1Z5",
+      companyBillingAddress:
+        settingsDoc?.companyBillingAddress ||
+        "Plot 42, Sector 18, Commercial Hub, Mumbai, Maharashtra - 400001",
+      companyContactPerson: settingsDoc?.companyContactPerson || "Head of Procurement",
+      companyPhone: settingsDoc?.companyPhone || "+91 98765 43210",
+      companyEmail: settingsDoc?.companyEmail || "procurement@nirman.infra",
+    };
 
     // Fetch audit history
     const logs = await ctx.db
@@ -635,6 +665,8 @@ export const getPO = query({
       projectName: project?.name || "Unknown Project",
       projectCode: project?.code || "",
       siteName: site ? `${site.name} (${site.code})` : "Main Site",
+      siteAddress: site?.address || "Site Premises",
+      buyerCompany,
       vendor: vendor
         ? {
             _id: vendor._id,
@@ -663,17 +695,10 @@ export const getPO = query({
             quoteCount: cc.vendorQuotes.length,
           }
         : null,
-      deliveryChallans: dcs.map((dc) => ({
-        _id: dc._id,
-        refNo: dc.refNo,
-        status: dc.status,
-        dispatchDate: dc.dispatchDate,
-        expectedArrival: dc.expectedArrival,
-        vehicleNo: dc.vehicleNo,
-      })),
       creatorName: creator?.name || "Unknown User",
       reviewerName: reviewer?.name || null,
       logs: enrichedLogs,
     };
   },
 });
+

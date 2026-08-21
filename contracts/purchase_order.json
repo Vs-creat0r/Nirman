@@ -210,6 +210,30 @@
       "required": false
     },
     {
+      "field": "validUntil",
+      "label": "Valid until",
+      "type": "date",
+      "input": "date",
+      "required": false
+    },
+    {
+      "field": "termsAndConditions",
+      "label": "Terms & Conditions",
+      "type": "text",
+      "input": "textarea",
+      "required": false
+    },
+    {
+      "field": "tcTemplateId",
+      "label": "T&C Template",
+      "type": "reference",
+      "input": "hidden",
+      "required": false,
+      "relation": {
+        "table": "tc_templates"
+      }
+    },
+    {
       "field": "deliveredQty",
       "label": "Delivered qty",
       "type": "number",

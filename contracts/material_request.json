@@ -68,6 +68,16 @@
             }
           },
           {
+            "field": "hsnSacCode",
+            "label": "HSN/SAC Code",
+            "type": "string",
+            "input": "text",
+            "required": true,
+            "validation": {
+              "maxLength": 20
+            }
+          },
+          {
             "field": "quantity",
             "label": "Quantity",
             "type": "number",

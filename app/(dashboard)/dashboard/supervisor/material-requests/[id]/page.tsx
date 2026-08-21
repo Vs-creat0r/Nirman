@@ -211,6 +211,7 @@ export default function MaterialRequestDetailPage() {
                   <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
                     <th className="py-2.5 px-3 w-10 text-center">#</th>
                     <th className="py-2.5 px-3">Item Name</th>
+                    <th className="py-2.5 px-3 w-28">HSN/SAC Code</th>
                     <th className="py-2.5 px-3">Description</th>
                     <th className="py-2.5 px-3 w-24 text-right">Quantity</th>
                     <th className="py-2.5 px-3 w-24">Unit</th>
@@ -225,6 +226,9 @@ export default function MaterialRequestDetailPage() {
                       <td className="py-2.5 px-3 font-semibold text-foreground">
                         {item.itemName}
                       </td>
+                      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">
+                        {item.hsnSacCode || "—"}
+                      </td>
                       <td className="py-2.5 px-3 text-muted-foreground">
                         {item.description || "—"}
                       </td>
@@ -236,6 +240,7 @@ export default function MaterialRequestDetailPage() {
                       </td>
                     </tr>
                   ))}
+
                 </tbody>
               </table>
             </div>

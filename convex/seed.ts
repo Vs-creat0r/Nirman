@@ -236,10 +236,51 @@ export const seedAll = mutation({
       }
     }
 
+    // ── 5. COMPANY PROFILE & SETTINGS ─────────────────────────────────
+    const existingSettings = await ctx.db.query("settings").first();
+    if (!existingSettings) {
+      await ctx.db.insert("settings", {
+        companyName: "Nirman Construction & Infrastructure Pvt Ltd",
+        companyGstNo: "27AABCN1234F1Z5",
+        companyBillingAddress:
+          "Plot 42, Sector 18, Commercial Hub, Bandra Kurla Complex, Mumbai, Maharashtra - 400051",
+        companyContactPerson: "Head of Procurement (Central Office)",
+        companyPhone: "+91 22 6789 0123",
+        companyEmail: "procurement@nirman.infra",
+        requireManagerApprovalForRequests: true,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    // ── 6. DEFAULT TERMS & CONDITIONS TEMPLATES ────────────────────────
+    const existingTpl = await ctx.db.query("tc_templates").first();
+    if (!existingTpl) {
+      await ctx.db.insert("tc_templates", {
+        name: "Standard Procurement & Materials T&C",
+        content: `1. SPECIFICATION & ACCEPTANCE: All materials supplied must strictly match agreed technical specifications, brand certifications, and test certificates.\n2. DELIVERY & UNLOADING: Material must be delivered to the specified site address during site working hours (8:00 AM - 6:00 PM). Delivery Challan (DC) must accompany all shipments.\n3. REJECTION & REPLACEMENT: Defective, damaged, or non-conforming materials will be rejected at site. Vendor shall arrange replacement within 48 hours at vendor's own cost.\n4. INVOICING & PAYMENT: Commercial invoices must clearly cite this PO Reference Number and GSTIN. Payment shall be released as per agreed commercial credit terms upon verification of Goods Receipt Note (GRN).\n5. JURISDICTION: Any dispute arising under this purchase order is subject to the exclusive jurisdiction of the courts of Mumbai, India.`,
+        isDefault: true,
+        isActive: true,
+        createdBy: adminId,
+        updatedBy: adminId,
+        updatedAt: new Date().toISOString(),
+      });
+
+      await ctx.db.insert("tc_templates", {
+        name: "Urgent Ready-Mix Concrete (RMC) & Aggregates Terms",
+        content: `1. TIME OF ESSENCE: Pouring schedule must adhere strictly to agreed site delivery slots. Concrete must be poured within 90 minutes of batching.\n2. SLUMP & QUALITY: Slump test & cube test sampling will be conducted at site prior to discharge.\n3. GST & BILLING: Metered cubic meters (cum) billings reconciled against weighbridge / volumetric batch chits.`,
+        isDefault: false,
+        isActive: true,
+        createdBy: adminId,
+        updatedBy: adminId,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
     return {
       success: true,
       message:
-        "Database seeded: 4 users, 1 project, 2 sites, 5 vendors, 20 BOQ items.",
+        "Database seeded: 4 users, 1 project, 2 sites, 5 vendors, 20 BOQ items, Company Profile, and T&C Templates.",
     };
   },
 });
+

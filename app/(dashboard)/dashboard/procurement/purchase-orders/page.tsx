@@ -19,6 +19,7 @@ import {
   Building2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { GeneratePOModal } from "@/components/document/generate-po-modal";
 
 export default function ProcurementPurchaseOrdersPage() {
   const router = useRouter();
@@ -34,28 +35,11 @@ export default function ProcurementPurchaseOrdersPage() {
     token ? { token } : "skip"
   );
 
-  const createPOMutation = useMutation(api.purchase_orders.createPOFromCC);
-
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [generatingId, setGeneratingId] = React.useState<string | null>(null);
+  const [activeModalCC, setActiveModalCC] = React.useState<any | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  const handleGeneratePO = async (ccId: any) => {
-    setError(null);
-    setGeneratingId(ccId);
-    try {
-      const result = await createPOMutation({
-        costComparisonId: ccId,
-        submitImmediately: false,
-        token: token || undefined,
-      });
-      router.push(`/dashboard/procurement/purchase-orders/${result.id}`);
-    } catch (err: any) {
-      setError(err.message || "Failed to generate Purchase Order.");
-      setGeneratingId(null);
-    }
-  };
 
   const filteredPOs = (pos || []).filter((po) => {
     if (statusFilter !== "all" && po.status !== statusFilter) return false;
@@ -136,18 +120,11 @@ export default function ProcurementPurchaseOrdersPage() {
 
                   <Button
                     size="sm"
-                    disabled={generatingId === cc._id}
-                    onClick={() => handleGeneratePO(cc._id)}
-                    className="text-xs font-semibold gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => setActiveModalCC(cc)}
+                    className="text-xs font-semibold gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
                   >
-                    {generatingId === cc._id ? (
-                      "Generating PO…"
-                    ) : (
-                      <>
-                        Generate Purchase Order
-                        <ArrowRight className="h-3 w-3" />
-                      </>
-                    )}
+                    Generate Purchase Order
+                    <ArrowRight className="h-3 w-3" />
                   </Button>
                 </div>
               ))}
@@ -155,6 +132,7 @@ export default function ProcurementPurchaseOrdersPage() {
           </CardContent>
         </Card>
       )}
+
 
       {/* ── ALL PURCHASE ORDERS TABLE ── */}
       <div className="space-y-4">
@@ -277,6 +255,21 @@ export default function ProcurementPurchaseOrdersPage() {
           </table>
         </div>
       </div>
+
+      {/* Generate PO Modal */}
+      {activeModalCC && (
+        <GeneratePOModal
+          isOpen={!!activeModalCC}
+          onClose={() => setActiveModalCC(null)}
+          costComparisonId={activeModalCC._id}
+          costComparisonRefNo={activeModalCC.refNo}
+          projectName={activeModalCC.projectName}
+          siteName={activeModalCC.siteName}
+          vendorName={activeModalCC.selectedVendorName}
+          totalAmount={activeModalCC.winningTotal}
+        />
+      )}
     </div>
   );
 }
+

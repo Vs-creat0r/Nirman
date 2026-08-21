@@ -159,6 +159,7 @@ export default defineSchema({
         description: v.optional(v.string()),
         quantity: v.number(),
         unit: v.string(),
+        hsnSacCode: v.optional(v.string()),
         projectItemId: v.optional(v.id("project_items")),
       })
     ),
@@ -234,6 +235,9 @@ export default defineSchema({
     totalAmount: v.number(),
     paymentTerms: v.union(v.literal("advance"), v.literal("on_delivery"), v.literal("7_days"), v.literal("15_days"), v.literal("30_days"), v.literal("45_days")),
     expectedDelivery: v.optional(v.string()),
+    validUntil: v.optional(v.string()),
+    termsAndConditions: v.optional(v.string()),
+    tcTemplateId: v.optional(v.id("tc_templates")),
     deliveredQty: v.optional(v.number()),
     pendingQty: v.optional(v.number()),
     pdfFileId: v.optional(v.id("_storage")),
@@ -288,11 +292,31 @@ export default defineSchema({
     .index("by_token", ["token"])
     .index("by_userId", ["userId"]),
 
-  // System Settings — Single-document system-wide configuration row. Controls approval chain behavior across the platform.
+  // System Settings — Single-document system-wide configuration row. Controls approval chain behavior & company profile.
   settings: defineTable({
     requireManagerApprovalForRequests: v.boolean(),
+    companyName: v.optional(v.string()),
+    companyGstNo: v.optional(v.string()),
+    companyBillingAddress: v.optional(v.string()),
+    companyContactPerson: v.optional(v.string()),
+    companyPhone: v.optional(v.string()),
+    companyEmail: v.optional(v.string()),
     updatedAt: v.optional(v.string()),
   }),
+
+  // Terms & Conditions Templates — Admin-managed procurement terms templates.
+  tc_templates: defineTable({
+    name: v.string(),
+    content: v.string(),
+    isDefault: v.optional(v.boolean()),
+    isActive: v.boolean(),
+    createdBy: v.id("users"),
+    updatedBy: v.optional(v.id("users")),
+    updatedAt: v.optional(v.string()),
+  })
+    .index("by_isActive", ["isActive"])
+    .index("by_isDefault", ["isDefault"]),
+
 
   // Site — A physical construction site belonging to a project.
   sites: defineTable({

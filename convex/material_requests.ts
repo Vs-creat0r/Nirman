@@ -47,6 +47,7 @@ export const createMR = mutation({
         description: v.optional(v.string()),
         quantity: v.number(),
         unit: v.string(),
+        hsnSacCode: v.optional(v.string()),
         projectItemId: v.optional(v.id("project_items")),
       })
     ),
@@ -235,6 +236,7 @@ export const resubmitMR = mutation({
           description: v.optional(v.string()),
           quantity: v.number(),
           unit: v.string(),
+          hsnSacCode: v.optional(v.string()),
           projectItemId: v.optional(v.id("project_items")),
         })
       )

@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   Edit,
 } from "lucide-react";
+import { GeneratePOModal } from "@/components/document/generate-po-modal";
 
 export default function ProcurementCCDetailPage() {
   const params = useParams();
@@ -36,8 +37,7 @@ export default function ProcurementCCDetailPage() {
   );
   const submitCCMutation = useMutation(api.cost_comparisons.submitCC);
 
-  const createPOMutation = useMutation(api.purchase_orders.createPOFromCC);
-
+  const [isGeneratePOModalOpen, setIsGeneratePOModalOpen] = React.useState(false);
   const [isActionLoading, setIsActionLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -72,6 +72,10 @@ export default function ProcurementCCDetailPage() {
   const isQueried = cc.status === "queried";
   const isApproved = cc.status === "approved";
 
+  const winningQuote = cc.vendorQuotes.find(
+    (q: any) => q.vendorId === cc.selectedVendorId
+  );
+
   const handleSubmitDraft = async () => {
     setError(null);
     setIsActionLoading(true);
@@ -80,22 +84,6 @@ export default function ProcurementCCDetailPage() {
     } catch (err: any) {
       setError(err.message || "Failed to submit cost comparison.");
     } finally {
-      setIsActionLoading(false);
-    }
-  };
-
-  const handleGeneratePO = async () => {
-    setError(null);
-    setIsActionLoading(true);
-    try {
-      const result = await createPOMutation({
-        costComparisonId: id,
-        submitImmediately: false,
-        token: token || undefined,
-      });
-      router.push(`/dashboard/procurement/purchase-orders/${result.id}`);
-    } catch (err: any) {
-      setError(err.message || "Failed to generate Purchase Order.");
       setIsActionLoading(false);
     }
   };
@@ -130,12 +118,11 @@ export default function ProcurementCCDetailPage() {
           {isApproved && (
             <Button
               size="sm"
-              onClick={handleGeneratePO}
-              disabled={isActionLoading}
+              onClick={() => setIsGeneratePOModalOpen(true)}
               className="gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {isActionLoading ? "Generating PO…" : "Generate Purchase Order"}
+              Generate Purchase Order
             </Button>
           )}
 
@@ -339,6 +326,21 @@ export default function ProcurementCCDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Generate PO Modal */}
+      {isApproved && (
+        <GeneratePOModal
+          isOpen={isGeneratePOModalOpen}
+          onClose={() => setIsGeneratePOModalOpen(false)}
+          costComparisonId={cc._id}
+          costComparisonRefNo={cc.refNo}
+          projectName={cc.projectName}
+          siteName={cc.siteName}
+          vendorName={winningQuote?.vendorName}
+          totalAmount={winningQuote?.total}
+        />
+      )}
     </div>
   );
 }
+

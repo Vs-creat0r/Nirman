@@ -23,7 +23,9 @@ import {
   Clock,
   Truck,
   CreditCard,
+  User,
 } from "lucide-react";
+
 
 export default function ProcurementPODetailPage() {
   const params = useParams();
@@ -151,83 +153,144 @@ export default function ProcurementPODetailPage() {
 
       {/* Main PO Document Card */}
       <Card>
-        <CardHeader className="border-b border-border pb-4">
+        <CardHeader className="border-b border-border pb-4 bg-muted/10">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2.5">
-                <span className="font-mono text-base font-bold text-foreground">
+                <span className="font-mono text-lg font-bold text-foreground">
                   {po.refNo}
                 </span>
                 <StatusBadge status={po.status} />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Project: <strong>{po.projectName}</strong> &bull; Delivery Site: <strong>{po.siteName}</strong>
+                Formal Commercial Purchase Order &bull; Source CC: <span className="font-mono font-semibold text-primary">{po.costComparison?.refNo || "CC"}</span>
               </p>
             </div>
 
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-4 text-xs">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Calendar className="h-3.5 w-3.5" />
                 <span>
-                  {new Date(po._creationTime).toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  Issue Date:{" "}
+                  <strong className="text-foreground">
+                    {new Date(po._creationTime).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </strong>
                 </span>
               </div>
-              <div>
-                Total: <strong className="font-mono text-foreground text-sm">₹{po.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
+
+              {po.validUntil && (
+                <div className="flex items-center gap-1.5 text-muted-foreground bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
+                  <Clock className="h-3.5 w-3.5 text-amber-500" />
+                  <span>
+                    Valid Until:{" "}
+                    <strong className="text-foreground">
+                      {new Date(po.validUntil).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </strong>
+                  </span>
+                </div>
+              )}
+
+              <div className="font-mono text-sm">
+                Total: <strong className="text-primary text-base font-bold">₹{po.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong>
               </div>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-6 pt-6">
-          {/* Vendor Details Box */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-lg bg-muted/30 border border-border text-xs">
-            <div className="space-y-1">
-              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
-                Issued to Vendor
-              </span>
+          {/* 2-Column: Buyer Company vs Vendor Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Buyer Details */}
+            <div className="p-4 rounded-lg bg-muted/30 border border-border text-xs space-y-2">
+              <div className="flex items-center gap-1.5 text-primary font-bold uppercase tracking-wider text-[11px] border-b border-border/60 pb-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                Buyer (Ordering Entity)
+              </div>
+              <div className="text-sm font-bold text-foreground">
+                {po.buyerCompany?.companyName || "Nirman Construction & Infra"}
+              </div>
+              <div className="text-muted-foreground">
+                GSTIN: <span className="font-mono font-semibold text-foreground">{po.buyerCompany?.companyGstNo || "27AABCN1234F1Z5"}</span>
+              </div>
+              <div className="text-muted-foreground leading-relaxed">
+                Billing Address: {po.buyerCompany?.companyBillingAddress || "Corporate Office, Mumbai"}
+              </div>
+              <div className="text-muted-foreground pt-1 border-t border-border/40 flex flex-wrap gap-x-4 gap-y-1">
+                <span>Contact: <strong className="text-foreground">{po.buyerCompany?.companyContactPerson}</strong></span>
+                <span>Phone: <strong className="text-foreground">{po.buyerCompany?.companyPhone}</strong></span>
+                <span>Email: <strong className="text-foreground">{po.buyerCompany?.companyEmail}</strong></span>
+              </div>
+            </div>
+
+            {/* Vendor Details */}
+            <div className="p-4 rounded-lg bg-muted/30 border border-border text-xs space-y-2">
+              <div className="flex items-center gap-1.5 text-foreground font-bold uppercase tracking-wider text-[11px] border-b border-border/60 pb-1.5">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                Vendor (Supplier)
+              </div>
               <div className="text-sm font-bold text-foreground">
                 {po.vendor?.name || "Vendor"}
               </div>
-              {po.vendor?.phone && (
-                <div className="text-muted-foreground">Phone: {po.vendor.phone}</div>
-              )}
-              {po.vendor?.email && (
-                <div className="text-muted-foreground">Email: {po.vendor.email}</div>
-              )}
               {po.vendor?.gstNo && (
-                <div className="text-muted-foreground font-mono">GSTIN: {po.vendor.gstNo}</div>
+                <div className="text-muted-foreground">
+                  GSTIN: <span className="font-mono font-semibold text-foreground">{po.vendor.gstNo}</span>
+                </div>
               )}
+              <div className="text-muted-foreground leading-relaxed">
+                Address: {po.vendor?.address || "Registered Address on file"}
+              </div>
+              <div className="text-muted-foreground pt-1 border-t border-border/40 flex flex-wrap gap-x-4 gap-y-1">
+                {po.vendor?.contactPerson && (
+                  <span>Contact: <strong className="text-foreground">{po.vendor.contactPerson}</strong></span>
+                )}
+                {po.vendor?.phone && (
+                  <span>Phone: <strong className="text-foreground">{po.vendor.phone}</strong></span>
+                )}
+                {po.vendor?.email && (
+                  <span>Email: <strong className="text-foreground">{po.vendor.email}</strong></span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery & Shipping Details Box */}
+          <div className="p-3.5 rounded-lg bg-muted/20 border border-border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                Ship-To Site Delivery Location
+              </span>
+              <div className="font-semibold text-foreground">
+                {po.siteName} &bull; <span className="text-muted-foreground font-normal">{po.projectName}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {po.siteAddress || "Site Premises location"}
+              </p>
             </div>
 
-            <div className="space-y-1 sm:border-l sm:border-border sm:pl-4">
-              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
-                Commercial Terms & Logistics
-              </span>
+            <div className="flex items-center gap-6 text-xs sm:border-l sm:border-border sm:pl-4">
               <div>
-                Payment Terms:{" "}
-                <strong className="capitalize text-foreground">
-                  {po.paymentTerms?.replace("_", " ")}
-                </strong>
-              </div>
-              <div>
-                Expected Delivery:{" "}
+                <span className="text-[10px] text-muted-foreground block uppercase">Expected Delivery</span>
                 <strong className="text-foreground">
-                  {po.expectedDelivery || "Standard delivery timeline"}
+                  {po.expectedDelivery
+                    ? new Date(po.expectedDelivery).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "Standard timeline"}
                 </strong>
               </div>
               <div>
-                Source Cost Comparison:{" "}
-                <strong className="font-mono text-primary">
-                  {po.costComparison?.refNo || "CC Record"}
-                </strong>
-              </div>
-              <div>
-                Issued By: <strong className="text-foreground">{po.creatorName}</strong>
+                <span className="text-[10px] text-muted-foreground block uppercase">Currency</span>
+                <strong className="text-foreground font-mono">INR (₹)</strong>
               </div>
             </div>
           </div>
@@ -243,6 +306,7 @@ export default function ProcurementPODetailPage() {
                   <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
                     <th className="py-2.5 px-3 w-10 text-center">#</th>
                     <th className="py-2.5 px-3">Item Description</th>
+                    <th className="py-2.5 px-3 w-28">HSN/SAC Code</th>
                     <th className="py-2.5 px-3 w-20 text-right">Quantity</th>
                     <th className="py-2.5 px-3 w-16">Unit</th>
                     <th className="py-2.5 px-3 w-28 text-right">Unit Rate (₹)</th>
@@ -257,11 +321,9 @@ export default function ProcurementPODetailPage() {
                       </td>
                       <td className="py-2.5 px-3 font-semibold text-foreground">
                         {item.itemName}
-                        {item.hsnSacCode && (
-                          <span className="text-[10px] font-mono text-muted-foreground ml-2">
-                            HSN: {item.hsnSacCode}
-                          </span>
-                        )}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">
+                        {item.hsnSacCode || "—"}
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-foreground">
                         {item.quantity}
@@ -282,9 +344,36 @@ export default function ProcurementPODetailPage() {
             </div>
           </div>
 
-          {/* Financial Totals Breakdown */}
-          <div className="flex justify-end">
-            <div className="w-full sm:w-80 p-4 rounded-lg bg-muted/30 border border-border space-y-1.5 font-mono text-xs">
+          {/* Financial Totals & Commercial Terms */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 rounded-lg bg-muted/20 border border-border space-y-2 text-xs">
+              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                Commercial Payment Terms
+              </span>
+              <div className="space-y-1">
+                <div>
+                  Payment Terms:{" "}
+                  <strong className="capitalize text-foreground">
+                    {po.paymentTerms?.replace("_", " ")}
+                  </strong>
+                </div>
+                <div>
+                  Issued By: <strong className="text-foreground">{po.creatorName}</strong>
+                </div>
+                {po.reviewerName && (
+                  <div>
+                    Authorized By: <strong className="text-emerald-600 dark:text-emerald-400">{po.reviewerName}</strong>
+                    {po.reviewedAt && (
+                      <span className="text-muted-foreground text-[11px] ml-1">
+                        on {new Date(po.reviewedAt).toLocaleDateString("en-IN")}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 rounded-lg bg-muted/30 border border-border space-y-1.5 font-mono text-xs">
               <div className="flex justify-between text-muted-foreground">
                 <span>Items Subtotal:</span>
                 <span>₹{po.subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
@@ -307,6 +396,19 @@ export default function ProcurementPODetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Terms & Conditions Box */}
+          {po.termsAndConditions && (
+            <div className="p-4 rounded-lg bg-muted/20 border border-border space-y-2">
+              <h3 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                Terms & Conditions
+              </h3>
+              <pre className="text-xs text-muted-foreground font-sans whitespace-pre-wrap leading-relaxed bg-surface/50 p-3 rounded border border-border/60">
+                {po.termsAndConditions}
+              </pre>
+            </div>
+          )}
 
           {/* Audit Log Timeline */}
           <div className="space-y-3 pt-4 border-t border-border">
@@ -373,3 +475,4 @@ export default function ProcurementPODetailPage() {
     </div>
   );
 }
+

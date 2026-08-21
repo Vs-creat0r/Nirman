@@ -85,6 +85,8 @@ export function ItemListInput({ fieldDef, optionsMap }: ItemListInputProps) {
                         ? "w-24 text-right"
                         : sf.field === "unit"
                         ? "w-28"
+                        : sf.field === "hsnSacCode"
+                        ? "w-32"
                         : sf.field === "description"
                         ? "min-w-[180px]"
                         : "min-w-[160px]"
@@ -188,12 +190,14 @@ export function ItemListInput({ fieldDef, optionsMap }: ItemListInputProps) {
                                 <Input
                                   type="text"
                                   placeholder={
-                                    sf.field === "description"
+                                    sf.field === "hsnSacCode"
+                                      ? "e.g. 7214"
+                                      : sf.field === "description"
                                       ? "Specification / note…"
                                       : `Enter ${sf.label.toLowerCase()}…`
                                   }
                                   maxLength={sf.validation?.maxLength}
-                                  className="h-8 text-xs"
+                                  className={`h-8 text-xs ${sf.field === "hsnSacCode" ? "font-mono" : ""}`}
                                   {...field}
                                   value={field.value ?? ""}
                                 />
@@ -209,6 +213,7 @@ export function ItemListInput({ fieldDef, optionsMap }: ItemListInputProps) {
                       </td>
                     );
                   })}
+
 
                   <td className="py-2 px-2 text-center align-middle">
                     <button

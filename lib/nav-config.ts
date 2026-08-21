@@ -98,9 +98,11 @@ export const navConfig: Record<UserRole, NavGroup[]> = {
     {
       label: "System",
       items: [
+        { title: "Settings", href: "/dashboard/admin/settings", icon: Settings },
         { title: "System Logs", href: "/dashboard/logs", icon: Activity },
       ]
     }
+
   ]
 };
 
