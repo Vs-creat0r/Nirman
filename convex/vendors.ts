@@ -43,6 +43,93 @@ export const listVendors = query({
 });
 
 /**
+ * List all vendors with aggregated metrics (total PO count, total spend, etc.)
+ */
+export const listVendorsWithStats = query({
+  args: {
+    includeInactive: v.optional(v.boolean()),
+    category: v.optional(v.string()),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireRole(
+      ctx,
+      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
+      args.token
+    );
+
+    let vendors = await ctx.db.query("vendors").collect();
+
+    if (!args.includeInactive) {
+      vendors = vendors.filter((v) => v.isActive);
+    }
+
+    if (args.category) {
+      vendors = vendors.filter((v) => v.category === args.category);
+    }
+
+    // Sort alphabetically by name
+    vendors.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Fetch all POs to aggregate spend
+    const allPOs = await ctx.db.query("purchase_order").collect();
+
+    return vendors.map((v) => {
+      const vendorPOs = allPOs.filter((po) => po.vendorId === v._id);
+      const approvedPOs = vendorPOs.filter((po) => po.status === "approved");
+      const totalSpend = approvedPOs.reduce((acc, po) => acc + (po.totalAmount || 0), 0);
+
+      return {
+        ...v,
+        poCount: vendorPOs.length,
+        approvedPOCount: approvedPOs.length,
+        totalSpend: Math.round(totalSpend * 100) / 100,
+      };
+    });
+  },
+});
+
+/**
+ * Get a single vendor by ID with full history (issued POs).
+ */
+export const getVendorDetails = query({
+  args: {
+    id: v.id("vendors"),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireRole(
+      ctx,
+      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
+      args.token
+    );
+
+    const vendor = await ctx.db.get(args.id);
+    if (!vendor) return null;
+
+    const pos = await ctx.db
+      .query("purchase_order")
+      .withIndex("by_vendorId", (q) => q.eq("vendorId", args.id))
+      .collect();
+
+    pos.sort((a, b) => b._creationTime - a._creationTime);
+
+    const approvedPOs = pos.filter((po) => po.status === "approved");
+    const totalSpend = approvedPOs.reduce((acc, po) => acc + (po.totalAmount || 0), 0);
+
+
+
+    return {
+      ...vendor,
+      pos,
+      poCount: pos.length,
+      approvedPOCount: approvedPOs.length,
+      totalSpend: Math.round(totalSpend * 100) / 100,
+    };
+  },
+});
+
+/**
  * Get a single vendor by ID.
  */
 export const getVendor = query({
@@ -60,6 +147,7 @@ export const getVendor = query({
     return await ctx.db.get(args.id);
   },
 });
+
 
 /**
  * Create a new vendor with strict server-side name uniqueness check.

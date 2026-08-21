@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
@@ -22,7 +23,10 @@ import {
   XCircle,
   Edit2,
   AlertCircle,
-  Filter,
+  ShoppingBag,
+  ExternalLink,
+  IndianRupee,
+  Eye,
 } from "lucide-react";
 
 const VENDOR_CATEGORIES = [
@@ -42,18 +46,17 @@ export default function ProcurementVendorsPage() {
   const { token } = useSession();
 
   const vendors = useQuery(
-    api.vendors.listVendors,
+    api.vendors.listVendorsWithStats,
     token ? { includeInactive: true, token } : "skip"
   );
   const createVendorMutation = useMutation(api.vendors.createVendor);
   const updateVendorMutation = useMutation(api.vendors.updateVendor);
-  const deactivateVendorMutation = useMutation(api.vendors.deactivateVendor);
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string>("all");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "inactive">("all");
 
-  // Modal State
+  // Create / Edit Modal State
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingVendorId, setEditingVendorId] = React.useState<Id<"vendors"> | null>(null);
   const [vendorForm, setVendorForm] = React.useState({
@@ -68,6 +71,13 @@ export default function ProcurementVendorsPage() {
   });
   const [formSaving, setFormSaving] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
+
+  // Vendor Details Drawer State
+  const [selectedVendorId, setSelectedVendorId] = React.useState<Id<"vendors"> | null>(null);
+  const vendorDetails = useQuery(
+    api.vendors.getVendorDetails,
+    selectedVendorId && token ? { id: selectedVendorId, token } : "skip"
+  );
 
   const openCreateModal = () => {
     setEditingVendorId(null);
@@ -177,6 +187,12 @@ export default function ProcurementVendorsPage() {
     );
   });
 
+  // Aggregates for top KPI cards
+  const totalVendorsCount = vendors?.length || 0;
+  const activeVendorsCount = vendors?.filter((v) => v.isActive).length || 0;
+  const totalLifetimeSpend = vendors?.reduce((acc, v) => acc + (v.totalSpend || 0), 0) || 0;
+  const totalPOsCount = vendors?.reduce((acc, v) => acc + (v.poCount || 0), 0) || 0;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -184,7 +200,7 @@ export default function ProcurementVendorsPage() {
         <div>
           <h1 className="text-xl font-bold text-foreground">Vendor Master Management</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Maintain approved suppliers, registered billing addresses, GSTIN tax identifiers, and commercial contacts.
+            Manage approved suppliers, registered GSTIN tax details, contact persons, and lifetime procurement metrics.
           </p>
         </div>
         <Button
@@ -195,6 +211,65 @@ export default function ProcurementVendorsPage() {
           <Plus className="h-4 w-4" />
           Add New Vendor
         </Button>
+      </div>
+
+      {/* Top Metrics Cards */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Total Vendors
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-mono text-foreground">{totalVendorsCount}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {activeVendorsCount} active suppliers in catalog
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Active Vendors
+            </CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-mono text-emerald-500">{activeVendorsCount}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">Available for RFQ quotes</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Purchase Orders
+            </CardTitle>
+            <ShoppingBag className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-mono text-foreground">{totalPOsCount}</div>
+            <p className="text-[10px] text-muted-foreground mt-1">Total orders issued to vendors</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Lifetime Spend
+            </CardTitle>
+            <IndianRupee className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-mono text-foreground">
+              ₹{totalLifetimeSpend.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">Cumulative approved PO value</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters Bar */}
@@ -238,7 +313,7 @@ export default function ProcurementVendorsPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            All ({vendors?.length || 0})
+            All ({totalVendorsCount})
           </button>
           <button
             type="button"
@@ -249,7 +324,7 @@ export default function ProcurementVendorsPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Active ({vendors?.filter((v) => v.isActive).length || 0})
+            Active ({activeVendorsCount})
           </button>
           <button
             type="button"
@@ -260,7 +335,7 @@ export default function ProcurementVendorsPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Inactive ({vendors?.filter((v) => !v.isActive).length || 0})
+            Inactive ({totalVendorsCount - activeVendorsCount})
           </button>
         </div>
       </div>
@@ -277,6 +352,7 @@ export default function ProcurementVendorsPage() {
                 <th className="py-3 px-3">Contact Person</th>
                 <th className="py-3 px-3">Phone & Email</th>
                 <th className="py-3 px-3">GSTIN</th>
+                <th className="py-3 px-3 text-right">Orders & Spend</th>
                 <th className="py-3 px-3">Status</th>
                 <th className="py-3 px-3.5 text-right">Actions</th>
               </tr>
@@ -284,7 +360,7 @@ export default function ProcurementVendorsPage() {
             <tbody className="divide-y divide-border">
               {vendors === undefined ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={9} className="py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                       <span>Loading vendors…</span>
@@ -293,7 +369,7 @@ export default function ProcurementVendorsPage() {
                 </tr>
               ) : filteredVendors.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                  <td colSpan={9} className="py-12 text-center text-muted-foreground">
                     <div className="space-y-1">
                       <Users className="h-8 w-8 mx-auto text-muted-foreground/60" />
                       <p className="text-xs font-semibold text-foreground">No vendors found</p>
@@ -310,7 +386,13 @@ export default function ProcurementVendorsPage() {
                       {idx + 1}
                     </td>
                     <td className="py-3 px-3.5">
-                      <div className="font-bold text-foreground">{vendor.name}</div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVendorId(vendor._id)}
+                        className="font-bold text-foreground hover:text-primary transition-colors text-left cursor-pointer"
+                      >
+                        {vendor.name}
+                      </button>
                       {vendor.address && (
                         <div className="text-[11px] text-muted-foreground truncate max-w-xs" title={vendor.address}>
                           {vendor.address}
@@ -334,6 +416,14 @@ export default function ProcurementVendorsPage() {
                     <td className="py-3 px-3 font-mono text-[11px] text-muted-foreground">
                       {vendor.gstNo || "—"}
                     </td>
+                    <td className="py-3 px-3 text-right font-mono">
+                      <div className="font-semibold text-foreground">
+                        ₹{(vendor.totalSpend || 0).toLocaleString("en-IN")}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {vendor.poCount || 0} PO{vendor.poCount !== 1 ? "s" : ""}
+                      </div>
+                    </td>
                     <td className="py-3 px-3">
                       {vendor.isActive ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/30">
@@ -349,6 +439,15 @@ export default function ProcurementVendorsPage() {
                     </td>
                     <td className="py-3 px-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedVendorId(vendor._id)}
+                          className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
+                          title="View Vendor History"
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -380,6 +479,144 @@ export default function ProcurementVendorsPage() {
           </table>
         </div>
       </div>
+
+      {/* Vendor Profile & History Drawer Modal */}
+      {selectedVendorId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-2xl space-y-4 my-8 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-bold text-foreground">
+                  Vendor Dossier & Purchase History
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedVendorId(null)}
+                className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {vendorDetails === undefined ? (
+              <div className="py-12 flex justify-center text-xs text-muted-foreground">
+                <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : vendorDetails === null ? (
+              <p className="text-xs text-muted-foreground">Vendor not found.</p>
+            ) : (
+              <div className="space-y-4">
+                {/* Header Information */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-lg bg-muted/30 border border-border">
+                  <div>
+                    <h4 className="text-base font-bold text-foreground">{vendorDetails.name}</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Category: <span className="font-semibold text-foreground">{vendorDetails.category || "General"}</span> &bull; Status:{" "}
+                      <span className={vendorDetails.isActive ? "text-emerald-500 font-semibold" : "text-muted-foreground font-semibold"}>
+                        {vendorDetails.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="text-left sm:text-right font-mono">
+                    <div className="text-sm font-bold text-foreground">
+                      ₹{(vendorDetails.totalSpend || 0).toLocaleString("en-IN")}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">Lifetime Approved Spend</div>
+                  </div>
+                </div>
+
+                {/* Contact & Tax Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-lg border border-border space-y-1">
+                    <div className="font-semibold text-foreground">Contact Details</div>
+                    <div>Person: <span className="font-medium">{vendorDetails.contactPerson || "—"}</span></div>
+                    <div>Phone: <span className="font-mono">{vendorDetails.phone}</span></div>
+                    <div>Email: <span className="text-muted-foreground">{vendorDetails.email || "—"}</span></div>
+                  </div>
+                  <div className="p-3 rounded-lg border border-border space-y-1">
+                    <div className="font-semibold text-foreground">Registration & Tax</div>
+                    <div>GSTIN: <span className="font-mono font-semibold text-primary">{vendorDetails.gstNo || "—"}</span></div>
+                    <div>Address: <span className="text-muted-foreground">{vendorDetails.address || "—"}</span></div>
+                  </div>
+                </div>
+
+                {/* Issued Purchase Orders Table */}
+                <div className="space-y-2">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Purchase Orders Issued ({vendorDetails.pos?.length || 0})
+                  </h5>
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
+                          <th className="py-2 px-3">PO Reference</th>
+                          <th className="py-2 px-3">Date</th>
+                          <th className="py-2 px-3">Status</th>
+                          <th className="py-2 px-3 text-right">Order Value</th>
+                          <th className="py-2 px-3 text-right">View</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {!vendorDetails.pos || vendorDetails.pos.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-6 text-center text-muted-foreground text-[11px]">
+                              No purchase orders issued to this vendor yet.
+                            </td>
+                          </tr>
+                        ) : (
+                          vendorDetails.pos.map((po: any) => (
+                            <tr key={po._id} className="hover:bg-muted/20">
+                              <td className="py-2 px-3 font-mono font-bold text-foreground">{po.refNo}</td>
+                              <td className="py-2 px-3 text-muted-foreground">
+                                {new Date(po._creationTime || po.updatedAt || Date.now()).toLocaleDateString("en-IN", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </td>
+
+                              <td className="py-2 px-3">
+                                <span className="capitalize text-[10px] font-semibold">
+                                  {po.status}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-right font-mono font-semibold text-foreground">
+                                ₹{po.totalAmount?.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-2 px-3 text-right">
+                                <Link
+                                  href={`/dashboard/procurement/purchase-orders/${po._id}`}
+                                  className="inline-flex items-center gap-1 text-primary hover:underline text-[11px]"
+                                >
+                                  Open <ExternalLink className="h-3 w-3" />
+                                </Link>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-border">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedVendorId(null)}
+                    className="text-xs"
+                  >
+                    Close Dossier
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Vendor Form Modal */}
       {isModalOpen && (
