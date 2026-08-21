@@ -24,7 +24,9 @@ import {
   Truck,
   CreditCard,
   User,
+  Edit2,
 } from "lucide-react";
+import { EditPOModal } from "@/components/document/edit-po-modal";
 
 
 export default function ProcurementPODetailPage() {
@@ -39,6 +41,7 @@ export default function ProcurementPODetailPage() {
   );
   const submitPOMutation = useMutation(api.purchase_orders.submitPO);
 
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [isActionLoading, setIsActionLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -70,8 +73,10 @@ export default function ProcurementPODetailPage() {
   }
 
   const isDraft = po.status === "draft";
+  const isSubmitted = po.status === "submitted";
   const isQueried = po.status === "queried";
   const isApproved = po.status === "approved";
+  const isRejected = po.status === "rejected";
 
   const handleSubmitDraft = async () => {
     setError(null);
@@ -111,6 +116,18 @@ export default function ProcurementPODetailPage() {
             </Button>
           )}
 
+          {/* Action Button for Queried status */}
+          {isQueried && (
+            <Button
+              size="sm"
+              onClick={() => setIsEditModalOpen(true)}
+              className="gap-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              Edit & Resubmit PO
+            </Button>
+          )}
+
           {/* If Approved, show ready for Delivery Challan */}
           {isApproved && (
             <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-md border border-emerald-500/30 flex items-center gap-1.5">
@@ -138,16 +155,26 @@ export default function ProcurementPODetailPage() {
 
       {/* Queried Notice Alert Box */}
       {isQueried && (
-        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h3 className="text-xs font-bold text-amber-500">
-              Queried by Manager
-            </h3>
-            <p className="text-xs text-foreground">
-              {po.reviewNote || "Reviewer requested changes on this purchase order."}
-            </p>
+        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold text-amber-500">
+                Queried by Manager
+              </h3>
+              <p className="text-xs text-foreground">
+                {po.reviewNote || "Reviewer requested changes on this purchase order."}
+              </p>
+            </div>
           </div>
+          <Button
+            size="sm"
+            onClick={() => setIsEditModalOpen(true)}
+            className="text-xs font-semibold gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shrink-0"
+          >
+            <Edit2 className="h-3.5 w-3.5" />
+            Edit & Resubmit
+          </Button>
         </div>
       )}
 
@@ -472,7 +499,17 @@ export default function ProcurementPODetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit & Resubmit Modal for Queried POs */}
+      {isQueried && (
+        <EditPOModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          po={po}
+        />
+      )}
     </div>
   );
 }
+
 
