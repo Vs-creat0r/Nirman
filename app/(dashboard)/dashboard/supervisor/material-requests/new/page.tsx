@@ -25,18 +25,17 @@ export default function NewMaterialRequestPage() {
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const submitImmediatelyRef = React.useRef(false);
 
   const optionsMap = {
     projects: projects || [],
     sites: sites || [],
   };
 
-  const handleSave = async (
-    data: Record<string, unknown>,
-    submitImmediately = false
-  ) => {
+  const handleSave = async (data: Record<string, unknown>) => {
     setError(null);
     setIsSubmitting(true);
+    const submitImmediately = submitImmediatelyRef.current;
 
     try {
       if (!data.projectId) {
@@ -48,20 +47,32 @@ export default function NewMaterialRequestPage() {
         throw new Error("Please add at least one line item.");
       }
 
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (!it.itemName || !it.itemName.trim()) {
+          throw new Error(`Item #${i + 1} must have a valid item name.`);
+        }
+        const qty = Number(it.quantity);
+        if (isNaN(qty) || qty <= 0) {
+          throw new Error(`Quantity for "${it.itemName}" must be greater than 0.`);
+        }
+      }
+
       // Format payload for createMR mutation
       const payload: any = {
         projectId: data.projectId as any,
         siteId: data.siteId ? (data.siteId as any) : undefined,
         items: items.map((it: any) => ({
-          itemName: it.itemName || "",
-          description: it.description || undefined,
-          quantity: Number(it.quantity) || 1,
+          itemName: it.itemName.trim(),
+          description: it.description?.trim() || undefined,
+          hsnSacCode: it.hsnSacCode?.trim() || undefined,
+          quantity: Number(it.quantity),
           unit: it.unit || "bags",
           projectItemId: it.projectItemId || undefined,
         })),
         priority: (data.priority as any) || "normal",
         requiredBy: data.requiredBy ? String(data.requiredBy) : undefined,
-        notes: data.notes ? String(data.notes) : undefined,
+        notes: data.notes ? String(data.notes).trim() : undefined,
         submitImmediately,
         token: token || undefined,
       };
@@ -96,7 +107,7 @@ export default function NewMaterialRequestPage() {
       <DocumentForm
         contract={materialRequestContract as unknown as DocumentContract}
         optionsMap={optionsMap}
-        onSubmit={(data) => handleSave(data, false)}
+        onSubmit={handleSave}
         submitLabel="Save as Draft"
         isSubmitting={isSubmitting}
         defaultValues={{
@@ -110,15 +121,13 @@ export default function NewMaterialRequestPage() {
             size="md"
             disabled={isSubmitting}
             onClick={(e) => {
-              // Submit immediately
+              submitImmediatelyRef.current = true;
               const form = (e.currentTarget as HTMLElement).closest("form");
               if (form) {
-                // Find submit trigger for submitImmediately
                 const submitBtn = form.querySelector(
                   'button[type="submit"]'
                 ) as HTMLButtonElement;
                 if (submitBtn) {
-                  // We can intercept submit via state
                   submitBtn.click();
                 }
               }

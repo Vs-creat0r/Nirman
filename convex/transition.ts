@@ -119,30 +119,3 @@ export async function transition<T extends TableNames>(
   };
 }
 
-/**
- * Generic transition mutation exposed for direct UI action calls.
- */
-export const executeTransition = mutation({
-  args: {
-    table: v.string(),
-    documentId: v.string(),
-    from: v.optional(v.union(v.string(), v.array(v.string()))),
-    to: v.string(),
-    actorRole: v.array(v.string()),
-    token: v.optional(v.string()),
-    action: v.optional(v.string()),
-    note: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    return await transition(ctx, {
-      table: args.table as TableNames,
-      documentId: args.documentId as any,
-      from: args.from,
-      to: args.to,
-      actorRole: args.actorRole as UserRole[],
-      token: args.token,
-      action: args.action,
-      note: args.note,
-    });
-  },
-});

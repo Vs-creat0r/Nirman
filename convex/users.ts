@@ -23,7 +23,10 @@ export const getMyUser = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await getUserFromToken(ctx, args.token);
+    const user = await getUserFromToken(ctx, args.token);
+    if (!user) return null;
+    const { passwordHash, ...safeUser } = user;
+    return safeUser;
   },
 });
 
@@ -33,7 +36,8 @@ export const list = query({
     const me = await getUserFromToken(ctx, args.token);
     if (!me) throw new Error("Unauthenticated");
     
-    return await ctx.db.query("users").collect();
+    const allUsers = await ctx.db.query("users").collect();
+    return allUsers.map(({ passwordHash, ...safeUser }) => safeUser);
   },
 });
 

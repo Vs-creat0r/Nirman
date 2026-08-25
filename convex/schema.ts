@@ -11,7 +11,7 @@ export default defineSchema({
     materialRequestId: v.id("material_request"),
     rfqId: v.optional(v.id("rfq")),
     projectId: v.id("projects"),
-    siteId: v.id("sites"),
+    siteId: v.optional(v.id("sites")),
     vendorQuotes: v.array(
       v.object({
         vendorId: v.id("vendors"),
@@ -55,7 +55,7 @@ export default defineSchema({
     refNo: v.string(),
     purchaseOrderId: v.id("purchase_order"),
     vendorId: v.id("vendors"),
-    siteId: v.id("sites"),
+    siteId: v.optional(v.id("sites")),
     vehicleNo: v.string(),
     driverName: v.string(),
     driverPhone: v.optional(v.string()),
@@ -88,7 +88,7 @@ export default defineSchema({
     purchaseOrderId: v.id("purchase_order"),
     deliveryChallanId: v.id("delivery_challan"),
     vendorId: v.id("vendors"),
-    siteId: v.id("sites"),
+    siteId: v.optional(v.id("sites")),
     receivedItems: v.array(
       v.object({
         itemName: v.string(),
@@ -157,9 +157,9 @@ export default defineSchema({
       v.object({
         itemName: v.string(),
         description: v.optional(v.string()),
+        hsnSacCode: v.optional(v.string()),
         quantity: v.number(),
         unit: v.string(),
-        hsnSacCode: v.optional(v.string()),
         projectItemId: v.optional(v.id("project_items")),
       })
     ),
@@ -217,7 +217,7 @@ export default defineSchema({
     materialRequestId: v.optional(v.id("material_request")),
     vendorId: v.id("vendors"),
     projectId: v.id("projects"),
-    siteId: v.id("sites"),
+    siteId: v.optional(v.id("sites")),
     lineItems: v.array(
       v.object({
         itemName: v.string(),
@@ -292,7 +292,7 @@ export default defineSchema({
     .index("by_token", ["token"])
     .index("by_userId", ["userId"]),
 
-  // System Settings — Single-document system-wide configuration row. Controls approval chain behavior & company profile.
+  // System Settings — Single-document system-wide configuration row. Controls approval chain behavior across the platform and company profile.
   settings: defineTable({
     requireManagerApprovalForRequests: v.boolean(),
     companyName: v.optional(v.string()),
@@ -303,20 +303,6 @@ export default defineSchema({
     companyEmail: v.optional(v.string()),
     updatedAt: v.optional(v.string()),
   }),
-
-  // Terms & Conditions Templates — Admin-managed procurement terms templates.
-  tc_templates: defineTable({
-    name: v.string(),
-    content: v.string(),
-    isDefault: v.optional(v.boolean()),
-    isActive: v.boolean(),
-    createdBy: v.id("users"),
-    updatedBy: v.optional(v.id("users")),
-    updatedAt: v.optional(v.string()),
-  })
-    .index("by_isActive", ["isActive"])
-    .index("by_isDefault", ["isDefault"]),
-
 
   // Site — A physical construction site belonging to a project.
   sites: defineTable({
@@ -331,6 +317,19 @@ export default defineSchema({
   })
     .index("by_projectId", ["projectId"])
     .index("by_projectId_isActive", ["projectId", "isActive"]),
+
+  // Terms & Conditions Template — Admin-managed procurement terms templates.
+  tc_templates: defineTable({
+    name: v.string(),
+    content: v.string(),
+    isDefault: v.optional(v.boolean()),
+    isActive: v.boolean(),
+    createdBy: v.id("users"),
+    updatedBy: v.optional(v.id("users")),
+    updatedAt: v.optional(v.string()),
+  })
+    .index("by_isActive", ["isActive"])
+    .index("by_isDefault", ["isDefault"]),
 
   // User — A person with access to the system. Created by Admin only; there is no self-registration.
   users: defineTable({

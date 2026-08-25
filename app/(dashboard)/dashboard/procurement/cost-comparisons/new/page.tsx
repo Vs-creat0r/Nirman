@@ -68,29 +68,58 @@ function NewCostComparisonForm() {
         amount: 0,
       }));
 
-      // Initialize with 2 empty vendor quotes
-      setQuotes([
-        {
-          vendorId: "",
-          items: initialItems.map((it) => ({ ...it })),
-          subtotal: 0,
-          taxRate: 18,
-          taxAmount: 0,
-          freight: 0,
-          total: 0,
-          paymentTerms: "30_days",
-        },
-        {
-          vendorId: "",
-          items: initialItems.map((it) => ({ ...it })),
-          subtotal: 0,
-          taxRate: 18,
-          taxAmount: 0,
-          freight: 0,
-          total: 0,
-          paymentTerms: "30_days",
-        },
-      ]);
+      setQuotes((prev) => {
+        // If we already had quotes with selected vendors, preserve vendor metadata
+        if (prev.length >= 2) {
+          return prev.map((q) => {
+            const updatedItems = initialItems.map((newItem) => {
+              const existingItem = q.items.find((it) => it.itemName === newItem.itemName);
+              const rate = existingItem ? existingItem.rate : 0;
+              return {
+                ...newItem,
+                rate,
+                amount: Math.round(newItem.quantity * rate * 100) / 100,
+              };
+            });
+            const subtotal = Math.round(
+              updatedItems.reduce((acc, cur) => acc + (cur.amount || 0), 0) * 100
+            ) / 100;
+            const taxAmount = Math.round(subtotal * (q.taxRate / 100) * 100) / 100;
+            const freight = Number(q.freight) || 0;
+            return {
+              ...q,
+              items: updatedItems,
+              subtotal,
+              taxAmount,
+              total: Math.round((subtotal + taxAmount + freight) * 100) / 100,
+            };
+          });
+        }
+
+        // Initialize with 2 empty vendor quotes
+        return [
+          {
+            vendorId: "",
+            items: initialItems.map((it) => ({ ...it })),
+            subtotal: 0,
+            taxRate: 18,
+            taxAmount: 0,
+            freight: 0,
+            total: 0,
+            paymentTerms: "30_days",
+          },
+          {
+            vendorId: "",
+            items: initialItems.map((it) => ({ ...it })),
+            subtotal: 0,
+            taxRate: 18,
+            taxAmount: 0,
+            freight: 0,
+            total: 0,
+            paymentTerms: "30_days",
+          },
+        ];
+      });
     }
   }, [currentMR?._id]);
 
@@ -161,9 +190,9 @@ function NewCostComparisonForm() {
       // Check rates
       for (let i = 0; i < quotes.length; i++) {
         for (const item of quotes[i].items) {
-          if (item.rate <= 0) {
+          if (item.rate < 0 || isNaN(item.rate)) {
             throw new Error(
-              `Please enter a valid rate greater than 0 for "${item.itemName}" in Quote #${i + 1}.`
+              `Please enter a valid non-negative rate for "${item.itemName}" in Quote #${i + 1}.`
             );
           }
         }

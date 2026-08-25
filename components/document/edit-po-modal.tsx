@@ -96,11 +96,45 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
     setLineItems(updated);
   };
 
+  const handleAddItem = () => {
+    setLineItems((prev) => [
+      ...prev,
+      {
+        itemName: "",
+        quantity: 1,
+        unit: "bags",
+        rate: 0,
+        hsnSacCode: "",
+      },
+    ]);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    if (lineItems.length <= 1) return;
+    setLineItems((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleResubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (lineItems.length === 0) {
       setError("Purchase Order must have at least one line item.");
       return;
+    }
+
+    for (let i = 0; i < lineItems.length; i++) {
+      const it = lineItems[i];
+      if (!it.itemName || !it.itemName.trim()) {
+        setError(`Line Item #${i + 1} must have an item name.`);
+        return;
+      }
+      if (Number(it.quantity) <= 0 || isNaN(Number(it.quantity))) {
+        setError(`Quantity for "${it.itemName}" must be greater than zero.`);
+        return;
+      }
+      if (Number(it.rate) < 0 || isNaN(Number(it.rate))) {
+        setError(`Rate for "${it.itemName}" must be non-negative.`);
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -110,9 +144,9 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
       await resubmitPOMutation({
         id: po._id as Id<"purchase_order">,
         lineItems: lineItems.map((i) => ({
-          itemName: i.itemName,
+          itemName: i.itemName.trim(),
           quantity: Number(i.quantity) || 0,
-          unit: i.unit,
+          unit: i.unit.trim() || "nos",
           rate: Number(i.rate) || 0,
           hsnSacCode: i.hsnSacCode?.trim() || undefined,
         })),
@@ -143,66 +177,86 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
           <div>
             <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
               <FileText className="h-4 w-4 text-amber-500" />
-              Edit & Resubmit Purchase Order
+              Edit & Resubmit Purchase Order — {po.refNo}
             </h2>
-            <p className="text-[11px] text-muted-foreground">
-              Reference: <span className="font-mono font-semibold">{po.refNo}</span> &bull; Vendor: <span className="font-semibold">{po.vendor?.name}</span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Revise quantities, rates, terms, and delivery schedules to resolve manager query.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-          >
-            ✕
-          </button>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-7 text-xs">
+            Cancel
+          </Button>
         </div>
 
-        {error && (
-          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            {error}
+        {/* Manager Query Note */}
+        {po.reviewNote && (
+          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs space-y-1">
+            <span className="font-bold text-amber-600 dark:text-amber-400">
+              Manager Feedback / Query:
+            </span>
+            <p className="text-foreground">{po.reviewNote}</p>
           </div>
         )}
 
-        <form onSubmit={handleResubmit} className="space-y-4">
-          {/* Line Items Editor */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold">Ordered Line Items</Label>
-            <div className="rounded-lg border border-border bg-surface overflow-hidden shadow-xs">
+        {error && (
+          <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-xs text-destructive flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleResubmit} className="space-y-4 text-xs">
+          {/* Line Items Table */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="font-semibold text-foreground">Line Items</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddItem}
+                className="h-6 text-[11px] gap-1 px-2"
+              >
+                <Plus className="h-3 w-3" />
+                Add Item
+              </Button>
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface overflow-hidden">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
-                    <th className="py-2 px-2.5 w-8 text-center">#</th>
                     <th className="py-2 px-2.5">Item Name</th>
-                    <th className="py-2 px-2.5 w-24">HSN Code</th>
-                    <th className="py-2 px-2.5 w-20 text-right">Qty</th>
-                    <th className="py-2 px-2.5 w-16">Unit</th>
-                    <th className="py-2 px-2.5 w-24 text-right">Rate (₹)</th>
+                    <th className="py-2 px-2 w-28">HSN/SAC</th>
+                    <th className="py-2 px-2 w-20 text-right">Qty</th>
+                    <th className="py-2 px-2 w-20">Unit</th>
+                    <th className="py-2 px-2 w-24 text-right">Rate (₹)</th>
                     <th className="py-2 px-2.5 w-24 text-right">Amount (₹)</th>
+                    <th className="py-2 px-1 w-8 text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {lineItems.map((item, idx) => {
-                    const itemAmount = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
+                    const itemAmount =
+                      Math.round(
+                        (Number(item.quantity) || 0) * (Number(item.rate) || 0) * 100
+                      ) / 100;
                     return (
-                      <tr key={idx}>
-                        <td className="py-1.5 px-2.5 text-center text-muted-foreground font-mono text-[11px]">
-                          {idx + 1}
-                        </td>
+                      <tr key={idx} className="hover:bg-muted/20">
                         <td className="py-1.5 px-2">
                           <Input
                             required
+                            placeholder="Item name"
                             value={item.itemName}
                             onChange={(e) => handleItemChange(idx, "itemName", e.target.value)}
-                            className="h-7 text-xs"
+                            className="h-7 text-xs font-semibold"
                           />
                         </td>
                         <td className="py-1.5 px-2">
                           <Input
-                            value={item.hsnSacCode || ""}
+                            value={item.hsnSacCode}
+                            placeholder="HSN/SAC"
                             onChange={(e) => handleItemChange(idx, "hsnSacCode", e.target.value)}
-                            placeholder="HSN"
                             className="h-7 text-xs font-mono"
                           />
                         </td>
@@ -238,6 +292,17 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
                         </td>
                         <td className="py-1.5 px-2.5 text-right font-mono font-semibold text-foreground">
                           ₹{itemAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-1.5 px-1 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(idx)}
+                            disabled={lineItems.length <= 1}
+                            className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-30 transition-colors"
+                            title="Remove item"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </td>
                       </tr>
                     );

@@ -90,3 +90,64 @@ export const getLogsByReference = query({
     );
   },
 });
+
+/**
+ * Retrieves all system audit logs with multi-field filtering and pagination.
+ */
+export const listAllLogs = query({
+  args: {
+    documentType: v.optional(v.string()),
+    referenceId: v.optional(v.string()),
+    actorRole: v.optional(v.string()),
+    limit: v.optional(v.number()),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireRole(
+      ctx,
+      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
+      args.token
+    );
+
+    let allLogs = await ctx.db.query("logs").collect();
+
+    // Filter by documentType
+    if (args.documentType && args.documentType !== "all") {
+      allLogs = allLogs.filter((l) => l.documentType === args.documentType);
+    }
+
+    // Filter by actorRole
+    if (args.actorRole && args.actorRole !== "all") {
+      allLogs = allLogs.filter((l) => l.actorRole === args.actorRole);
+    }
+
+    // Filter by referenceId (partial or full match)
+    if (args.referenceId && args.referenceId.trim()) {
+      const q = args.referenceId.trim().toLowerCase();
+      allLogs = allLogs.filter((l) => l.referenceId.toLowerCase().includes(q));
+    }
+
+    // Sort newest first
+    allLogs.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
+    // Apply limit if specified
+    const limit = args.limit || 200;
+    const sliced = allLogs.slice(0, limit);
+
+    // Join actor details
+    const enrichedLogs = await Promise.all(
+      sliced.map(async (log) => {
+        const actor = await ctx.db.get(log.actorId);
+        return {
+          ...log,
+          actorName: actor?.name || "Unknown User",
+          actorUsername: actor?.username || "unknown",
+        };
+      })
+    );
+
+    return enrichedLogs;
+  },
+});

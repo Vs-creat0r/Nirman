@@ -73,6 +73,16 @@ export const createMR = mutation({
       throw new Error("A material request must have at least one line item.");
     }
 
+    for (let i = 0; i < args.items.length; i++) {
+      const it = args.items[i];
+      if (!it.itemName || !it.itemName.trim()) {
+        throw new Error(`Item #${i + 1} must have a valid item name.`);
+      }
+      if (typeof it.quantity !== "number" || isNaN(it.quantity) || it.quantity <= 0) {
+        throw new Error(`Quantity for item "${it.itemName}" must be greater than zero.`);
+      }
+    }
+
     const refNo = await generateMRRefNo(ctx);
     const now = new Date().toISOString();
 
@@ -84,14 +94,23 @@ export const createMR = mutation({
         ? "pending"
         : "draft";
 
+    const sanitizedItems = args.items.map((it) => ({
+      itemName: it.itemName.trim(),
+      description: it.description?.trim() || undefined,
+      quantity: it.quantity,
+      unit: it.unit,
+      hsnSacCode: it.hsnSacCode?.trim() || undefined,
+      projectItemId: it.projectItemId || undefined,
+    }));
+
     const mrId = await ctx.db.insert("material_request", {
       refNo,
       projectId: args.projectId,
       siteId: args.siteId,
-      items: args.items,
+      items: sanitizedItems,
       priority: args.priority,
       requiredBy: args.requiredBy,
-      notes: args.notes,
+      notes: args.notes?.trim() || undefined,
       status: initialStatus,
       createdBy: user._id,
       updatedBy: user._id,
@@ -257,10 +276,31 @@ export const resubmitMR = mutation({
     const patchData: Record<string, unknown> = {};
     if (args.projectId) patchData.projectId = args.projectId;
     if (args.siteId !== undefined) patchData.siteId = args.siteId;
-    if (args.items) patchData.items = args.items;
+    if (args.items) {
+      if (args.items.length === 0) {
+        throw new Error("A material request must have at least one line item.");
+      }
+      for (let i = 0; i < args.items.length; i++) {
+        const it = args.items[i];
+        if (!it.itemName || !it.itemName.trim()) {
+          throw new Error(`Item #${i + 1} must have a valid item name.`);
+        }
+        if (typeof it.quantity !== "number" || isNaN(it.quantity) || it.quantity <= 0) {
+          throw new Error(`Quantity for item "${it.itemName}" must be greater than zero.`);
+        }
+      }
+      patchData.items = args.items.map((it) => ({
+        itemName: it.itemName.trim(),
+        description: it.description?.trim() || undefined,
+        quantity: it.quantity,
+        unit: it.unit,
+        hsnSacCode: it.hsnSacCode?.trim() || undefined,
+        projectItemId: it.projectItemId || undefined,
+      }));
+    }
     if (args.priority) patchData.priority = args.priority;
     if (args.requiredBy !== undefined) patchData.requiredBy = args.requiredBy;
-    if (args.notes !== undefined) patchData.notes = args.notes;
+    if (args.notes !== undefined) patchData.notes = args.notes?.trim() || undefined;
 
     return await transition(ctx, {
       table: "material_request",

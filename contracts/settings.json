@@ -3,12 +3,65 @@
   "name": "settings",
   "label": "System Settings",
   "version": "1.0.0",
-  "description": "Single-document system-wide configuration row. Controls approval chain behavior across the platform.",
+  "description": "Single-document system-wide configuration row. Controls approval chain behavior across the platform and company profile.",
   "fields": [
-    { "field": "requireManagerApprovalForRequests", "label": "Require Manager Approval for Requests", "type": "boolean", "input": "toggle", "required": true, "default": true, "help": "When OFF, approved-by-default: requests route straight to 'ready_for_cc' without manager sign-off." }
+    {
+      "field": "requireManagerApprovalForRequests",
+      "label": "Require Manager Approval for Requests",
+      "type": "boolean",
+      "input": "toggle",
+      "required": true,
+      "default": true,
+      "help": "When OFF, approved-by-default: requests route straight to 'ready_for_cc' without manager sign-off."
+    },
+    {
+      "field": "companyName",
+      "label": "Company Name",
+      "type": "string",
+      "input": "text",
+      "required": false
+    },
+    {
+      "field": "companyGstNo",
+      "label": "Company GSTIN",
+      "type": "string",
+      "input": "text",
+      "required": false
+    },
+    {
+      "field": "companyBillingAddress",
+      "label": "Company Billing Address",
+      "type": "text",
+      "input": "textarea",
+      "required": false
+    },
+    {
+      "field": "companyContactPerson",
+      "label": "Company Contact Person",
+      "type": "string",
+      "input": "text",
+      "required": false
+    },
+    {
+      "field": "companyPhone",
+      "label": "Company Phone",
+      "type": "string",
+      "input": "text",
+      "required": false
+    },
+    {
+      "field": "companyEmail",
+      "label": "Company Email",
+      "type": "string",
+      "input": "email",
+      "required": false
+    }
   ],
   "statuses": [],
   "relations": {},
   "indexes": [],
-  "audit": { "enabled": true, "trackUpdatedAt": true }
+  "audit": {
+    "enabled": true,
+    "trackUpdatedAt": true
+  }
 }

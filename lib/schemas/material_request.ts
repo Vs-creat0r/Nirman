@@ -10,6 +10,7 @@ export const material_requestSchema = z.object({
   items: z.array(z.object({
       itemName: z.string().min(1, "Item is required").max(180, "Item is too long"),
       description: z.string().max(300, "Description is too long").optional(),
+      hsnSacCode: z.string().max(20, "HSN/SAC Code is too long").optional(),
       quantity: z.coerce.number().min(0.001, "Quantity must be at least 0.001"),
       unit: z.enum(["bags", "MT", "kg", "nos", "cum", "brass", "sqm", "ltr", "rmt"]),
     })).min(1, "Add at least 1 items"),

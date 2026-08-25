@@ -166,7 +166,7 @@ export const createCC = mutation({
       refNo,
       materialRequestId: mr._id,
       projectId: mr.projectId,
-      siteId: mr.siteId || ("" as any), // Fallback site
+      siteId: mr.siteId || undefined,
       vendorQuotes: processedQuotes,
       status: initialStatus,
       createdBy: user._id,
@@ -380,7 +380,10 @@ export const rejectCC = mutation({
     }
 
     const now = new Date().toISOString();
-    return await transition(ctx, {
+    const cc = await ctx.db.get(args.id);
+    if (!cc) throw new Error("Cost comparison not found.");
+
+    const res = await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
       from: "submitted",
@@ -395,6 +398,33 @@ export const rejectCC = mutation({
         reviewNote: args.note.trim(),
       },
     });
+
+    // Reset parent MR status back to ready_for_cc so procurement can re-raise quotes
+    if (cc.materialRequestId) {
+      const mr = await ctx.db.get(cc.materialRequestId);
+      if (mr && mr.status === "review_cc") {
+        await ctx.db.patch(mr._id, {
+          status: "ready_for_cc",
+          updatedBy: user._id,
+          updatedAt: now,
+        });
+
+        await ctx.db.insert("logs", {
+          actorId: user._id,
+          actorRole: user.role,
+          action: "cc_rejected_mr_reset",
+          documentType: "material_request",
+          documentId: mr._id,
+          referenceId: mr.refNo,
+          fromStatus: "review_cc",
+          toStatus: "ready_for_cc",
+          note: `Cost comparison ${cc.refNo} was rejected by ${user.name}. Material Request returned to ready_for_cc for revision. Reason: ${args.note.trim()}`,
+          timestamp: now,
+        });
+      }
+    }
+
+    return res;
   },
 });
 

@@ -345,7 +345,10 @@ export const rejectPO = mutation({
     }
 
     const now = new Date().toISOString();
-    return await transition(ctx, {
+    const po = await ctx.db.get(args.id);
+    if (!po) throw new Error("Purchase Order not found.");
+
+    const res = await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
       from: "submitted",
@@ -360,6 +363,33 @@ export const rejectPO = mutation({
         reviewNote: args.note.trim(),
       },
     });
+
+    // Reset parent MR status back to ready_for_po so procurement can re-raise PO
+    if (po.materialRequestId) {
+      const mr = await ctx.db.get(po.materialRequestId);
+      if (mr && mr.status === "review_po") {
+        await ctx.db.patch(mr._id, {
+          status: "ready_for_po",
+          updatedBy: user._id,
+          updatedAt: now,
+        });
+
+        await ctx.db.insert("logs", {
+          actorId: user._id,
+          actorRole: user.role,
+          action: "po_rejected_mr_reset",
+          documentType: "material_request",
+          documentId: mr._id,
+          referenceId: mr.refNo,
+          fromStatus: "review_po",
+          toStatus: "ready_for_po",
+          note: `Purchase Order ${po.refNo} was rejected by ${user.name}. Material Request returned to ready_for_po for revision. Reason: ${args.note.trim()}`,
+          timestamp: now,
+        });
+      }
+    }
+
+    return res;
   },
 });
 
@@ -449,6 +479,7 @@ export const resubmitPO = mutation({
     const subtotal = Math.round(
       calculatedItems.reduce((acc, cur) => acc + cur.amount, 0) * 100
     ) / 100;
+    const totalQty = calculatedItems.reduce((acc, cur) => acc + cur.quantity, 0);
     const taxRate = Number(args.taxRate) || 18;
     const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
     const freight = Math.max(0, Number(args.freight) || 0);
@@ -469,6 +500,7 @@ export const resubmitPO = mutation({
         taxAmount,
         freight: freight > 0 ? freight : undefined,
         totalAmount,
+        pendingQty: totalQty,
         paymentTerms: args.paymentTerms,
         expectedDelivery: args.expectedDelivery || undefined,
         validUntil: args.validUntil || undefined,

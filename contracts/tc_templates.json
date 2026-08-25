@@ -1,0 +1,53 @@
+{
+  "$schema": "contract.v1",
+  "name": "tc_templates",
+  "label": "Terms & Conditions Template",
+  "version": "1.0.0",
+  "description": "Admin-managed procurement terms templates.",
+  "fields": [
+    {
+      "field": "name",
+      "label": "Template Name",
+      "type": "string",
+      "input": "text",
+      "required": true
+    },
+    {
+      "field": "content",
+      "label": "Content",
+      "type": "text",
+      "input": "textarea",
+      "required": true
+    },
+    {
+      "field": "isDefault",
+      "label": "Default Template",
+      "type": "boolean",
+      "input": "checkbox",
+      "required": false,
+      "default": false
+    },
+    {
+      "field": "isActive",
+      "label": "Active",
+      "type": "boolean",
+      "input": "checkbox",
+      "required": true,
+      "default": true
+    }
+  ],
+  "indexes": [
+    [
+      "isActive"
+    ],
+    [
+      "isDefault"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
+}

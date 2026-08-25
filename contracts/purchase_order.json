@@ -58,7 +58,7 @@
       "label": "Deliver to site",
       "type": "reference",
       "input": "select",
-      "required": true,
+      "required": false,
       "relation": {
         "table": "sites"
       },

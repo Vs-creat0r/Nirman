@@ -64,20 +64,32 @@ export default function EditQueriedMaterialRequestPage() {
         throw new Error("Please add at least one line item.");
       }
 
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (!it.itemName || !it.itemName.trim()) {
+          throw new Error(`Item #${i + 1} must have a valid item name.`);
+        }
+        const qty = Number(it.quantity);
+        if (isNaN(qty) || qty <= 0) {
+          throw new Error(`Quantity for "${it.itemName}" must be greater than 0.`);
+        }
+      }
+
       await resubmitMRMutation({
         id,
         projectId: data.projectId as any,
         siteId: data.siteId ? (data.siteId as any) : undefined,
         items: items.map((it: any) => ({
-          itemName: it.itemName || "",
-          description: it.description || undefined,
-          quantity: Number(it.quantity) || 1,
+          itemName: it.itemName.trim(),
+          description: it.description?.trim() || undefined,
+          hsnSacCode: it.hsnSacCode?.trim() || undefined,
+          quantity: Number(it.quantity),
           unit: it.unit || "bags",
           projectItemId: it.projectItemId || undefined,
         })),
         priority: (data.priority as any) || "normal",
         requiredBy: data.requiredBy ? String(data.requiredBy) : undefined,
-        notes: data.notes ? String(data.notes) : undefined,
+        notes: data.notes ? String(data.notes).trim() : undefined,
         token: token || undefined,
       });
 

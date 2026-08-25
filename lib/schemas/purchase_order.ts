@@ -6,7 +6,7 @@ import { z } from "zod";
 /** Purchase Order — editable form fields only. Read-only and generated fields are excluded. */
 export const purchase_orderSchema = z.object({
   vendorId: z.string().min(1, "Vendor is required"),
-  siteId: z.string().min(1, "Deliver to site is required"),
+  siteId: z.string().min(1, "Deliver to site is required").optional(),
   lineItems: z.array(z.object({
       itemName: z.string(),
       quantity: z.coerce.number().min(0.001, "Qty must be at least 0.001"),
@@ -18,6 +18,8 @@ export const purchase_orderSchema = z.object({
   taxRate: z.coerce.number().min(0, "GST % must be at least 0").max(100, "GST % must be at most 100"),
   paymentTerms: z.enum(["advance", "on_delivery", "7_days", "15_days", "30_days", "45_days"]),
   expectedDelivery: z.string().min(1, "Expected delivery is required").optional(),
+  validUntil: z.string().min(1, "Valid until is required").optional(),
+  termsAndConditions: z.string().optional(),
   reviewNote: z.string().max(1000, "Reviewer note is too long").optional(),
 });
 

@@ -94,8 +94,8 @@ export function CCVendorQuotePanel({
     const newItems = [...quote.items];
     newItems[itemIdx] = {
       ...newItems[itemIdx],
-      rate,
-      amount: Math.round(newItems[itemIdx].quantity * rate * 100) / 100,
+      rate: isNaN(rate) ? 0 : rate,
+      amount: Math.round(newItems[itemIdx].quantity * (isNaN(rate) ? 0 : rate) * 100) / 100,
     };
     updateCalculations(newItems, quote.taxRate, quote.freight);
   };
@@ -208,7 +208,7 @@ export function CCVendorQuotePanel({
                         min="0"
                         step="any"
                         placeholder="0.00"
-                        value={item.rate === 0 ? "" : item.rate}
+                        value={item.rate === undefined || isNaN(item.rate) ? "" : item.rate}
                         onChange={(e) => handleRateChange(itIdx, e.target.value)}
                         className="h-7 text-xs text-right font-mono"
                       />
@@ -256,12 +256,12 @@ export function CCVendorQuotePanel({
               type="number"
               min="0"
               placeholder="0.00"
-              value={quote.freight === 0 ? "" : quote.freight}
+              value={quote.freight === undefined || isNaN(quote.freight) ? "" : quote.freight}
               onChange={(e) =>
                 updateCalculations(
                   quote.items,
                   quote.taxRate,
-                  e.target.value === "" ? 0 : parseFloat(e.target.value) || 0
+                  e.target.value === "" ? 0 : Math.max(0, parseFloat(e.target.value) || 0)
                 )
               }
               className="h-8 text-xs font-mono"

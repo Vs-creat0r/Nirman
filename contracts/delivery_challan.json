@@ -37,7 +37,7 @@
       "label": "Deliver to site",
       "type": "reference",
       "input": "readonly",
-      "required": true,
+      "required": false,
       "relation": {
         "table": "sites"
       }
