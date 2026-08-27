@@ -20,11 +20,23 @@ export const getProcurementDashboardMetrics = query({
       args.token
     );
 
-    // 1. Material requests ready for CC
-    const mrsReadyForCC = await ctx.db
+    // 1. Material requests ready for CC (exclude MRs that already have an existing CC)
+    const rawMRsReadyForCC = await ctx.db
       .query("material_request")
       .withIndex("by_status", (q) => q.eq("status", "ready_for_cc"))
       .collect();
+
+    const mrsReadyForCC = (
+      await Promise.all(
+        rawMRsReadyForCC.map(async (mr) => {
+          const existingCC = await ctx.db
+            .query("cost_comparison")
+            .withIndex("by_materialRequestId", (q) => q.eq("materialRequestId", mr._id))
+            .first();
+          return existingCC ? null : mr;
+        })
+      )
+    ).filter(Boolean) as typeof rawMRsReadyForCC;
 
     // Enrich MRs ready for CC
     const enrichedMRsReadyForCC = await Promise.all(

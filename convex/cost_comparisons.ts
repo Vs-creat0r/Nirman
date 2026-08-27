@@ -500,7 +500,7 @@ export const resubmitCC = mutation({
     return await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
-      from: "queried",
+      from: ["draft", "queried"],
       to: "submitted",
       actorRole: ["procurement_officer", "project_manager", "admin"],
       token: args.token,
@@ -616,8 +616,21 @@ export const listApprovedMRsForCC = query({
 
     mrs.sort((a, b) => b._creationTime - a._creationTime);
 
+    // Exclude MRs that already have at least one CC in any status — no need to prompt again.
+    const mrsWithoutCC = (
+      await Promise.all(
+        mrs.map(async (mr) => {
+          const existingCC = await ctx.db
+            .query("cost_comparison")
+            .withIndex("by_materialRequestId", (q) => q.eq("materialRequestId", mr._id))
+            .first();
+          return existingCC ? null : mr;
+        })
+      )
+    ).filter(Boolean) as typeof mrs;
+
     const enriched = await Promise.all(
-      mrs.map(async (mr) => {
+      mrsWithoutCC.map(async (mr) => {
         const project = await ctx.db.get(mr.projectId);
         const site = mr.siteId ? await ctx.db.get(mr.siteId) : null;
         const creator = (await ctx.db.get(mr.createdBy)) as { name?: string } | null;
@@ -725,5 +738,32 @@ export const getCC = query({
       vendorQuotes: enrichedQuotes,
       logs: enrichedLogs,
     };
+  },
+});
+
+/**
+ * Delete a draft Cost Comparison. Only allowed while status is "draft".
+ */
+export const deleteCC = mutation({
+  args: {
+    id: v.id("cost_comparison"),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireRole(
+      ctx,
+      ["admin", "procurement_officer"],
+      args.token
+    );
+
+    const cc = await ctx.db.get(args.id);
+    if (!cc) throw new Error("Cost Comparison not found.");
+    if (cc.status !== "draft") {
+      throw new Error(
+        `Only draft Cost Comparisons can be deleted. Current status: ${cc.status}`
+      );
+    }
+
+    await ctx.db.delete(args.id);
   },
 });

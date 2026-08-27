@@ -485,14 +485,20 @@ export const resubmitPO = mutation({
     const freight = Math.max(0, Number(args.freight) || 0);
     const totalAmount = Math.round((subtotal + taxAmount + freight) * 100) / 100;
 
+    const po = await ctx.db.get(args.id);
+    if (!po) throw new Error("Purchase Order not found.");
+
+    const isDraft = po.status === "draft";
+    const actionName = isDraft ? "edit_and_submit_purchase_order" : "resubmit_purchase_order";
+
     return await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
-      from: "queried",
+      from: ["draft", "queried"],
       to: "submitted",
       actorRole: ["procurement_officer", "project_manager", "admin"],
       token: args.token,
-      action: "resubmit_purchase_order",
+      action: actionName,
       patch: {
         lineItems: calculatedItems,
         subtotal,
@@ -733,4 +739,64 @@ export const getPO = query({
     };
   },
 });
+
+/**
+ * Delete / Discard a draft Purchase Order.
+ * Hard delete permitted only on unsubmitted draft POs with no downstream delivery challans.
+ */
+export const deletePO = mutation({
+  args: {
+    id: v.id("purchase_order"),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireRole(
+      ctx,
+      ["procurement_officer", "project_manager", "admin"],
+      args.token
+    );
+
+    const po = await ctx.db.get(args.id);
+    if (!po) throw new Error("Purchase Order not found.");
+
+    if (po.status !== "draft") {
+      throw new Error(
+        `Only draft Purchase Orders can be discarded. Current status: "${po.status}".`
+      );
+    }
+
+    // Check if any delivery challans or GRNs are tied to this PO
+    const existingDC = await ctx.db
+      .query("delivery_challan")
+      .withIndex("by_purchaseOrderId", (q) => q.eq("purchaseOrderId", args.id))
+      .first();
+
+    if (existingDC) {
+      throw new Error(
+        "Cannot discard this Purchase Order because delivery challans already reference it."
+      );
+    }
+
+    const now = new Date().toISOString();
+
+    // Log the discard action before hard deleting
+    await ctx.db.insert("logs", {
+      actorId: user._id,
+      actorRole: user.role,
+      action: "discard_draft",
+      documentType: "purchase_order",
+      documentId: args.id,
+      referenceId: po.refNo,
+      fromStatus: "draft",
+      toStatus: undefined,
+      note: `Draft Purchase Order ${po.refNo} was discarded by ${user.name}.`,
+      timestamp: now,
+    });
+
+    await ctx.db.delete(args.id);
+
+    return { success: true, deletedRefNo: po.refNo };
+  },
+});
+
 

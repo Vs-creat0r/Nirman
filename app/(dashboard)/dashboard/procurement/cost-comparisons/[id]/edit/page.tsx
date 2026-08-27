@@ -19,6 +19,7 @@ import {
   Send,
   AlertTriangle,
   FileText,
+  Trash2,
 } from "lucide-react";
 
 export default function EditQueriedCostComparisonPage() {
@@ -37,10 +38,28 @@ export default function EditQueriedCostComparisonPage() {
   );
 
   const resubmitCCMutation = useMutation(api.cost_comparisons.resubmitCC);
+  const deleteCCMutation = useMutation(api.cost_comparisons.deleteCC);
 
   const [quotes, setQuotes] = React.useState<CCVendorQuoteData[]>([]);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isDiscarding, setIsDiscarding] = React.useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const isDraft = cc?.status === "draft";
+
+  const handleDiscardDraft = async () => {
+    setError(null);
+    setIsDiscarding(true);
+    try {
+      await deleteCCMutation({ id, token: token || undefined });
+      router.push("/dashboard/procurement/cost-comparisons");
+    } catch (err: any) {
+      setError(err.message || "Failed to discard draft cost comparison.");
+      setIsDiscarding(false);
+      setShowDiscardConfirm(false);
+    }
+  };
 
   // Prepopulate form once CC loads
   React.useEffect(() => {
@@ -137,7 +156,7 @@ export default function EditQueriedCostComparisonPage() {
           throw new Error(`Please select a vendor for Quote #${i + 1}.`);
         }
         for (const item of quotes[i].items) {
-          if (item.rate <= 0) {
+          if ((item.rate ?? -1) <= 0) {
             throw new Error(
               `Please enter a rate greater than 0 for "${item.itemName}" in Quote #${i + 1}.`
             );
@@ -195,10 +214,12 @@ export default function EditQueriedCostComparisonPage() {
             Cancel & Back
           </Link>
           <h1 className="text-xl font-bold text-foreground">
-            Edit & Resubmit {cc.refNo}
+            {isDraft ? `Edit Cost Comparison — ${cc.refNo}` : `Edit & Resubmit ${cc.refNo}`}
           </h1>
           <p className="text-xs text-muted-foreground">
-            Revise vendor quotations and commercial terms as requested by the Project Manager.
+            {isDraft
+              ? "Review and adjust participating vendor quotations before submitting for approval."
+              : "Revise vendor quotations and commercial terms as requested by the Project Manager."}
           </p>
         </div>
       </div>
@@ -259,29 +280,101 @@ export default function EditQueriedCostComparisonPage() {
           ))}
         </div>
 
-        {/* Submit Card */}
-        <Card className="border-border bg-surface">
+        {/* Submit / Action Card */}
+        <Card className="border-border bg-surface shadow-xs">
           <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-xs space-y-0.5">
-              <span className="text-muted-foreground">Revised Lowest Total:</span>
-              <div className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                ₹{minTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-start">
+              {isDraft && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isSubmitting || isDiscarding}
+                  onClick={() => setShowDiscardConfirm(true)}
+                  className="text-destructive hover:bg-destructive/10 text-xs gap-1.5 px-3"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Discard draft
+                </Button>
+              )}
+
+              <div className="text-xs space-y-0.5">
+                <span className="text-muted-foreground">Revised Lowest Total:</span>
+                <div className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                  ₹{minTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </div>
               </div>
             </div>
 
-            <Button
-              type="button"
-              size="md"
-              disabled={isSubmitting}
-              onClick={handleSubmit}
-              className="gap-1.5 text-xs font-semibold"
-            >
-              <Send className="h-3.5 w-3.5" />
-              {isSubmitting ? "Resubmitting…" : "Resubmit for Manager Review"}
-            </Button>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <Link href={`/dashboard/procurement/cost-comparisons/${id}`}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isSubmitting || isDiscarding}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+              </Link>
+
+              <Button
+                type="button"
+                size="sm"
+                disabled={isSubmitting || isDiscarding}
+                onClick={handleSubmit}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {isSubmitting
+                  ? "Submitting…"
+                  : isDraft
+                  ? "Submit for Manager Review"
+                  : "Resubmit for Manager Review"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Discard Confirmation Dialog */}
+      {showDiscardConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-foreground">
+                Discard {cc.refNo}?
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                This draft and its {quotes.length} vendor quotes will be permanently deleted. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isDiscarding}
+                onClick={() => setShowDiscardConfirm(false)}
+                className="text-xs"
+              >
+                Keep editing
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={isDiscarding}
+                onClick={handleDiscardDraft}
+                className="text-xs font-semibold bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-1.5"
+              >
+                {isDiscarding ? "Discarding…" : `Discard ${cc.refNo}`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

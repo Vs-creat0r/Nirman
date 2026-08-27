@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
 import { Id } from "@/convex/_generated/dataModel";
 import { DocumentForm } from "@/components/document/document-form";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Trash2 } from "lucide-react";
 import materialRequestContract from "@/contracts/material_request.json";
 import type { DocumentContract } from "@/lib/form-engine-types";
 
@@ -28,9 +28,27 @@ export default function EditQueriedMaterialRequestPage() {
   );
   const sites = useQuery(api.sites.listSites, token ? { token } : "skip");
   const resubmitMRMutation = useMutation(api.material_requests.resubmitMR);
+  const deleteMRMutation = useMutation(api.material_requests.deleteMR);
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isDiscarding, setIsDiscarding] = React.useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const isDraft = mr?.status === "draft";
+
+  const handleDiscardDraft = async () => {
+    setError(null);
+    setIsDiscarding(true);
+    try {
+      await deleteMRMutation({ id, token: token || undefined });
+      router.push("/dashboard/supervisor/material-requests");
+    } catch (err: any) {
+      setError(err.message || "Failed to discard draft material request.");
+      setIsDiscarding(false);
+      setShowDiscardConfirm(false);
+    }
+  };
 
   if (mr === undefined) {
     return (
@@ -112,8 +130,15 @@ export default function EditQueriedMaterialRequestPage() {
             Cancel & Back
           </Link>
           <h1 className="text-xl font-bold text-foreground">
-            Edit & Resubmit {mr.refNo}
+            {isDraft
+              ? `Edit Material Request — ${mr.refNo}`
+              : `Edit & Resubmit ${mr.refNo}`}
           </h1>
+          <p className="text-xs text-muted-foreground">
+            {isDraft
+              ? "Update requested items and project delivery details."
+              : "Address feedback and resubmit for Project Manager approval."}
+          </p>
         </div>
       </div>
 
@@ -143,8 +168,21 @@ export default function EditQueriedMaterialRequestPage() {
         contract={materialRequestContract as unknown as DocumentContract}
         optionsMap={optionsMap}
         onSubmit={handleSubmit}
-        submitLabel="Resubmit for Approval"
-        isSubmitting={isSubmitting}
+        submitLabel={isDraft ? "Submit for Approval" : "Resubmit for Approval"}
+        isSubmitting={isSubmitting || isDiscarding}
+        footerActions={
+          isDraft ? (
+            <button
+              type="button"
+              disabled={isSubmitting || isDiscarding}
+              onClick={() => setShowDiscardConfirm(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-md transition-colors cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Discard draft
+            </button>
+          ) : undefined
+        }
         defaultValues={{
           projectId: mr.projectId,
           siteId: mr.siteId || "",
@@ -154,6 +192,41 @@ export default function EditQueriedMaterialRequestPage() {
           notes: mr.notes || "",
         }}
       />
+
+      {/* Discard Confirmation Dialog */}
+      {showDiscardConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-foreground">
+                Discard {mr.refNo}?
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                This draft and its {mr.items?.length || 0} line items will be permanently deleted. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                type="button"
+                disabled={isDiscarding}
+                onClick={() => setShowDiscardConfirm(false)}
+                className="px-3 py-1.5 text-xs font-medium rounded-md border border-border bg-surface hover:bg-muted text-foreground transition-colors cursor-pointer"
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                disabled={isDiscarding}
+                onClick={handleDiscardDraft}
+                className="px-3 py-1.5 text-xs font-semibold rounded-md bg-destructive hover:bg-destructive/90 text-destructive-foreground transition-colors cursor-pointer"
+              >
+                {isDiscarding ? "Discarding…" : `Discard ${mr.refNo}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

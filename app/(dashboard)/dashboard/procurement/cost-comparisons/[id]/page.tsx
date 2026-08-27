@@ -101,17 +101,29 @@ export default function ProcurementCCDetailPage() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {/* Action Button for Draft status */}
+          {/* Draft: Edit and Submit actions */}
           {isDraft && (
-            <Button
-              size="sm"
-              onClick={handleSubmitDraft}
-              disabled={isActionLoading}
-              className="gap-1.5 text-xs font-semibold"
-            >
-              <Send className="h-3.5 w-3.5" />
-              {isActionLoading ? "Submitting…" : "Submit for Manager Review"}
-            </Button>
+            <>
+              <Link href={`/dashboard/procurement/cost-comparisons/${id}/edit`}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs font-semibold"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  Edit Draft
+                </Button>
+              </Link>
+              <Button
+                size="sm"
+                onClick={handleSubmitDraft}
+                disabled={isActionLoading}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {isActionLoading ? "Submitting…" : "Submit for Manager Review"}
+              </Button>
+            </>
           )}
 
           {/* Action Button for Approved status: Generate PO */}

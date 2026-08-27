@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   User,
   History,
+  Pencil,
 } from "lucide-react";
 
 export default function MaterialRequestDetailPage() {
@@ -94,15 +95,27 @@ export default function MaterialRequestDetailPage() {
 
         {/* Action Button for Draft status */}
         {isDraft && (
-          <Button
-            size="sm"
-            onClick={handleSubmitDraft}
-            disabled={isActionLoading}
-            className="gap-1.5 text-xs font-semibold"
-          >
-            <Send className="h-3.5 w-3.5" />
-            {isActionLoading ? "Submitting…" : "Submit for Approval"}
-          </Button>
+          <>
+            <Link href={`/dashboard/supervisor/material-requests/${id}/edit`}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit Draft
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              onClick={handleSubmitDraft}
+              disabled={isActionLoading}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <Send className="h-3.5 w-3.5" />
+              {isActionLoading ? "Submitting…" : "Submit for Approval"}
+            </Button>
+          </>
         )}
 
         {/* Action Button for Queried status */}

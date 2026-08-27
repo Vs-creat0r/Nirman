@@ -64,7 +64,7 @@ function NewCostComparisonForm() {
         itemName: it.itemName,
         quantity: Number(it.quantity) || 1,
         unit: it.unit || "bags",
-        rate: 0,
+        rate: undefined,
         amount: 0,
       }));
 
@@ -74,11 +74,11 @@ function NewCostComparisonForm() {
           return prev.map((q) => {
             const updatedItems = initialItems.map((newItem) => {
               const existingItem = q.items.find((it) => it.itemName === newItem.itemName);
-              const rate = existingItem ? existingItem.rate : 0;
+              const rate = existingItem?.rate ?? undefined;
               return {
                 ...newItem,
                 rate,
-                amount: Math.round(newItem.quantity * rate * 100) / 100,
+                amount: rate !== undefined ? Math.round(newItem.quantity * rate * 100) / 100 : 0,
               };
             });
             const subtotal = Math.round(
@@ -129,7 +129,7 @@ function NewCostComparisonForm() {
       itemName: it.itemName,
       quantity: Number(it.quantity) || 1,
       unit: it.unit || "bags",
-      rate: 0,
+      rate: undefined as unknown as number,
       amount: 0,
     }));
 
@@ -190,7 +190,8 @@ function NewCostComparisonForm() {
       // Check rates
       for (let i = 0; i < quotes.length; i++) {
         for (const item of quotes[i].items) {
-          if (item.rate < 0 || isNaN(item.rate)) {
+          const r = item.rate ?? -1;
+          if (r < 0 || isNaN(r)) {
             throw new Error(
               `Please enter a valid non-negative rate for "${item.itemName}" in Quote #${i + 1}.`
             );

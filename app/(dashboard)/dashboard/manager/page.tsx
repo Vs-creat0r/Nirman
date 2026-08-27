@@ -20,11 +20,35 @@ export default function ManagerDashboard() {
     api.material_requests.listMRs,
     token ? { token } : "skip"
   );
+  const allCCs = useQuery(
+    api.cost_comparisons.listCCs,
+    token ? { token } : "skip"
+  );
+  const allPOs = useQuery(
+    api.purchase_orders.listPOs,
+    token ? { token } : "skip"
+  );
 
   const pendingRequests = allRequests?.filter((r) => r.status === "pending");
-  const approvedRequests = allRequests?.filter(
-    (r) => r.status === "ready_for_cc"
-  );
+  const pendingCCs = allCCs?.filter((cc) => cc.status === "submitted");
+  const pendingPOs = allPOs?.filter((po) => po.status === "submitted");
+
+  // Cumulative: all requests that were approved and advanced through the pipeline
+  const EVER_APPROVED = new Set([
+    "ready_for_cc",
+    "cc_in_progress",
+    "review_cc",
+    "ready_for_po",
+    "review_po",
+    "delivery_processing",
+    "delivered",
+  ]);
+  const approvedRequests = allRequests?.filter((r) => EVER_APPROVED.has(r.status));
+
+  const totalPendingActionCount =
+    (pendingRequests?.length || 0) +
+    (pendingCCs?.length || 0) +
+    (pendingPOs?.length || 0);
 
   return (
     <div className="space-y-6">
@@ -42,11 +66,11 @@ export default function ManagerDashboard() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <Card className={pendingRequests && pendingRequests.length > 0 ? "border-amber-500/40 bg-amber-500/5" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
-              Pending Approvals
+              Pending MRs
             </CardTitle>
             <Clock className={`h-4 w-4 ${pendingRequests && pendingRequests.length > 0 ? "text-amber-500 animate-pulse" : "text-muted-foreground"}`} />
           </CardHeader>
@@ -55,7 +79,41 @@ export default function ManagerDashboard() {
               {pendingRequests ? pendingRequests.length : "—"}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1">
-              Material requests awaiting your review
+              Material requests awaiting review
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className={pendingCCs && pendingCCs.length > 0 ? "border-amber-500/40 bg-amber-500/5" : ""}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
+              Pending CCs
+            </CardTitle>
+            <Clock className={`h-4 w-4 ${pendingCCs && pendingCCs.length > 0 ? "text-amber-500 animate-pulse" : "text-muted-foreground"}`} />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
+              {pendingCCs ? pendingCCs.length : "—"}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Cost comparisons awaiting review
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className={pendingPOs && pendingPOs.length > 0 ? "border-amber-500/40 bg-amber-500/5" : ""}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
+              Pending POs
+            </CardTitle>
+            <Clock className={`h-4 w-4 ${pendingPOs && pendingPOs.length > 0 ? "text-amber-500 animate-pulse" : "text-muted-foreground"}`} />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
+              {pendingPOs ? pendingPOs.length : "—"}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Purchase orders awaiting release
             </p>
           </CardContent>
         </Card>
@@ -72,24 +130,7 @@ export default function ManagerDashboard() {
               {approvedRequests ? approvedRequests.length : "—"}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1">
-              Ready for Cost Comparison & Procurement
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
-              Total Requests
-            </CardTitle>
-            <FileCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
-              {allRequests ? allRequests.length : "—"}
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Across all assigned sites and projects
+              Cumulative approved across pipeline
             </p>
           </CardContent>
         </Card>

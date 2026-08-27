@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
@@ -25,8 +26,10 @@ interface EditPOModalProps {
 }
 
 export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
+  const router = useRouter();
   const { token } = useSession();
   const resubmitPOMutation = useMutation(api.purchase_orders.resubmitPO);
+  const deletePOMutation = useMutation(api.purchase_orders.deletePO);
 
   const [lineItems, setLineItems] = React.useState<
     Array<{
@@ -47,7 +50,25 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
   const [termsAndConditions, setTermsAndConditions] = React.useState("");
 
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDiscarding, setIsDiscarding] = React.useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const isDraft = po?.status === "draft";
+
+  const handleDiscardDraft = async () => {
+    setError(null);
+    setIsDiscarding(true);
+    try {
+      await deletePOMutation({ id: po._id, token: token || undefined });
+      onClose();
+      router.push("/dashboard/procurement/purchase-orders");
+    } catch (err: any) {
+      setError(err.message || "Failed to discard draft Purchase Order.");
+      setIsDiscarding(false);
+      setShowDiscardConfirm(false);
+    }
+  };
 
   // Initialize form state when po opens
   React.useEffect(() => {
@@ -176,11 +197,15 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
             <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <FileText className="h-4 w-4 text-amber-500" />
-              Edit & Resubmit Purchase Order — {po.refNo}
+              <FileText className={`h-4 w-4 ${isDraft ? "text-primary" : "text-amber-500"}`} />
+              {isDraft
+                ? `Edit Purchase Order — ${po.refNo}`
+                : `Edit & Resubmit Purchase Order — ${po.refNo}`}
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Revise quantities, rates, terms, and delivery schedules to resolve manager query.
+              {isDraft
+                ? "Update quantities, rates, terms, and delivery schedules before submitting."
+                : "Revise quantities, rates, terms, and delivery schedules to resolve manager query."}
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose} className="h-7 text-xs">
@@ -400,28 +425,88 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              disabled={isSaving}
-              className="text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isSaving}
-              className="text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {isSaving ? "Resubmitting PO…" : "Resubmit for Manager Approval"}
-            </Button>
+          <div className="flex items-center justify-between pt-3 border-t border-border">
+            <div>
+              {isDraft && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isSaving || isDiscarding}
+                  onClick={() => setShowDiscardConfirm(true)}
+                  className="text-destructive hover:bg-destructive/10 text-xs gap-1.5 px-3"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Discard draft
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onClose}
+                disabled={isSaving || isDiscarding}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSaving || isDiscarding}
+                className="text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {isSaving
+                  ? "Submitting…"
+                  : isDraft
+                  ? "Submit for Manager Approval"
+                  : "Resubmit for Manager Approval"}
+              </Button>
+            </div>
           </div>
         </form>
+
+        {/* Discard Confirmation Dialog */}
+        {showDiscardConfirm && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-foreground">
+                  Discard {po.refNo}?
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  This draft Purchase Order will be permanently deleted. This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isDiscarding}
+                  onClick={() => setShowDiscardConfirm(false)}
+                  className="text-xs"
+                >
+                  Keep editing
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isDiscarding}
+                  onClick={handleDiscardDraft}
+                  className="text-xs font-semibold bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-1.5"
+                >
+                  {isDiscarding ? "Discarding…" : `Discard ${po.refNo}`}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

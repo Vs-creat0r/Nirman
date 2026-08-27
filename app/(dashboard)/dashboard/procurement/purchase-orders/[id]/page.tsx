@@ -105,15 +105,26 @@ export default function ProcurementPODetailPage() {
         <div className="flex items-center gap-2">
           {/* Action Button for Draft status */}
           {isDraft && (
-            <Button
-              size="sm"
-              onClick={handleSubmitDraft}
-              disabled={isActionLoading}
-              className="gap-1.5 text-xs font-semibold"
-            >
-              <Send className="h-3.5 w-3.5" />
-              {isActionLoading ? "Submitting…" : "Submit for Manager Approval"}
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsEditModalOpen(true)}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+                Edit Draft
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSubmitDraft}
+                disabled={isActionLoading}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {isActionLoading ? "Submitting…" : "Submit for Manager Approval"}
+              </Button>
+            </>
           )}
 
           {/* Action Button for Queried status */}

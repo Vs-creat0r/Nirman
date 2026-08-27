@@ -17,6 +17,7 @@ import {
   Search,
   CheckCircle2,
   Building2,
+  Pencil,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { GeneratePOModal } from "@/components/document/generate-po-modal";
@@ -242,11 +243,29 @@ export default function ProcurementPurchaseOrdersPage() {
                       <StatusBadge status={po.status} />
                     </td>
                     <td className="py-3 px-3.5 text-right">
-                      <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
-                        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
-                          View
-                        </Button>
-                      </Link>
+                      <div className="flex items-center justify-end">
+                        {po.status === "draft" ? (
+                          <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium">
+                              <Pencil className="h-3 w-3" />
+                              Edit Draft
+                            </Button>
+                          </Link>
+                        ) : po.status === "queried" ? (
+                          <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-amber-600 dark:text-amber-400 border-amber-500/30">
+                              <Pencil className="h-3 w-3" />
+                              Edit & Resubmit
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
+                              View
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

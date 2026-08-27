@@ -302,16 +302,86 @@ export const resubmitMR = mutation({
     if (args.requiredBy !== undefined) patchData.requiredBy = args.requiredBy;
     if (args.notes !== undefined) patchData.notes = args.notes?.trim() || undefined;
 
+    const mr = await ctx.db.get(args.id);
+    if (!mr) throw new Error("Material Request not found.");
+
+    const isDraft = mr.status === "draft";
+    const actionName = isDraft ? "edit_and_submit_material_request" : "resubmit_material_request";
+
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
-      from: "queried",
+      from: ["draft", "queried"],
       to: "pending",
       actorRole: ["site_supervisor", "project_manager", "admin"],
       token: args.token,
-      action: "resubmit_material_request",
+      action: actionName,
       patch: patchData,
     });
+  },
+});
+
+/**
+ * Delete / Discard a draft Material Request.
+ * Irreversible hard delete permitted ONLY for unsubmitted drafts with no child records.
+ */
+export const deleteMR = mutation({
+  args: {
+    id: v.id("material_request"),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireRole(
+      ctx,
+      ["site_supervisor", "project_manager", "admin"],
+      args.token
+    );
+
+    const mr = await ctx.db.get(args.id);
+    if (!mr) throw new Error("Material Request not found.");
+
+    if (mr.status !== "draft") {
+      throw new Error(
+        `Only draft Material Requests can be discarded. Current status: "${mr.status}".`
+      );
+    }
+
+    // Role check: supervisor can only delete their own draft
+    if (user.role === "site_supervisor" && mr.createdBy !== user._id) {
+      throw new Error("You can only discard drafts created by yourself.");
+    }
+
+    // Check if any cost comparison exists for this MR
+    const existingCC = await ctx.db
+      .query("cost_comparison")
+      .withIndex("by_materialRequestId", (q) => q.eq("materialRequestId", args.id))
+      .first();
+
+    if (existingCC) {
+      throw new Error(
+        "Cannot discard this Material Request because a Cost Comparison has already been started for it."
+      );
+    }
+
+    const now = new Date().toISOString();
+
+    // Log the discard action before removing the document
+    await ctx.db.insert("logs", {
+      actorId: user._id,
+      actorRole: user.role,
+      action: "discard_draft",
+      documentType: "material_request",
+      documentId: args.id,
+      referenceId: mr.refNo,
+      fromStatus: "draft",
+      toStatus: undefined,
+      note: `Draft Material Request ${mr.refNo} was discarded by ${user.name}.`,
+      timestamp: now,
+    });
+
+    await ctx.db.delete(args.id);
+
+    return { success: true, deletedRefNo: mr.refNo };
   },
 });
 

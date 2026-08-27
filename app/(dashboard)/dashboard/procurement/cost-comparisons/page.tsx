@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
 import { StatusBadge } from "@/components/document/status-badge";
@@ -16,8 +16,11 @@ import {
   Clock,
   Building2,
   Search,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Id } from "@/convex/_generated/dataModel";
 
 export default function ProcurementCostComparisonsPage() {
   const { token } = useSession();
@@ -236,11 +239,29 @@ export default function ProcurementCostComparisonsPage() {
                       <StatusBadge status={cc.status} />
                     </td>
                     <td className="py-3 px-3.5 text-right">
-                      <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}`}>
-                        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
-                          View
-                        </Button>
-                      </Link>
+                      <div className="flex items-center justify-end">
+                        {cc.status === "draft" ? (
+                          <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}/edit`}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium">
+                              <Pencil className="h-3 w-3" />
+                              Edit Draft
+                            </Button>
+                          </Link>
+                        ) : cc.status === "queried" ? (
+                          <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}/edit`}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-amber-600 dark:text-amber-400 border-amber-500/30">
+                              <Pencil className="h-3 w-3" />
+                              Edit & Resubmit
+                            </Button>
+                          </Link>
+                        ) : (
+                          <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}`}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
+                              View
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

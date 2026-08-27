@@ -316,8 +316,13 @@ export const listGRNs = query({
           ctx.db.get(grn.confirmedBy),
         ]);
 
+        const hasDiscrepancy = grn.receivedItems.some(
+          (i) => i.receivedQty < i.expectedQty
+        );
+
         return {
           ...grn,
+          hasDiscrepancy,
           poRefNo: po?.refNo || "Unknown PO",
           poTotalAmount: po?.totalAmount,
           materialRequestId: po?.materialRequestId,
@@ -377,8 +382,13 @@ export const getGRN = query({
       })
     );
 
+    const hasDiscrepancy = grn.receivedItems.some(
+      (i) => i.receivedQty < i.expectedQty
+    );
+
     return {
       ...grn,
+      hasDiscrepancy,
       po,
       dc,
       mr,

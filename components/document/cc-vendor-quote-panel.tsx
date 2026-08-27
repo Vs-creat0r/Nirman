@@ -11,7 +11,7 @@ export interface CCQuoteItem {
   itemName: string;
   quantity: number;
   unit: string;
-  rate: number;
+  rate: number | undefined;
   amount: number;
 }
 
@@ -90,12 +90,12 @@ export function CCVendorQuotePanel({
   };
 
   const handleRateChange = (itemIdx: number, rawRate: string) => {
-    const rate = rawRate === "" ? 0 : Math.max(0, parseFloat(rawRate) || 0);
+    const rate = rawRate === "" ? undefined : Math.max(0, parseFloat(rawRate) || 0);
     const newItems = [...quote.items];
     newItems[itemIdx] = {
       ...newItems[itemIdx],
-      rate: isNaN(rate) ? 0 : rate,
-      amount: Math.round(newItems[itemIdx].quantity * (isNaN(rate) ? 0 : rate) * 100) / 100,
+      rate: rate !== undefined && isNaN(rate) ? undefined : rate,
+      amount: rate !== undefined ? Math.round(newItems[itemIdx].quantity * rate * 100) / 100 : 0,
     };
     updateCalculations(newItems, quote.taxRate, quote.freight);
   };
@@ -207,14 +207,16 @@ export function CCVendorQuotePanel({
                         type="number"
                         min="0"
                         step="any"
-                        placeholder="0.00"
-                        value={item.rate === undefined || isNaN(item.rate) ? "" : item.rate}
+                        placeholder="Enter rate"
+                        value={item.rate === undefined || item.rate === null || (item.rate === 0 && (item.amount === 0)) ? "" : item.rate}
                         onChange={(e) => handleRateChange(itIdx, e.target.value)}
                         className="h-7 text-xs text-right font-mono"
                       />
                     </td>
                     <td className="py-2 px-3 text-right font-mono font-bold text-foreground">
-                      ₹{(item.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      {item.rate === undefined || (item.rate === 0 && item.amount === 0)
+                        ? <span className="text-muted-foreground font-normal">—</span>
+                        : `₹${item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}
                     </td>
                   </tr>
                 ))}
