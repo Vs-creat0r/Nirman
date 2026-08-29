@@ -8,15 +8,33 @@ const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL || "");
 
 export function ConvexClientProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
-    // Suppress external browser extension unhandled rejections from polluting Next.js dev overlay
+    // Suppress external browser extension unhandled rejections/errors from polluting Next.js dev overlay
+    const shouldIgnore = (err?: any, msg?: string, filename?: string, stack?: string) => {
+      const combined = [
+        msg,
+        filename,
+        stack,
+        err?.stack,
+        err?.message,
+        err ? String(err) : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      return (
+        combined.includes("chrome-extension://") ||
+        combined.includes("moz-extension://") ||
+        combined.includes("safari-extension://") ||
+        combined.includes("safari-web-extension://") ||
+        combined.includes("M_ID") ||
+        combined.includes("eppiocemhmnlbhjplcgkofciiegomcon")
+      );
+    };
+
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
       const stack = reason?.stack || reason?.toString() || "";
-      if (
-        stack.includes("chrome-extension://") ||
-        stack.includes("moz-extension://") ||
-        reason?.message?.includes("M_ID")
-      ) {
+      if (shouldIgnore(reason, reason?.message, "", stack)) {
         event.preventDefault();
         event.stopImmediatePropagation();
       }
@@ -25,23 +43,18 @@ export function ConvexClientProvider({ children }: { children: React.ReactNode }
     const handleError = (event: ErrorEvent) => {
       const filename = event.filename || "";
       const stack = event.error?.stack || "";
-      if (
-        filename.includes("chrome-extension://") ||
-        filename.includes("moz-extension://") ||
-        stack.includes("chrome-extension://") ||
-        event.message?.includes("M_ID")
-      ) {
+      if (shouldIgnore(event.error, event.message, filename, stack)) {
         event.preventDefault();
         event.stopImmediatePropagation();
       }
     };
 
-    window.addEventListener("unhandledrejection", handleUnhandledRejection);
-    window.addEventListener("error", handleError);
+    window.addEventListener("unhandledrejection", handleUnhandledRejection, { capture: true });
+    window.addEventListener("error", handleError, { capture: true });
 
     return () => {
-      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
-      window.removeEventListener("error", handleError);
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection, { capture: true } as any);
+      window.removeEventListener("error", handleError, { capture: true } as any);
     };
   }, []);
 

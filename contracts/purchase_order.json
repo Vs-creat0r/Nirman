@@ -124,6 +124,34 @@
             "input": "readonly",
             "required": true,
             "help": "quantity x rate, computed server-side"
+          },
+          {
+            "field": "projectItemId",
+            "label": "Project BOQ Item",
+            "type": "reference",
+            "input": "hidden",
+            "required": false,
+            "relation": {
+              "table": "project_items"
+            }
+          },
+          {
+            "field": "isUnquotedAddition",
+            "label": "Unquoted addition",
+            "type": "boolean",
+            "input": "checkbox",
+            "required": false,
+            "default": false
+          },
+          {
+            "field": "additionReason",
+            "label": "Addition reason",
+            "type": "string",
+            "input": "text",
+            "required": false,
+            "validation": {
+              "maxLength": 300
+            }
           }
         ]
       },
@@ -182,6 +210,76 @@
       "required": true,
       "validation": {
         "min": 0
+      }
+    },
+    {
+      "field": "placeOfSupplyStateCode",
+      "label": "Place of supply (State code)",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "maxLength": 2
+      }
+    },
+    {
+      "field": "siteContactPerson",
+      "label": "Site contact person",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "maxLength": 100
+      }
+    },
+    {
+      "field": "siteContactPhone",
+      "label": "Site contact phone",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "maxLength": 20
+      }
+    },
+    {
+      "field": "unloadingScope",
+      "label": "Unloading scope",
+      "type": "enum",
+      "input": "select",
+      "required": false,
+      "validation": {
+        "enum": [
+          "buyer_scope",
+          "vendor_scope"
+        ]
+      },
+      "default": "buyer_scope"
+    },
+    {
+      "field": "freightTerms",
+      "label": "Freight terms",
+      "type": "enum",
+      "input": "select",
+      "required": false,
+      "validation": {
+        "enum": [
+          "inclusive_in_rate",
+          "extra_at_actuals",
+          "fixed_freight",
+          "to_pay_by_site"
+        ]
+      },
+      "default": "inclusive_in_rate"
+    },
+    {
+      "field": "procurementNotes",
+      "label": "Procurement notes",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
       }
     },
     {
@@ -275,10 +373,36 @@
           "submitted",
           "queried",
           "rejected",
-          "approved"
+          "approved",
+          "cancelled",
+          "closed"
         ]
       },
       "default": "draft"
+    },
+    {
+      "field": "cancellationReason",
+      "label": "Cancellation reason",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "field": "closureType",
+      "label": "Closure type",
+      "type": "enum",
+      "input": "readonly-badge",
+      "required": false,
+      "validation": {
+        "enum": [
+          "cancelled",
+          "short_closed",
+          "fully_received"
+        ]
+      }
     },
     {
       "field": "reviewNote",
@@ -313,7 +437,9 @@
     "submitted",
     "queried",
     "rejected",
-    "approved"
+    "approved",
+    "cancelled",
+    "closed"
   ],
   "relations": {
     "costComparisonId": "cost_comparison",
@@ -340,6 +466,9 @@
     [
       "siteId",
       "status"
+    ],
+    [
+      "costComparisonId"
     ]
   ],
   "audit": {

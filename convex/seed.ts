@@ -40,7 +40,7 @@ export const seedAll = mutation({
     }
 
     // ── 1. USERS (4 roles) ──────────────────────────────────────────────
-    let admin = await ctx.db
+    const admin = await ctx.db
       .query("users")
       .withIndex("by_username", (q) => q.eq("username", "admin"))
       .first();
@@ -231,6 +231,7 @@ export const seedAll = mutation({
           unit: item.unit,
           boqQty: item.quantity,
           procuredQty: 0,
+          committedQty: 0,
           createdBy: adminId,
         });
       }

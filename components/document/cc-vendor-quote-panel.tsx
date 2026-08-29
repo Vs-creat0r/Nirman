@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Id } from "@/convex/_generated/dataModel";
 
 export interface CCQuoteItem {
   itemName: string;
@@ -13,6 +14,7 @@ export interface CCQuoteItem {
   unit: string;
   rate: number | undefined;
   amount: number;
+  projectItemId?: Id<"project_items">;
 }
 
 export interface CCVendorQuoteData {

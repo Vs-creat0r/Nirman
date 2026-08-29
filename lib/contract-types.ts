@@ -8,5 +8,5 @@ export const CONTRACT_TABLES = ["cost_comparison", "delivery_challan", "grn", "i
 export type ContractTable = (typeof CONTRACT_TABLES)[number];
 
 /** Every status any document can hold, union of all contracts. */
-export const ALL_STATUSES = ["draft", "submitted", "queried", "rejected", "approved", "delivery_processing", "delivered", "cancelled", "pending", "ready_for_cc", "review_cc", "ready_for_po", "review_po", "pending_po"] as const;
+export const ALL_STATUSES = ["draft", "submitted", "queried", "rejected", "approved", "delivery_processing", "delivered", "cancelled", "pending", "ready_for_cc", "review_cc", "ready_for_po", "review_po", "pending_po", "closed"] as const;
 export type AnyStatus = (typeof ALL_STATUSES)[number];

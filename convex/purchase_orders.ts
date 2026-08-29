@@ -37,6 +37,48 @@ async function generatePORefNo(ctx: MutationCtx): Promise<string> {
 }
 
 /**
+ * Adjusts committedQty on project_items for line items with resolved projectItemId [FIX-B1].
+ */
+async function adjustCommittedQty(
+  ctx: MutationCtx,
+  lineItems: Array<{
+    itemName: string;
+    quantity: number;
+    projectItemId?: Id<"project_items">;
+  }>,
+  delta: number,
+  mrItems?: Array<{
+    itemName: string;
+    projectItemId?: Id<"project_items">;
+  }>
+) {
+  for (const item of lineItems) {
+    let projectItemId = item.projectItemId;
+    if (!projectItemId && mrItems) {
+      const match = mrItems.find(
+        (m) => m.itemName.toLowerCase().trim() === item.itemName.toLowerCase().trim()
+      );
+      if (match?.projectItemId) {
+        projectItemId = match.projectItemId;
+      }
+    }
+
+    if (projectItemId) {
+      const projectItem = await ctx.db.get(projectItemId);
+      if (projectItem) {
+        const currentCommitted = projectItem.committedQty ?? 0;
+        const newCommitted = Math.max(0, currentCommitted + delta * item.quantity);
+        await ctx.db.patch(projectItemId, {
+          committedQty: newCommitted,
+        });
+      }
+    } else {
+      console.error(`[PO Commitment] Could not resolve projectItemId for item "${item.itemName}"`);
+    }
+  }
+}
+
+/**
  * Create a new Purchase Order auto-filled from an approved Cost Comparison.
  * Zero manual re-entry: snapshots winning vendor's line items and commercial terms.
  */
@@ -45,6 +87,31 @@ export const createPOFromCC = mutation({
     costComparisonId: v.id("cost_comparison"),
     expectedDelivery: v.optional(v.string()),
     validUntil: v.optional(v.string()),
+    paymentTerms: v.optional(
+      v.union(
+        v.literal("advance"),
+        v.literal("on_delivery"),
+        v.literal("7_days"),
+        v.literal("15_days"),
+        v.literal("30_days"),
+        v.literal("45_days")
+      )
+    ),
+    placeOfSupplyStateCode: v.optional(v.string()),
+    siteContactPerson: v.optional(v.string()),
+    siteContactPhone: v.optional(v.string()),
+    unloadingScope: v.optional(
+      v.union(v.literal("buyer_scope"), v.literal("vendor_scope"))
+    ),
+    freightTerms: v.optional(
+      v.union(
+        v.literal("inclusive_in_rate"),
+        v.literal("extra_at_actuals"),
+        v.literal("fixed_freight"),
+        v.literal("to_pay_by_site")
+      )
+    ),
+    procurementNotes: v.optional(v.string()),
     termsAndConditions: v.optional(v.string()),
     tcTemplateId: v.optional(v.id("tc_templates")),
     submitImmediately: v.optional(v.boolean()),
@@ -79,6 +146,21 @@ export const createPOFromCC = mutation({
       throw new Error("Winning vendor quote could not be located in the cost comparison.");
     }
 
+    // Duplicate PO guard [FIX-I1]
+    const existingPOs = await ctx.db
+      .query("purchase_order")
+      .withIndex("by_costComparisonId", (q) => q.eq("costComparisonId", cc._id))
+      .collect();
+
+    const activePO = existingPOs.find((p) =>
+      ["draft", "submitted", "queried", "approved"].includes(p.status)
+    );
+    if (activePO) {
+      throw new Error(
+        `A Purchase Order (${activePO.refNo}) already exists for this Cost Comparison.`
+      );
+    }
+
     // Load parent MR items if available to inherit HSN/SAC code
     const mr = cc.materialRequestId ? await ctx.db.get(cc.materialRequestId) : null;
     const mrItemMap = new Map<string, string | undefined>();
@@ -90,11 +172,21 @@ export const createPOFromCC = mutation({
       }
     }
 
-    // Snapshot line items with amounts
+    // Snapshot line items with amounts and projectItemId [FIX-B1]
     const snapshottedLineItems = winningQuote.items.map((item) => {
       const qty = Number(item.quantity) || 0;
       const rate = Number(item.rate) || 0;
       const hsnSacCode = mrItemMap.get(item.itemName.toLowerCase().trim()) || undefined;
+      let projectItemId = item.projectItemId;
+      if (!projectItemId && mr?.items) {
+        const match = mr.items.find(
+          (m) => m.itemName.toLowerCase().trim() === item.itemName.toLowerCase().trim()
+        );
+        if (match?.projectItemId) {
+          projectItemId = match.projectItemId;
+        }
+      }
+
       return {
         itemName: item.itemName,
         quantity: qty,
@@ -102,6 +194,7 @@ export const createPOFromCC = mutation({
         rate: rate,
         amount: Math.round(qty * rate * 100) / 100,
         hsnSacCode: hsnSacCode,
+        projectItemId: projectItemId || undefined,
       };
     });
 
@@ -113,15 +206,20 @@ export const createPOFromCC = mutation({
     const freight = Math.max(0, Number(winningQuote.freight) || 0);
     const totalAmount = Math.round((subtotal + taxAmount + freight) * 100) / 100;
 
-    const paymentTermsMap: Record<string, "advance" | "on_delivery" | "7_days" | "15_days" | "30_days" | "45_days"> = {
-      advance: "advance",
-      on_delivery: "on_delivery",
-      "7_days": "7_days",
-      "15_days": "15_days",
-      "30_days": "30_days",
-      "45_days": "45_days",
-    };
-    const paymentTerms = paymentTermsMap[winningQuote.paymentTerms || "30_days"] || "30_days";
+    const validPaymentTerms = ["advance", "on_delivery", "7_days", "15_days", "30_days", "45_days"] as const;
+    type PaymentTermType = (typeof validPaymentTerms)[number];
+    let paymentTerms: PaymentTermType = "30_days";
+    let paymentTermsNotice = "";
+
+    if (args.paymentTerms && (validPaymentTerms as readonly string[]).includes(args.paymentTerms)) {
+      paymentTerms = args.paymentTerms as PaymentTermType;
+    } else if (winningQuote.paymentTerms) {
+      if ((validPaymentTerms as readonly string[]).includes(winningQuote.paymentTerms)) {
+        paymentTerms = winningQuote.paymentTerms as PaymentTermType;
+      } else {
+        paymentTermsNotice = ` (Quote specified '${winningQuote.paymentTerms}', coerced to 30_days)`;
+      }
+    }
 
     const refNo = await generatePORefNo(ctx);
     const now = new Date().toISOString();
@@ -147,6 +245,12 @@ export const createPOFromCC = mutation({
       taxRate,
       taxAmount,
       totalAmount,
+      placeOfSupplyStateCode: args.placeOfSupplyStateCode?.trim() || undefined,
+      siteContactPerson: args.siteContactPerson?.trim() || undefined,
+      siteContactPhone: args.siteContactPhone?.trim() || undefined,
+      unloadingScope: args.unloadingScope || "buyer_scope",
+      freightTerms: args.freightTerms || "inclusive_in_rate",
+      procurementNotes: args.procurementNotes?.trim() || undefined,
       paymentTerms,
       expectedDelivery: args.expectedDelivery || undefined,
       validUntil: args.validUntil || undefined,
@@ -163,6 +267,10 @@ export const createPOFromCC = mutation({
       updatedAt: now,
     });
 
+    // If auto-approved directly, increment committedQty on project_items [FIX-B1]
+    if (initialStatus === "approved") {
+      await adjustCommittedQty(ctx, snapshottedLineItems, 1, mr?.items);
+    }
 
     const vendor = await ctx.db.get(cc.selectedVendorId);
     const vendorName = vendor?.name || "Vendor";
@@ -177,34 +285,34 @@ export const createPOFromCC = mutation({
       referenceId: refNo,
       fromStatus: undefined,
       toStatus: initialStatus,
-      note: `Purchase Order generated from ${cc.refNo} for ${vendorName} (Total: ₹${totalAmount.toLocaleString("en-IN")})`,
+      note: `Purchase Order generated from ${cc.refNo} for ${vendorName} (Total: ₹${totalAmount.toLocaleString("en-IN")})${paymentTermsNotice}`,
       timestamp: now,
     });
 
-    // Update parent Material Request status
-    if (cc.materialRequestId) {
-      const mr = await ctx.db.get(cc.materialRequestId);
-      if (mr) {
-        const mrToStatus = initialStatus === "approved" ? "pending_po" : "review_po";
-        await ctx.db.patch(mr._id, {
-          status: mrToStatus,
-          updatedBy: user._id,
-          updatedAt: now,
-        });
+    // Update parent Material Request status:
+    // If draft -> leave MR in ready_for_po (Fix 1).
+    // If approved -> MR to pending_po.
+    // If submitted -> MR to review_po.
+    if (cc.materialRequestId && mr && initialStatus !== "draft") {
+      const mrToStatus = initialStatus === "approved" ? "pending_po" : "review_po";
+      await ctx.db.patch(mr._id, {
+        status: mrToStatus,
+        updatedBy: user._id,
+        updatedAt: now,
+      });
 
-        await ctx.db.insert("logs", {
-          actorId: user._id,
-          actorRole: user.role,
-          action: "po_generated_for_mr",
-          documentType: "material_request",
-          documentId: mr._id,
-          referenceId: mr.refNo,
-          fromStatus: mr.status,
-          toStatus: mrToStatus,
-          note: `Purchase Order ${refNo} generated (${initialStatus}) with ${vendorName}`,
-          timestamp: now,
-        });
-      }
+      await ctx.db.insert("logs", {
+        actorId: user._id,
+        actorRole: user.role,
+        action: "po_generated_for_mr",
+        documentType: "material_request",
+        documentId: mr._id,
+        referenceId: mr.refNo,
+        fromStatus: mr.status,
+        toStatus: mrToStatus,
+        note: `Purchase Order ${refNo} generated (${initialStatus}) with ${vendorName}`,
+        timestamp: now,
+      });
     }
 
     return {
@@ -295,9 +403,12 @@ export const approvePO = mutation({
       },
     });
 
+    // Update committedQty on project_items [FIX-B1]
+    const mr = po.materialRequestId ? await ctx.db.get(po.materialRequestId) : null;
+    await adjustCommittedQty(ctx, po.lineItems, 1, mr?.items);
+
     // Update parent Material Request to pending_po (awaiting vendor delivery/DC)
     if (po.materialRequestId) {
-      const mr = await ctx.db.get(po.materialRequestId);
       if (mr) {
         await ctx.db.patch(mr._id, {
           status: "pending_po",
@@ -445,10 +556,28 @@ export const resubmitPO = mutation({
         unit: v.string(),
         rate: v.number(),
         hsnSacCode: v.optional(v.string()),
+        projectItemId: v.optional(v.id("project_items")),
+        isUnquotedAddition: v.optional(v.boolean()),
+        additionReason: v.optional(v.string()),
       })
     ),
     taxRate: v.number(),
     freight: v.optional(v.number()),
+    placeOfSupplyStateCode: v.optional(v.string()),
+    siteContactPerson: v.optional(v.string()),
+    siteContactPhone: v.optional(v.string()),
+    unloadingScope: v.optional(
+      v.union(v.literal("buyer_scope"), v.literal("vendor_scope"))
+    ),
+    freightTerms: v.optional(
+      v.union(
+        v.literal("inclusive_in_rate"),
+        v.literal("extra_at_actuals"),
+        v.literal("fixed_freight"),
+        v.literal("to_pay_by_site")
+      )
+    ),
+    procurementNotes: v.optional(v.string()),
     paymentTerms: v.union(
       v.literal("advance"),
       v.literal("on_delivery"),
@@ -460,9 +589,25 @@ export const resubmitPO = mutation({
     expectedDelivery: v.optional(v.string()),
     validUntil: v.optional(v.string()),
     termsAndConditions: v.optional(v.string()),
+    submitImmediately: v.optional(v.boolean()),
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const user = await requireRole(
+      ctx,
+      ["procurement_officer", "project_manager", "admin"],
+      args.token
+    );
+
+    // Validate unquoted additions have reason [FIX-B1]
+    for (const item of args.lineItems) {
+      if (item.isUnquotedAddition && !item.additionReason?.trim()) {
+        throw new Error(
+          `An addition reason is required for unquoted addition item "${item.itemName}".`
+        );
+      }
+    }
+
     const calculatedItems = args.lineItems.map((item) => {
       const qty = Number(item.quantity) || 0;
       const rate = Number(item.rate) || 0;
@@ -473,6 +618,9 @@ export const resubmitPO = mutation({
         rate: rate,
         amount: Math.round(qty * rate * 100) / 100,
         hsnSacCode: item.hsnSacCode || undefined,
+        projectItemId: item.projectItemId || undefined,
+        isUnquotedAddition: item.isUnquotedAddition || undefined,
+        additionReason: item.additionReason?.trim() || undefined,
       };
     });
 
@@ -489,16 +637,40 @@ export const resubmitPO = mutation({
     if (!po) throw new Error("Purchase Order not found.");
 
     const isDraft = po.status === "draft";
-    const actionName = isDraft ? "edit_and_submit_purchase_order" : "resubmit_purchase_order";
+    const targetStatus = isDraft && !args.submitImmediately ? "draft" : "submitted";
+    const actionName =
+      isDraft && !args.submitImmediately
+        ? "edit_po_draft"
+        : isDraft
+        ? "submit_purchase_order"
+        : "resubmit_purchase_order";
 
-    return await transition(ctx, {
+    // Format scope additions & justifications into audit log note
+    const additionItems = calculatedItems.filter((it) => it.isUnquotedAddition);
+    let transitionNote: string | undefined = undefined;
+    if (additionItems.length > 0) {
+      const additionSummary = additionItems
+        .map(
+          (it) =>
+            `Added "${it.itemName}" (${it.quantity} ${it.unit} @ ₹${it.rate}): ${it.additionReason || "No justification provided"}`
+        )
+        .join("; ");
+      transitionNote = `Scope additions: ${additionSummary}${
+        args.procurementNotes ? ` | Remarks: ${args.procurementNotes.trim()}` : ""
+      }`;
+    } else if (args.procurementNotes) {
+      transitionNote = args.procurementNotes.trim();
+    }
+
+    const res = await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
-      from: ["draft", "queried"],
-      to: "submitted",
+      from: isDraft ? "draft" : "queried",
+      to: targetStatus,
       actorRole: ["procurement_officer", "project_manager", "admin"],
       token: args.token,
       action: actionName,
+      note: transitionNote,
       patch: {
         lineItems: calculatedItems,
         subtotal,
@@ -506,6 +678,12 @@ export const resubmitPO = mutation({
         taxAmount,
         freight: freight > 0 ? freight : undefined,
         totalAmount,
+        placeOfSupplyStateCode: args.placeOfSupplyStateCode?.trim() || undefined,
+        siteContactPerson: args.siteContactPerson?.trim() || undefined,
+        siteContactPhone: args.siteContactPhone?.trim() || undefined,
+        unloadingScope: args.unloadingScope || "buyer_scope",
+        freightTerms: args.freightTerms || "inclusive_in_rate",
+        procurementNotes: args.procurementNotes?.trim() || undefined,
         pendingQty: totalQty,
         paymentTerms: args.paymentTerms,
         expectedDelivery: args.expectedDelivery || undefined,
@@ -513,6 +691,38 @@ export const resubmitPO = mutation({
         termsAndConditions: args.termsAndConditions || undefined,
       },
     });
+
+    // If submitted, advance parent MR status to review_po and record audit note
+    if (targetStatus === "submitted" && po.materialRequestId) {
+      const mr = await ctx.db.get(po.materialRequestId);
+      if (mr && (mr.status === "ready_for_po" || mr.status === "draft" || mr.status === "review_po")) {
+        const now = new Date().toISOString();
+        await ctx.db.patch(mr._id, {
+          status: "review_po",
+          updatedBy: user._id,
+          updatedAt: now,
+        });
+
+        const mrLogNote = transitionNote
+          ? `Purchase Order ${po.refNo} submitted with ${transitionNote}`
+          : `Purchase Order ${po.refNo} submitted for manager approval`;
+
+        await ctx.db.insert("logs", {
+          actorId: user._id,
+          actorRole: user.role,
+          action: "po_submitted_for_mr",
+          documentType: "material_request",
+          documentId: mr._id,
+          referenceId: mr.refNo,
+          fromStatus: mr.status,
+          toStatus: "review_po",
+          note: mrLogNote,
+          timestamp: now,
+        });
+      }
+    }
+
+    return res;
   },
 });
 
@@ -603,10 +813,12 @@ export const listApprovedCCsForPO = query({
       ccs = ccs.filter((cc) => cc.projectId === args.projectId);
     }
 
-    // Check which approved CCs already have an active PO
+    // Check which approved CCs already have an active PO (excluding rejected & cancelled)
     const allPOs = await ctx.db.query("purchase_order").collect();
     const ccIdsWithPO = new Set(
-      allPOs.filter((po) => po.status !== "rejected").map((po) => po.costComparisonId)
+      allPOs
+        .filter((po) => po.status !== "rejected" && po.status !== "cancelled")
+        .map((po) => po.costComparisonId)
     );
 
     // Filter to approved CCs without PO
@@ -625,9 +837,18 @@ export const listApprovedCCsForPO = query({
           ...cc,
           projectName: project?.name || "Unknown Project",
           siteName: site ? `${site.name} (${site.code})` : "Main Site",
+          siteAddress: site?.address || "",
           materialRequestRefNo: mr?.refNo || "MR",
           selectedVendorName: vendor?.name || "Selected Vendor",
+          selectedVendorGstNo: vendor?.gstNo || "",
+          selectedVendorPhone: vendor?.phone || "",
           winningTotal: winningQuote?.total || 0,
+          winningSubtotal: winningQuote?.subtotal || 0,
+          winningTaxRate: winningQuote?.taxRate || 18,
+          winningFreight: winningQuote?.freight || 0,
+          winningPaymentTerms: winningQuote?.paymentTerms,
+          winningDeliveryDays: winningQuote?.deliveryDays,
+          winningItems: winningQuote?.items || [],
           itemCount: winningQuote?.items.length || 0,
         };
       })
@@ -741,8 +962,168 @@ export const getPO = query({
 });
 
 /**
- * Delete / Discard a draft Purchase Order.
- * Hard delete permitted only on unsubmitted draft POs with no downstream delivery challans.
+ * Cancel or Short-Close an active Purchase Order [FIX-I5, FIX-I7, D2].
+ * - Full cancellation (0 GRNs): PO → "cancelled", releases all committedQty, resets MR to ready_for_po.
+ * - Short close (≥1 GRN): PO → "closed", releases remainder committedQty, sets MR to delivered.
+ */
+export const cancelPO = mutation({
+  args: {
+    id: v.id("purchase_order"),
+    reason: v.string(),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireRole(
+      ctx,
+      ["project_manager", "admin"],
+      args.token
+    );
+
+    if (!args.reason?.trim()) {
+      throw new Error("A cancellation reason is required.");
+    }
+
+    const po = await ctx.db.get(args.id);
+    if (!po) throw new Error("Purchase Order not found.");
+
+    if (po.status !== "submitted" && po.status !== "approved") {
+      throw new Error(
+        `Only submitted or approved Purchase Orders can be cancelled. Current status: "${po.status}".`
+      );
+    }
+
+    // Check if any Delivery Challans are in transit / active
+    const dcs = await ctx.db
+      .query("delivery_challan")
+      .withIndex("by_purchaseOrderId", (q) => q.eq("purchaseOrderId", args.id))
+      .collect();
+
+    const activeDC = dcs.find((dc) => dc.status === "delivery_processing");
+    if (activeDC) {
+      throw new Error(
+        `Cannot cancel Purchase Order with active Delivery Challan (${activeDC.refNo}) in transit. Please cancel or resolve delivery challans first.`
+      );
+    }
+
+    // Fetch all GRNs for this PO to determine if short-close or full cancel
+    const allGRNs = await ctx.db
+      .query("grn")
+      .withIndex("by_purchaseOrderId", (q) => q.eq("purchaseOrderId", args.id))
+      .collect();
+
+    const isShortClose = allGRNs.length > 0;
+    const targetStatus = isShortClose ? "closed" : "cancelled";
+    const closureType = isShortClose ? "short_closed" : "cancelled";
+    const mr = po.materialRequestId ? await ctx.db.get(po.materialRequestId) : null;
+
+    // Unwind commitment
+    for (const item of po.lineItems) {
+      let projectItemId = item.projectItemId;
+      if (!projectItemId && mr?.items) {
+        const match = mr.items.find(
+          (m) => m.itemName.toLowerCase().trim() === item.itemName.toLowerCase().trim()
+        );
+        if (match?.projectItemId) {
+          projectItemId = match.projectItemId;
+        }
+      }
+
+      if (projectItemId) {
+        const projectItem = await ctx.db.get(projectItemId);
+        if (projectItem) {
+          let releaseQty = item.quantity;
+          if (isShortClose) {
+            const cumReceived = allGRNs.reduce((sum, grn) => {
+              const ri = grn.receivedItems?.find(
+                (r) => r.itemName.toLowerCase().trim() === item.itemName.toLowerCase().trim()
+              );
+              return sum + (ri?.receivedQty || 0);
+            }, 0);
+            releaseQty = Math.max(0, item.quantity - cumReceived);
+          }
+
+          const currentCommitted = projectItem.committedQty ?? 0;
+          const newCommitted = Math.max(0, currentCommitted - releaseQty);
+          await ctx.db.patch(projectItemId, {
+            committedQty: newCommitted,
+          });
+        }
+      }
+    }
+
+    const actionName = isShortClose ? "short_close_purchase_order" : "cancel_purchase_order";
+    const res = await transition(ctx, {
+      table: "purchase_order",
+      documentId: args.id,
+      from: ["submitted", "approved"],
+      to: targetStatus,
+      actorRole: ["project_manager", "admin"],
+      token: args.token,
+      action: actionName,
+      note: args.reason.trim(),
+      patch: {
+        cancellationReason: args.reason.trim(),
+        closureType,
+      },
+    });
+
+    // Update parent Material Request status
+    if (mr) {
+      const now = new Date().toISOString();
+      if (!isShortClose) {
+        // Full cancel: reset MR back to ready_for_po if in review_po / pending_po
+        if (mr.status === "review_po" || mr.status === "pending_po") {
+          await ctx.db.patch(mr._id, {
+            status: "ready_for_po",
+            updatedBy: user._id,
+            updatedAt: now,
+          });
+
+          await ctx.db.insert("logs", {
+            actorId: user._id,
+            actorRole: user.role,
+            action: "mr_reset_ready_for_po",
+            documentType: "material_request",
+            documentId: mr._id,
+            referenceId: mr.refNo,
+            fromStatus: mr.status,
+            toStatus: "ready_for_po",
+            note: `Purchase Order ${po.refNo} was cancelled. Material Request returned to ready_for_po for re-issuance. Reason: ${args.reason.trim()}`,
+            timestamp: now,
+          });
+        }
+      } else {
+        // Short close: goods were received, transition MR to delivered closeout
+        if (mr.status !== "delivered") {
+          await ctx.db.patch(mr._id, {
+            status: "delivered",
+            updatedBy: user._id,
+            updatedAt: now,
+          });
+
+          await ctx.db.insert("logs", {
+            actorId: user._id,
+            actorRole: user.role,
+            action: "mr_short_closed_delivered",
+            documentType: "material_request",
+            documentId: mr._id,
+            referenceId: mr.refNo,
+            fromStatus: mr.status,
+            toStatus: "delivered",
+            note: `Purchase Order ${po.refNo} was short-closed (${args.reason.trim()}). Material Request closed at delivered quantities.`,
+            timestamp: now,
+          });
+        }
+      }
+    }
+
+    return res;
+  },
+});
+
+/**
+ * Delete / Discard a draft or queried Purchase Order [D1].
+ * Hard delete permitted only on draft/queried POs with no downstream delivery challans.
  */
 export const deletePO = mutation({
   args: {
@@ -759,9 +1140,9 @@ export const deletePO = mutation({
     const po = await ctx.db.get(args.id);
     if (!po) throw new Error("Purchase Order not found.");
 
-    if (po.status !== "draft") {
+    if (po.status !== "draft" && po.status !== "queried") {
       throw new Error(
-        `Only draft Purchase Orders can be discarded. Current status: "${po.status}".`
+        `Only draft or queried Purchase Orders can be discarded. Current status: "${po.status}". Submitted or approved orders must be cancelled via Cancel PO.`
       );
     }
 
@@ -787,9 +1168,9 @@ export const deletePO = mutation({
       documentType: "purchase_order",
       documentId: args.id,
       referenceId: po.refNo,
-      fromStatus: "draft",
+      fromStatus: po.status,
       toStatus: undefined,
-      note: `Draft Purchase Order ${po.refNo} was discarded by ${user.name}.`,
+      note: `Purchase Order ${po.refNo} (${po.status}) was discarded by ${user.name}.`,
       timestamp: now,
     });
 

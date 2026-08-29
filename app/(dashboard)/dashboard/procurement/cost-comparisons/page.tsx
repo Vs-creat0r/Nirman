@@ -30,10 +30,25 @@ export default function ProcurementCostComparisonsPage() {
     token ? { token } : "skip"
   );
 
-  const pendingMRs = useQuery(
+  const rawPendingMRs = useQuery(
     api.cost_comparisons.listApprovedMRsForCC,
     token ? { token } : "skip"
   );
+
+  // Safeguard: Ensure no MR that already has a non-rejected CC appears in the "Ready for CC" prompt banner
+  const pendingMRs = React.useMemo(() => {
+    if (!rawPendingMRs) return [];
+    if (!ccs) return rawPendingMRs;
+    const existingCCMrIds = new Set(
+      ccs.filter((cc) => cc.status !== "rejected").map((cc) => String(cc.materialRequestId))
+    );
+    const existingCCMrRefNos = new Set(
+      ccs.filter((cc) => cc.status !== "rejected").map((cc) => cc.materialRequestRefNo)
+    );
+    return rawPendingMRs.filter(
+      (mr) => !existingCCMrIds.has(String(mr._id)) && !existingCCMrRefNos.has(mr.refNo)
+    );
+  }, [rawPendingMRs, ccs]);
 
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [searchQuery, setSearchQuery] = React.useState("");

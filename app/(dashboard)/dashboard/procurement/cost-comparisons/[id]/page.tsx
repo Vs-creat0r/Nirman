@@ -126,16 +126,28 @@ export default function ProcurementCCDetailPage() {
             </>
           )}
 
-          {/* Action Button for Approved status: Generate PO */}
+          {/* Action Button for Approved status: Generate PO or View existing PO */}
           {isApproved && (
-            <Button
-              size="sm"
-              onClick={() => setIsGeneratePOModalOpen(true)}
-              className="gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Generate Purchase Order
-            </Button>
+            cc.linkedPO ? (
+              <Link href={`/dashboard/procurement/purchase-orders/${cc.linkedPO._id}`}>
+                <Button
+                  size="sm"
+                  className="gap-1.5 text-xs font-semibold"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  View Purchase Order ({cc.linkedPO.refNo}) &rarr;
+                </Button>
+              </Link>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => setIsGeneratePOModalOpen(true)}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Generate Purchase Order
+              </Button>
+            )
           )}
 
           {/* Action Button for Queried status */}
@@ -143,7 +155,7 @@ export default function ProcurementCCDetailPage() {
             <Link href={`/dashboard/procurement/cost-comparisons/${id}/edit`}>
               <Button
                 size="sm"
-                className="gap-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white"
+                className="gap-1.5 text-xs font-semibold bg-warning hover:bg-warning/90 text-warning-foreground"
               >
                 <Edit className="h-3.5 w-3.5" />
                 Edit & Resubmit Quotes
@@ -348,8 +360,17 @@ export default function ProcurementCCDetailPage() {
           costComparisonRefNo={cc.refNo}
           projectName={cc.projectName}
           siteName={cc.siteName}
+          siteAddress={cc.siteAddress}
           vendorName={winningQuote?.vendorName}
+          vendorGstNo={cc.selectedVendorGstNo || undefined}
+          vendorPhone={cc.selectedVendorPhone || undefined}
           totalAmount={winningQuote?.total}
+          subtotal={winningQuote?.subtotal}
+          taxRate={winningQuote?.taxRate}
+          freight={winningQuote?.freight}
+          paymentTerms={winningQuote?.paymentTerms}
+          deliveryDays={winningQuote?.deliveryDays}
+          items={winningQuote?.items}
         />
       )}
     </div>

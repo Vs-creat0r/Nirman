@@ -284,8 +284,17 @@ export default function ProcurementPurchaseOrdersPage() {
           costComparisonRefNo={activeModalCC.refNo}
           projectName={activeModalCC.projectName}
           siteName={activeModalCC.siteName}
+          siteAddress={activeModalCC.siteAddress}
           vendorName={activeModalCC.selectedVendorName}
+          vendorGstNo={activeModalCC.selectedVendorGstNo}
+          vendorPhone={activeModalCC.selectedVendorPhone}
           totalAmount={activeModalCC.winningTotal}
+          subtotal={activeModalCC.winningSubtotal}
+          taxRate={activeModalCC.winningTaxRate}
+          freight={activeModalCC.winningFreight}
+          paymentTerms={activeModalCC.winningPaymentTerms}
+          deliveryDays={activeModalCC.winningDeliveryDays}
+          items={activeModalCC.winningItems}
         />
       )}
     </div>

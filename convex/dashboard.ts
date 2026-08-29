@@ -20,23 +20,21 @@ export const getProcurementDashboardMetrics = query({
       args.token
     );
 
-    // 1. Material requests ready for CC (exclude MRs that already have an existing CC)
+    // 1. Material requests ready for CC (exclude MRs that already have an existing active/draft CC)
     const rawMRsReadyForCC = await ctx.db
       .query("material_request")
       .withIndex("by_status", (q) => q.eq("status", "ready_for_cc"))
       .collect();
 
-    const mrsReadyForCC = (
-      await Promise.all(
-        rawMRsReadyForCC.map(async (mr) => {
-          const existingCC = await ctx.db
-            .query("cost_comparison")
-            .withIndex("by_materialRequestId", (q) => q.eq("materialRequestId", mr._id))
-            .first();
-          return existingCC ? null : mr;
-        })
-      )
-    ).filter(Boolean) as typeof rawMRsReadyForCC;
+    const allCCs = await ctx.db.query("cost_comparison").collect();
+    const ccsByMR = new Set(
+      allCCs
+        .filter((cc) => cc.status !== "rejected")
+        .map((cc) => String(cc.materialRequestId))
+        .filter(Boolean)
+    );
+
+    const mrsReadyForCC = rawMRsReadyForCC.filter((mr) => !ccsByMR.has(String(mr._id)));
 
     // Enrich MRs ready for CC
     const enrichedMRsReadyForCC = await Promise.all(
@@ -57,7 +55,6 @@ export const getProcurementDashboardMetrics = query({
 
 
     // 2. Cost Comparisons
-    const allCCs = await ctx.db.query("cost_comparison").collect();
     const draftCCs = allCCs.filter((cc) => cc.status === "draft");
     const submittedCCs = allCCs.filter((cc) => cc.status === "submitted");
     const queriedCCs = allCCs.filter((cc) => cc.status === "queried");

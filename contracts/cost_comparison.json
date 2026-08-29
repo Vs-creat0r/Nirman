@@ -122,6 +122,16 @@
                   "input": "readonly",
                   "required": true,
                   "help": "quantity x rate, computed server-side"
+                },
+                {
+                  "field": "projectItemId",
+                  "label": "Project BOQ Item",
+                  "type": "reference",
+                  "input": "hidden",
+                  "required": false,
+                  "relation": {
+                    "table": "project_items"
+                  }
                 }
               ]
             }

@@ -10,6 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Truck,
   User,
   Phone,
@@ -19,7 +27,6 @@ import {
   AlertCircle,
   Clock,
   Send,
-  X,
   Layers,
   Sparkles,
 } from "lucide-react";
@@ -205,43 +212,34 @@ export function DispatchDeliveryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-      <div
-        className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/40">
+        <DialogHeader className="border-b border-border pb-3">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Truck className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-semibold text-foreground">
+                <DialogTitle className="text-base font-semibold text-foreground">
                   Dispatch Delivery Challan
-                </h2>
+                </DialogTitle>
                 {isPartialDispatch && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-warning/10 text-warning border border-warning/20">
                     Partial Batch Dispatch
                   </span>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <DialogDescription className="text-xs text-muted-foreground">
                 Issue a physical transit challan with vehicle details and custom dispatched quantities.
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-2 animate-in fade-in">
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -495,7 +493,7 @@ export function DispatchDeliveryModal({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+          <DialogFooter className="flex items-center justify-end gap-2 pt-3 border-t border-border">
             <Button
               type="button"
               variant="outline"
@@ -515,9 +513,9 @@ export function DispatchDeliveryModal({
               <Send className="h-3.5 w-3.5" />
               {isLoading ? "Dispatching..." : "Dispatch Delivery Challan"}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

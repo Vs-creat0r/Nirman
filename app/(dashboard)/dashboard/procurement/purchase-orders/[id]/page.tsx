@@ -10,7 +10,16 @@ import { Id } from "@/convex/_generated/dataModel";
 import { StatusBadge } from "@/components/document/status-badge";
 import { DocumentLineageBar } from "@/components/document/document-lineage-bar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Calendar,
@@ -22,12 +31,12 @@ import {
   CheckCircle2,
   Clock,
   Truck,
-  CreditCard,
   User,
   Edit2,
+  Ban,
 } from "lucide-react";
 import { EditPOModal } from "@/components/document/edit-po-modal";
-
+import { DispatchDeliveryModal } from "@/components/document/dispatch-delivery-modal";
 
 export default function ProcurementPODetailPage() {
   const params = useParams();
@@ -35,13 +44,19 @@ export default function ProcurementPODetailPage() {
   const { token } = useSession();
   const id = params?.id as Id<"purchase_order">;
 
+  const user = useQuery(api.users.getMyUser, token ? { token } : "skip");
   const po = useQuery(
     api.purchase_orders.getPO,
     id && token ? { id, token } : "skip"
   );
   const submitPOMutation = useMutation(api.purchase_orders.submitPO);
+  const cancelPOMutation = useMutation(api.purchase_orders.cancelPO);
 
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = React.useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = React.useState(false);
+  const [cancelReason, setCancelReason] = React.useState("");
+  const [isCancelling, setIsCancelling] = React.useState(false);
   const [isActionLoading, setIsActionLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -77,6 +92,11 @@ export default function ProcurementPODetailPage() {
   const isQueried = po.status === "queried";
   const isApproved = po.status === "approved";
   const isRejected = po.status === "rejected";
+  const isCancelled = po.status === "cancelled";
+  const isClosed = po.status === "closed";
+
+  const isManagerOrAdmin =
+    user?.role === "project_manager" || user?.role === "admin";
 
   const handleSubmitDraft = async () => {
     setError(null);
@@ -87,6 +107,28 @@ export default function ProcurementPODetailPage() {
       setError(err.message || "Failed to submit purchase order.");
     } finally {
       setIsActionLoading(false);
+    }
+  };
+
+  const handleCancelPO = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancelReason.trim()) return;
+
+    setIsCancelling(true);
+    setError(null);
+
+    try {
+      await cancelPOMutation({
+        id,
+        reason: cancelReason.trim(),
+        token: token || undefined,
+      });
+      setIsCancelModalOpen(false);
+      setCancelReason("");
+    } catch (err: any) {
+      setError(err.message || "Failed to cancel Purchase Order.");
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -132,18 +174,63 @@ export default function ProcurementPODetailPage() {
             <Button
               size="sm"
               onClick={() => setIsEditModalOpen(true)}
-              className="gap-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white"
+              className="gap-1.5 text-xs font-semibold bg-warning hover:bg-warning/90 text-warning-foreground"
             >
               <Edit2 className="h-3.5 w-3.5" />
               Edit & Resubmit PO
             </Button>
           )}
 
-          {/* If Approved, show ready for Delivery Challan */}
+          {/* If Approved, show Dispatch DC Action */}
           {isApproved && (
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-md border border-emerald-500/30 flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4" />
-              PO Approved &bull; Ready for Delivery Challan
+            <>
+              <Button
+                size="sm"
+                onClick={() => setIsDispatchModalOpen(true)}
+                className="gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
+                <Truck className="h-3.5 w-3.5" />
+                Dispatch Items / Create DC &rarr;
+              </Button>
+
+              {isManagerOrAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsCancelModalOpen(true)}
+                  className="gap-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10"
+                >
+                  <Ban className="h-3.5 w-3.5" />
+                  Cancel PO
+                </Button>
+              )}
+            </>
+          )}
+
+          {/* If Submitted and manager/admin, show Cancel option */}
+          {isSubmitted && isManagerOrAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsCancelModalOpen(true)}
+              className="gap-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10"
+            >
+              <Ban className="h-3.5 w-3.5" />
+              Cancel PO
+            </Button>
+          )}
+
+          {isCancelled && (
+            <span className="text-xs font-bold text-destructive bg-destructive/10 px-3 py-1.5 rounded-md border border-destructive/20 flex items-center gap-1.5">
+              <Ban className="h-3.5 w-3.5" />
+              Purchase Order Cancelled
+            </span>
+          )}
+
+          {isClosed && (
+            <span className="text-xs font-bold text-success bg-success/10 px-3 py-1.5 rounded-md border border-success/20 flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Purchase Order Fulfilled & Closed
             </span>
           )}
         </div>
@@ -166,26 +253,43 @@ export default function ProcurementPODetailPage() {
 
       {/* Queried Notice Alert Box */}
       {isQueried && (
-        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-4">
+        <div className="p-4 rounded-lg bg-warning/10 border border-warning/30 flex items-center justify-between gap-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <h3 className="text-xs font-bold text-amber-500">
+              <h3 className="text-xs font-bold text-warning">
                 Queried by Manager
               </h3>
               <p className="text-xs text-foreground">
-                {po.reviewNote || "Reviewer requested changes on this purchase order."}
+                {po.reviewNote && po.reviewNote.trim().toUpperCase() !== "NA"
+                  ? po.reviewNote
+                  : "Reviewer requested changes on this purchase order."}
               </p>
             </div>
           </div>
           <Button
             size="sm"
             onClick={() => setIsEditModalOpen(true)}
-            className="text-xs font-semibold gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shrink-0"
+            className="text-xs font-semibold gap-1.5 bg-warning hover:bg-warning/90 text-warning-foreground shrink-0"
           >
             <Edit2 className="h-3.5 w-3.5" />
             Edit & Resubmit
           </Button>
+        </div>
+      )}
+
+      {/* Cancellation Notice if Cancelled */}
+      {isCancelled && po.cancellationReason && (
+        <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 flex items-start gap-3">
+          <Ban className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h3 className="text-xs font-bold text-destructive">
+              Purchase Order Cancelled
+            </h3>
+            <p className="text-xs text-foreground">
+              Reason: &ldquo;{po.cancellationReason}&rdquo;
+            </p>
+          </div>
         </div>
       )}
 
@@ -221,8 +325,8 @@ export default function ProcurementPODetailPage() {
               </div>
 
               {po.validUntil && (
-                <div className="flex items-center gap-1.5 text-muted-foreground bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
-                  <Clock className="h-3.5 w-3.5 text-amber-500" />
+                <div className="flex items-center gap-1.5 text-muted-foreground bg-warning/10 px-2.5 py-1 rounded-md border border-warning/20">
+                  <Clock className="h-3.5 w-3.5 text-warning" />
                   <span>
                     Valid Until:{" "}
                     <strong className="text-foreground">
@@ -258,79 +362,102 @@ export default function ProcurementPODetailPage() {
               <div className="text-muted-foreground">
                 GSTIN: <span className="font-mono font-semibold text-foreground">{po.buyerCompany?.companyGstNo || "27AABCN1234F1Z5"}</span>
               </div>
-              <div className="text-muted-foreground leading-relaxed">
-                Billing Address: {po.buyerCompany?.companyBillingAddress || "Corporate Office, Mumbai"}
-              </div>
-              <div className="text-muted-foreground pt-1 border-t border-border/40 flex flex-wrap gap-x-4 gap-y-1">
-                <span>Contact: <strong className="text-foreground">{po.buyerCompany?.companyContactPerson}</strong></span>
-                <span>Phone: <strong className="text-foreground">{po.buyerCompany?.companyPhone}</strong></span>
-                <span>Email: <strong className="text-foreground">{po.buyerCompany?.companyEmail}</strong></span>
+              <div className="text-muted-foreground">
+                Billing Address: <span className="text-foreground">{po.buyerCompany?.companyBillingAddress || "Head Office Commercial Hub, Mumbai"}</span>
               </div>
             </div>
 
             {/* Vendor Details */}
             <div className="p-4 rounded-lg bg-muted/30 border border-border text-xs space-y-2">
-              <div className="flex items-center gap-1.5 text-foreground font-bold uppercase tracking-wider text-[11px] border-b border-border/60 pb-1.5">
-                <User className="h-3.5 w-3.5 text-muted-foreground" />
-                Vendor (Supplier)
+              <div className="flex items-center gap-1.5 text-primary font-bold uppercase tracking-wider text-[11px] border-b border-border/60 pb-1.5">
+                <User className="h-3.5 w-3.5" />
+                Vendor (Selected Supplier)
               </div>
               <div className="text-sm font-bold text-foreground">
-                {po.vendor?.name || "Vendor"}
+                {po.vendor?.name || "Selected Vendor"}
               </div>
-              {po.vendor?.gstNo && (
-                <div className="text-muted-foreground">
-                  GSTIN: <span className="font-mono font-semibold text-foreground">{po.vendor.gstNo}</span>
-                </div>
-              )}
-              <div className="text-muted-foreground leading-relaxed">
-                Address: {po.vendor?.address || "Registered Address on file"}
+              <div className="text-muted-foreground">
+                GSTIN: <span className="font-mono font-semibold text-foreground">{po.vendor?.gstNo || "Unregistered / Overseas"}</span>
               </div>
-              <div className="text-muted-foreground pt-1 border-t border-border/40 flex flex-wrap gap-x-4 gap-y-1">
-                {po.vendor?.contactPerson && (
-                  <span>Contact: <strong className="text-foreground">{po.vendor.contactPerson}</strong></span>
-                )}
-                {po.vendor?.phone && (
-                  <span>Phone: <strong className="text-foreground">{po.vendor.phone}</strong></span>
-                )}
-                {po.vendor?.email && (
-                  <span>Email: <strong className="text-foreground">{po.vendor.email}</strong></span>
-                )}
+              <div className="text-muted-foreground">
+                Contact: <span className="text-foreground">{po.vendor?.phone || "No Phone"} {po.vendor?.email ? `• ${po.vendor.email}` : ""}</span>
               </div>
             </div>
           </div>
 
           {/* Delivery & Shipping Details Box */}
-          <div className="p-3.5 rounded-lg bg-muted/20 border border-border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
-                Ship-To Site Delivery Location
-              </span>
-              <div className="font-semibold text-foreground">
-                {po.siteName} &bull; <span className="text-muted-foreground font-normal">{po.projectName}</span>
+          <div className="p-3.5 rounded-lg bg-muted/20 border border-border text-xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                  Ship-To Site Delivery Location
+                </span>
+                <div className="font-semibold text-foreground">
+                  {po.siteName} &bull; <span className="text-muted-foreground font-normal">{po.projectName}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {po.siteAddress || "Site Premises location"}
+                </p>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                {po.siteAddress || "Site Premises location"}
-              </p>
+
+              <div className="flex items-center gap-6 text-xs sm:border-l sm:border-border sm:pl-4">
+                <div>
+                  <span className="text-[10px] text-muted-foreground block uppercase">Expected Delivery</span>
+                  <strong className="text-foreground">
+                    {po.expectedDelivery
+                      ? new Date(po.expectedDelivery).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "Standard timeline"}
+                  </strong>
+                </div>
+                {po.placeOfSupplyStateCode && (
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block uppercase">Place of Supply</span>
+                    <strong className="text-foreground font-mono">State {po.placeOfSupplyStateCode}</strong>
+                  </div>
+                )}
+                <div>
+                  <span className="text-[10px] text-muted-foreground block uppercase">Currency</span>
+                  <strong className="text-foreground font-mono">INR (₹)</strong>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-6 text-xs sm:border-l sm:border-border sm:pl-4">
+            {/* Logistics Specifics: Contact, Unloading & Freight */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2.5 border-t border-border/60 text-[11px]">
               <div>
-                <span className="text-[10px] text-muted-foreground block uppercase">Expected Delivery</span>
-                <strong className="text-foreground">
-                  {po.expectedDelivery
-                    ? new Date(po.expectedDelivery).toLocaleDateString("en-IN", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    : "Standard timeline"}
-                </strong>
+                <span className="text-muted-foreground block">Site Receiving Contact:</span>
+                <span className="font-semibold text-foreground">
+                  {po.siteContactPerson || "Site Supervisor / In-Charge"}
+                  {po.siteContactPhone ? ` (${po.siteContactPhone})` : ""}
+                </span>
               </div>
               <div>
-                <span className="text-[10px] text-muted-foreground block uppercase">Currency</span>
-                <strong className="text-foreground font-mono">INR (₹)</strong>
+                <span className="text-muted-foreground block">Unloading Scope:</span>
+                <span className="font-semibold text-foreground capitalize">
+                  {po.unloadingScope ? po.unloadingScope.replace("_", " ") : "Buyer Scope (Site Team)"}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block">Freight Terms:</span>
+                <span className="font-semibold text-foreground capitalize">
+                  {po.freightTerms ? po.freightTerms.replace(/_/g, " ") : "Included in Rate (FOR Site)"}
+                </span>
               </div>
             </div>
+
+            {/* Procurement Officer Remarks */}
+            {po.procurementNotes && (
+              <div className="pt-2 border-t border-border/40 text-[11px]">
+                <span className="text-muted-foreground font-semibold block">Procurement Officer Remarks:</span>
+                <p className="text-foreground italic mt-0.5">
+                  &ldquo;{po.procurementNotes}&rdquo;
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Line Items Table */}
@@ -352,13 +479,25 @@ export default function ProcurementPODetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {po.lineItems.map((item: any, idx: number) => (
+                  {po.lineItems.map((item, idx: number) => (
                     <tr key={idx} className="hover:bg-muted/20 transition-colors">
                       <td className="py-2.5 px-3 text-center text-muted-foreground font-mono text-[11px]">
                         {idx + 1}
                       </td>
-                      <td className="py-2.5 px-3 font-semibold text-foreground">
-                        {item.itemName}
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-foreground">{item.itemName}</span>
+                          {item.isUnquotedAddition && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-warning/10 text-warning border border-warning/20">
+                              Scope Addition
+                            </span>
+                          )}
+                        </div>
+                        {item.additionReason && (
+                          <p className="text-[10px] text-muted-foreground italic mt-0.5">
+                            Reason: {item.additionReason}
+                          </p>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">
                         {item.hsnSacCode || "—"}
@@ -400,7 +539,7 @@ export default function ProcurementPODetailPage() {
                 </div>
                 {po.reviewerName && (
                   <div>
-                    Authorized By: <strong className="text-emerald-600 dark:text-emerald-400">{po.reviewerName}</strong>
+                    Authorized By: <strong className="text-success">{po.reviewerName}</strong>
                     {po.reviewedAt && (
                       <span className="text-muted-foreground text-[11px] ml-1">
                         on {new Date(po.reviewedAt).toLocaleDateString("en-IN")}
@@ -459,7 +598,7 @@ export default function ProcurementPODetailPage() {
 
             <div className="space-y-2.5">
               {po.logs && po.logs.length > 0 ? (
-                po.logs.map((log: any, idx: number) => (
+                po.logs.map((log, idx: number) => (
                   <div
                     key={idx}
                     className="flex items-start gap-3 p-3 rounded-md bg-muted/20 border border-border text-xs"
@@ -511,16 +650,74 @@ export default function ProcurementPODetailPage() {
         </CardContent>
       </Card>
 
-      {/* Edit & Resubmit Modal for Queried POs */}
-      {isQueried && (
+      {/* Edit & Resubmit Modal for Draft & Queried POs */}
+      {(isDraft || isQueried) && (
         <EditPOModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           po={po}
         />
       )}
+
+      {/* Dispatch Delivery Modal for Approved POs */}
+      {isApproved && (
+        <DispatchDeliveryModal
+          isOpen={isDispatchModalOpen}
+          onClose={() => setIsDispatchModalOpen(false)}
+          purchaseOrderId={po._id}
+        />
+      )}
+
+      {/* Cancel PO Dialog */}
+      <Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
+        <DialogContent className="max-w-md p-6 space-y-4">
+          <DialogHeader className="border-b border-border pb-3">
+            <DialogTitle className="text-base font-bold text-destructive flex items-center gap-2">
+              <Ban className="h-5 w-5" />
+              Cancel Purchase Order ({po.refNo})
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Cancelling releases committed BOQ budget. Mandatory audit reason required.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCancelPO} className="space-y-4 text-xs">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Cancellation Reason Note *</Label>
+              <textarea
+                rows={3}
+                required
+                placeholder="State why this purchase order is being cancelled / short-closed..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="flex w-full rounded-md border border-border bg-input px-3 py-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-sans leading-relaxed text-[11px]"
+              />
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-border flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCancelModalOpen(false)}
+                className="text-xs"
+              >
+                Keep PO Active
+              </Button>
+              <Button
+                type="submit"
+                variant="destructive"
+                size="sm"
+                disabled={isCancelling || !cancelReason.trim()}
+                className="text-xs font-semibold gap-1.5"
+              >
+                <Ban className="h-3.5 w-3.5" />
+                {isCancelling ? "Cancelling…" : "Confirm Cancel PO"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-

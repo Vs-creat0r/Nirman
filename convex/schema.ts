@@ -22,6 +22,7 @@ export default defineSchema({
             unit: v.string(),
             rate: v.number(),
             amount: v.number(),
+            projectItemId: v.optional(v.id("project_items")),
           })
         ),
         subtotal: v.number(),
@@ -182,9 +183,11 @@ export default defineSchema({
     projectId: v.id("projects"),
     itemName: v.string(),
     category: v.optional(v.string()),
+    subcategory: v.optional(v.string()),
     unit: v.string(),
     boqQty: v.number(),
     procuredQty: v.number(),
+    committedQty: v.optional(v.number()),
     estimatedRate: v.optional(v.number()),
     description: v.optional(v.string()),
     createdBy: v.id("users"),
@@ -226,6 +229,9 @@ export default defineSchema({
         hsnSacCode: v.optional(v.string()),
         rate: v.number(),
         amount: v.number(),
+        projectItemId: v.optional(v.id("project_items")),
+        isUnquotedAddition: v.optional(v.boolean()),
+        additionReason: v.optional(v.string()),
       })
     ),
     subtotal: v.number(),
@@ -233,6 +239,12 @@ export default defineSchema({
     taxRate: v.number(),
     taxAmount: v.number(),
     totalAmount: v.number(),
+    placeOfSupplyStateCode: v.optional(v.string()),
+    siteContactPerson: v.optional(v.string()),
+    siteContactPhone: v.optional(v.string()),
+    unloadingScope: v.optional(v.union(v.literal("buyer_scope"), v.literal("vendor_scope"))),
+    freightTerms: v.optional(v.union(v.literal("inclusive_in_rate"), v.literal("extra_at_actuals"), v.literal("fixed_freight"), v.literal("to_pay_by_site"))),
+    procurementNotes: v.optional(v.string()),
     paymentTerms: v.union(v.literal("advance"), v.literal("on_delivery"), v.literal("7_days"), v.literal("15_days"), v.literal("30_days"), v.literal("45_days")),
     expectedDelivery: v.optional(v.string()),
     validUntil: v.optional(v.string()),
@@ -241,7 +253,9 @@ export default defineSchema({
     deliveredQty: v.optional(v.number()),
     pendingQty: v.optional(v.number()),
     pdfFileId: v.optional(v.id("_storage")),
-    status: v.union(v.literal("draft"), v.literal("submitted"), v.literal("queried"), v.literal("rejected"), v.literal("approved")),
+    status: v.union(v.literal("draft"), v.literal("submitted"), v.literal("queried"), v.literal("rejected"), v.literal("approved"), v.literal("cancelled"), v.literal("closed")),
+    cancellationReason: v.optional(v.string()),
+    closureType: v.optional(v.union(v.literal("cancelled"), v.literal("short_closed"), v.literal("fully_received"))),
     reviewNote: v.optional(v.string()),
     reviewedBy: v.optional(v.id("users")),
     reviewedAt: v.optional(v.string()),
@@ -253,7 +267,8 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_vendorId", ["vendorId"])
     .index("by_projectId_status", ["projectId", "status"])
-    .index("by_siteId_status", ["siteId", "status"]),
+    .index("by_siteId_status", ["siteId", "status"])
+    .index("by_costComparisonId", ["costComparisonId"]),
 
   // Request for Quotation — Sent to vendors to collect quotes. DEFERRED TO SPRINT 2 — contract defined now so the schema is stable.
   rfq: defineTable({

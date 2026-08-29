@@ -47,6 +47,16 @@
       }
     },
     {
+      "field": "subcategory",
+      "label": "Subcategory",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "maxLength": 100
+      }
+    },
+    {
       "field": "unit",
       "label": "Unit",
       "type": "string",
@@ -86,7 +96,19 @@
         "min": 0
       },
       "default": 0,
-      "help": "Maintained by the system as POs are approved"
+      "help": "Quantity physically received at site via confirmed GRNs"
+    },
+    {
+      "field": "committedQty",
+      "label": "Committed on POs",
+      "type": "number",
+      "input": "readonly",
+      "required": false,
+      "validation": {
+        "min": 0
+      },
+      "default": 0,
+      "help": "Quantity committed on approved POs, not yet received"
     },
     {
       "field": "estimatedRate",

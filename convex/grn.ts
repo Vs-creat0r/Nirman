@@ -127,7 +127,7 @@ export const confirmDeliveryAndGenerateGRN = mutation({
       receivedItems: args.receivedItems,
       photos: args.photos,
       invoiceNumber: args.invoiceNumber?.trim() || undefined,
-      poCreatedAt: po.reviewedAt || (po as any).createdAt || po._creationTime ? new Date(po._creationTime).toISOString().split("T")[0] : undefined,
+      poCreatedAt: po.reviewedAt || (po._creationTime ? new Date(po._creationTime).toISOString().split("T")[0] : undefined),
       deliveredAt: now,
       confirmedBy: user._id,
       remarks: args.remarks?.trim() || undefined,
@@ -184,7 +184,9 @@ export const confirmDeliveryAndGenerateGRN = mutation({
       totalOrderedQty += ordered;
 
       const cumReceived = allPO_GRNs.reduce((sum, grn) => {
-        const ri = grn.receivedItems?.find((r) => r.itemName === poi.itemName);
+        const ri = grn.receivedItems?.find(
+          (r) => r.itemName.toLowerCase().trim() === poi.itemName.toLowerCase().trim()
+        );
         return sum + (ri?.receivedQty || 0);
       }, 0);
       totalCumulativeReceivedQty += cumReceived;
@@ -200,7 +202,46 @@ export const confirmDeliveryAndGenerateGRN = mutation({
     const isPOFullyDelivered = itemReceiptProgress.every((i) => i.isFullyReceived);
     const totalPendingQty = Math.max(0, totalOrderedQty - totalCumulativeReceivedQty);
 
-    // 8. Update PO's deliveredQty and pendingQty
+    // 8. Update project_items counters strictly using this GRN's receipt delta [FIX-I2]
+    const mr = po.materialRequestId ? await ctx.db.get(po.materialRequestId) : null;
+    for (const ri of args.receivedItems) {
+      if (ri.receivedQty <= 0) continue;
+
+      // 1. Resolve through PO line item projectItemId
+      const matchedPOLine = po.lineItems.find(
+        (poi) => poi.itemName.toLowerCase().trim() === ri.itemName.toLowerCase().trim()
+      );
+      let projectItemId = matchedPOLine?.projectItemId;
+
+      // 2. Fallback: match through parent MR items
+      if (!projectItemId && mr?.items) {
+        const matchedMRItem = mr.items.find(
+          (m) => m.itemName.toLowerCase().trim() === ri.itemName.toLowerCase().trim()
+        );
+        if (matchedMRItem?.projectItemId) {
+          projectItemId = matchedMRItem.projectItemId;
+        }
+      }
+
+      if (projectItemId) {
+        const projectItem = await ctx.db.get(projectItemId);
+        if (projectItem) {
+          const currentProcured = projectItem.procuredQty ?? 0;
+          const currentCommitted = projectItem.committedQty ?? 0;
+          const newProcured = currentProcured + ri.receivedQty;
+          const newCommitted = Math.max(0, currentCommitted - ri.receivedQty);
+
+          await ctx.db.patch(projectItemId, {
+            procuredQty: newProcured,
+            committedQty: newCommitted,
+          });
+        }
+      } else {
+        console.error(`[GRN Receipt] Could not resolve projectItemId for received item "${ri.itemName}"`);
+      }
+    }
+
+    // 9. Update PO's deliveredQty and pendingQty
     await ctx.db.patch(po._id, {
       deliveredQty: totalCumulativeReceivedQty,
       pendingQty: totalPendingQty,
@@ -208,53 +249,53 @@ export const confirmDeliveryAndGenerateGRN = mutation({
       updatedAt: now,
     });
 
-    // 9. If all ordered items are fully received, close the procurement loop!
+    // 10. If all ordered items are fully received, close the procurement loop! [FIX-I4]
     if (isPOFullyDelivered) {
-      if (po.materialRequestId) {
-        const mr = await ctx.db.get(po.materialRequestId);
-        if (mr && mr.status !== "delivered") {
-          await ctx.db.patch(mr._id, {
-            status: "delivered",
-            updatedBy: user._id,
-            updatedAt: now,
-          });
+      if (po.materialRequestId && mr && mr.status !== "delivered") {
+        await ctx.db.patch(mr._id, {
+          status: "delivered",
+          updatedBy: user._id,
+          updatedAt: now,
+        });
 
-          await ctx.db.insert("logs", {
-            actorId: user._id,
-            actorRole: user.role,
-            action: "mr_closed_delivered",
-            documentType: "material_request",
-            documentId: mr._id,
-            referenceId: mr.refNo,
-            fromStatus: mr.status,
-            toStatus: "delivered",
-            note: `Procurement complete. All ${totalCumulativeReceivedQty}/${totalOrderedQty} items received on site across ${allPO_GRNs.length} GRN(s) (final GRN ${grnRefNo}).`,
-            timestamp: now,
-          });
-        }
+        await ctx.db.insert("logs", {
+          actorId: user._id,
+          actorRole: user.role,
+          action: "mr_closed_delivered",
+          documentType: "material_request",
+          documentId: mr._id,
+          referenceId: mr.refNo,
+          fromStatus: mr.status,
+          toStatus: "delivered",
+          note: `Procurement complete. All ${totalCumulativeReceivedQty}/${totalOrderedQty} items received on site across ${allPO_GRNs.length} GRN(s) (final GRN ${grnRefNo}).`,
+          timestamp: now,
+        });
       }
 
-      await ctx.db.insert("logs", {
-        actorId: user._id,
-        actorRole: user.role,
-        action: "po_fully_delivered",
-        documentType: "purchase_order",
-        documentId: po._id,
-        referenceId: po.refNo,
-        note: `Purchase Order ${po.refNo} fully fulfilled (${totalCumulativeReceivedQty}/${totalOrderedQty} items received across ${allPO_GRNs.length} delivery batches).`,
-        timestamp: now,
-      });
+      // Close the PO via transition helper
+      if (po.status !== "closed") {
+        await transition(ctx, {
+          table: "purchase_order",
+          documentId: po._id,
+          from: ["approved", "submitted"],
+          to: "closed",
+          actorRole: ["site_supervisor", "project_manager", "procurement_officer", "admin"],
+          token: args.token,
+          action: "close_purchase_order_fully_received",
+          note: `Purchase Order ${po.refNo} fully fulfilled (${totalCumulativeReceivedQty}/${totalOrderedQty} items received across ${allPO_GRNs.length} delivery batches).`,
+          patch: {
+            closureType: "fully_received",
+          },
+        });
+      }
     } else {
       // Partial delivery: MR remains in delivery_processing
-      if (po.materialRequestId) {
-        const mr = await ctx.db.get(po.materialRequestId);
-        if (mr && mr.status !== "delivery_processing") {
-          await ctx.db.patch(mr._id, {
-            status: "delivery_processing",
-            updatedBy: user._id,
-            updatedAt: now,
-          });
-        }
+      if (po.materialRequestId && mr && mr.status !== "delivery_processing") {
+        await ctx.db.patch(mr._id, {
+          status: "delivery_processing",
+          updatedBy: user._id,
+          updatedAt: now,
+        });
       }
 
       await ctx.db.insert("logs", {

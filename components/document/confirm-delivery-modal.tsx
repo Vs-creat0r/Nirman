@@ -10,6 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   CheckCircle2,
   Camera,
   Upload,
@@ -18,7 +26,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Clock,
-  X,
   FileCheck2,
   Package,
 } from "lucide-react";
@@ -210,36 +217,27 @@ export function ConfirmDeliveryModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div
-        className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/40">
+        <DialogHeader className="border-b border-border pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <FileCheck2 className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-foreground">
+              <DialogTitle className="text-base font-semibold text-foreground">
                 Confirm Delivery & Auto-Generate GRN
-              </h2>
-              <p className="text-xs text-muted-foreground">
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
                 Verify received quantities and upload mandatory unloading proof photos
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Scrollable Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-xs text-destructive flex items-center gap-2">
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -460,7 +458,7 @@ export function ConfirmDeliveryModal({
           </div>
 
           {/* Submit / Cancel Buttons */}
-          <div className="pt-2 flex items-center justify-end gap-2 border-t border-border">
+          <DialogFooter className="pt-3 flex items-center justify-end gap-2 border-t border-border">
             <Button
               type="button"
               variant="outline"
@@ -475,7 +473,7 @@ export function ConfirmDeliveryModal({
               type="submit"
               size="sm"
               disabled={isSubmitting || uploadedPhotos.length === 0}
-              className="text-xs font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="text-xs font-semibold gap-1.5"
             >
               {isSubmitting ? (
                 <>
@@ -489,9 +487,9 @@ export function ConfirmDeliveryModal({
                 </>
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

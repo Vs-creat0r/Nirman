@@ -47,6 +47,7 @@ function processVendorQuotes(
       unit: string;
       rate: number;
       amount?: number;
+      projectItemId?: Id<"project_items">;
     }>;
     taxRate: number;
     freight?: number;
@@ -54,6 +55,10 @@ function processVendorQuotes(
     paymentTerms?: string;
     quoteFileId?: Id<"_storage">;
     notes?: string;
+  }>,
+  mrItems?: Array<{
+    itemName: string;
+    projectItemId?: Id<"project_items">;
   }>
 ) {
   if (!vendorQuotes || vendorQuotes.length < 2) {
@@ -83,12 +88,23 @@ function processVendorQuotes(
       const amount = Math.round(qty * rate * 100) / 100;
       subtotal += amount;
 
+      let projectItemId = it.projectItemId;
+      if (!projectItemId && mrItems) {
+        const match = mrItems.find(
+          (m) => m.itemName.toLowerCase().trim() === it.itemName.toLowerCase().trim()
+        );
+        if (match?.projectItemId) {
+          projectItemId = match.projectItemId;
+        }
+      }
+
       return {
         itemName: it.itemName,
         quantity: qty,
         unit: it.unit,
         rate: rate,
         amount: amount,
+        projectItemId: projectItemId || undefined,
       };
     });
 
@@ -129,6 +145,7 @@ export const createCC = mutation({
             quantity: v.number(),
             unit: v.string(),
             rate: v.number(),
+            projectItemId: v.optional(v.id("project_items")),
           })
         ),
         taxRate: v.number(),
@@ -155,8 +172,8 @@ export const createCC = mutation({
       throw new Error("Material Request not found.");
     }
 
-    // Process & calculate quotes server-side
-    const processedQuotes = processVendorQuotes(args.vendorQuotes);
+    // Process & calculate quotes server-side with MR items for projectItemId resolution
+    const processedQuotes = processVendorQuotes(args.vendorQuotes, mr.items);
 
     const refNo = await generateCCRefNo(ctx);
     const now = new Date().toISOString();
@@ -482,6 +499,7 @@ export const resubmitCC = mutation({
             quantity: v.number(),
             unit: v.string(),
             rate: v.number(),
+            projectItemId: v.optional(v.id("project_items")),
           })
         ),
         taxRate: v.number(),
@@ -495,20 +513,56 @@ export const resubmitCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const processedQuotes = processVendorQuotes(args.vendorQuotes);
+    const user = await requireRole(
+      ctx,
+      ["procurement_officer", "project_manager", "admin"],
+      args.token
+    );
 
-    return await transition(ctx, {
+    const cc = await ctx.db.get(args.id);
+    if (!cc) throw new Error("Cost comparison not found.");
+
+    const mr = cc.materialRequestId ? await ctx.db.get(cc.materialRequestId) : null;
+    const processedQuotes = processVendorQuotes(args.vendorQuotes, mr?.items);
+
+    const actionName = cc.status === "draft" ? "submit_cost_comparison" : "resubmit_cost_comparison";
+    const res = await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
       from: ["draft", "queried"],
       to: "submitted",
       actorRole: ["procurement_officer", "project_manager", "admin"],
       token: args.token,
-      action: "resubmit_cost_comparison",
+      action: actionName,
       patch: {
         vendorQuotes: processedQuotes,
       },
     });
+
+    // Transition parent MR to review_cc
+    if (mr && (mr.status === "ready_for_cc" || mr.status === "draft" || mr.status === "review_cc")) {
+      const now = new Date().toISOString();
+      await ctx.db.patch(mr._id, {
+        status: "review_cc",
+        updatedBy: user._id,
+        updatedAt: now,
+      });
+
+      await ctx.db.insert("logs", {
+        actorId: user._id,
+        actorRole: user.role,
+        action: "cc_submitted_for_mr",
+        documentType: "material_request",
+        documentId: mr._id,
+        referenceId: mr.refNo,
+        fromStatus: mr.status,
+        toStatus: "review_cc",
+        note: `Cost Comparison ${cc.refNo} submitted for manager review`,
+        timestamp: now,
+      });
+    }
+
+    return res;
   },
 });
 
@@ -616,18 +670,16 @@ export const listApprovedMRsForCC = query({
 
     mrs.sort((a, b) => b._creationTime - a._creationTime);
 
-    // Exclude MRs that already have at least one CC in any status — no need to prompt again.
-    const mrsWithoutCC = (
-      await Promise.all(
-        mrs.map(async (mr) => {
-          const existingCC = await ctx.db
-            .query("cost_comparison")
-            .withIndex("by_materialRequestId", (q) => q.eq("materialRequestId", mr._id))
-            .first();
-          return existingCC ? null : mr;
-        })
-      )
-    ).filter(Boolean) as typeof mrs;
+    // Exclude MRs that already have an existing CC (draft, submitted, queried, approved) — only re-prompt if rejected
+    const allCCs = await ctx.db.query("cost_comparison").collect();
+    const ccsByMR = new Set(
+      allCCs
+        .filter((cc) => cc.status !== "rejected")
+        .map((cc) => String(cc.materialRequestId))
+        .filter(Boolean)
+    );
+
+    const mrsWithoutCC = mrs.filter((mr) => !ccsByMR.has(String(mr._id)));
 
     const enriched = await Promise.all(
       mrsWithoutCC.map(async (mr) => {
@@ -712,16 +764,34 @@ export const getCC = query({
     );
 
     let selectedVendorName: string | null = null;
+    let selectedVendorGstNo: string | null = null;
+    let selectedVendorPhone: string | null = null;
     if (cc.selectedVendorId) {
       const sv = await ctx.db.get(cc.selectedVendorId);
       selectedVendorName = sv?.name || null;
+      selectedVendorGstNo = sv?.gstNo || null;
+      selectedVendorPhone = sv?.phone || null;
     }
+
+    // Query linked PO (excluding rejected and cancelled)
+    const linkedPOs = await ctx.db
+      .query("purchase_order")
+      .withIndex("by_costComparisonId", (q) => q.eq("costComparisonId", cc._id))
+      .collect();
+
+    const activePO = linkedPOs.find(
+      (po) => po.status !== "rejected" && po.status !== "cancelled"
+    );
+    const linkedPO = activePO
+      ? { _id: activePO._id, refNo: activePO.refNo, status: activePO.status }
+      : null;
 
     return {
       ...cc,
       projectName: project?.name || "Unknown Project",
       projectCode: project?.code || "",
       siteName: site ? `${site.name} (${site.code})` : "Main Site",
+      siteAddress: site?.address || "Site Premises",
       materialRequest: mr
         ? {
             _id: mr._id,
@@ -735,7 +805,10 @@ export const getCC = query({
       creatorName: creator?.name || "Unknown User",
       reviewerName: reviewer?.name || null,
       selectedVendorName,
+      selectedVendorGstNo,
+      selectedVendorPhone,
       vendorQuotes: enrichedQuotes,
+      linkedPO,
       logs: enrichedLogs,
     };
   },
