@@ -295,23 +295,15 @@ export const createPOFromCC = mutation({
     // If submitted -> MR to review_po.
     if (cc.materialRequestId && mr && initialStatus !== "draft") {
       const mrToStatus = initialStatus === "approved" ? "pending_po" : "review_po";
-      await ctx.db.patch(mr._id, {
-        status: mrToStatus,
-        updatedBy: user._id,
-        updatedAt: now,
-      });
-
-      await ctx.db.insert("logs", {
-        actorId: user._id,
-        actorRole: user.role,
-        action: "po_generated_for_mr",
-        documentType: "material_request",
+      await transition(ctx, {
+        table: "material_request",
         documentId: mr._id,
-        referenceId: mr.refNo,
-        fromStatus: mr.status,
-        toStatus: mrToStatus,
+        from: ["ready_for_po", "approved_for_rfq", "rfq_in_progress", "review_cc", "draft"],
+        to: mrToStatus,
+        actorRole: ["procurement_officer", "project_manager", "admin"],
+        token: args.token,
+        action: "po_generated_for_mr",
         note: `Purchase Order ${refNo} generated (${initialStatus}) with ${vendorName}`,
-        timestamp: now,
       });
     }
 
@@ -355,10 +347,15 @@ export const submitPO = mutation({
     if (po.materialRequestId) {
       const mr = await ctx.db.get(po.materialRequestId);
       if (mr && (mr.status === "ready_for_po" || mr.status === "draft")) {
-        await ctx.db.patch(mr._id, {
-          status: "review_po",
-          updatedBy: user._id,
-          updatedAt: new Date().toISOString(),
+        await transition(ctx, {
+          table: "material_request",
+          documentId: mr._id,
+          from: ["ready_for_po", "draft"],
+          to: "review_po",
+          actorRole: ["procurement_officer", "project_manager", "admin"],
+          token: args.token,
+          action: "po_submitted_for_mr",
+          note: `Purchase Order ${po.refNo} submitted for manager approval`,
         });
       }
     }
@@ -408,27 +405,17 @@ export const approvePO = mutation({
     await adjustCommittedQty(ctx, po.lineItems, 1, mr?.items);
 
     // Update parent Material Request to pending_po (awaiting vendor delivery/DC)
-    if (po.materialRequestId) {
-      if (mr) {
-        await ctx.db.patch(mr._id, {
-          status: "pending_po",
-          updatedBy: user._id,
-          updatedAt: now,
-        });
-
-        await ctx.db.insert("logs", {
-          actorId: user._id,
-          actorRole: user.role,
-          action: "po_approved_mr_pending_po",
-          documentType: "material_request",
-          documentId: mr._id,
-          referenceId: mr.refNo,
-          fromStatus: mr.status,
-          toStatus: "pending_po",
-          note: `Purchase Order ${po.refNo} approved by ${user.name}. Awaiting vendor delivery challan.`,
-          timestamp: now,
-        });
-      }
+    if (po.materialRequestId && mr) {
+      await transition(ctx, {
+        table: "material_request",
+        documentId: mr._id,
+        from: ["review_po", "ready_for_po", "draft"],
+        to: "pending_po",
+        actorRole: ["project_manager", "admin"],
+        token: args.token,
+        action: "po_approved_mr_pending_po",
+        note: `Purchase Order ${po.refNo} approved by ${user.name}. Awaiting vendor delivery challan.`,
+      });
     }
 
     return res;
@@ -479,23 +466,15 @@ export const rejectPO = mutation({
     if (po.materialRequestId) {
       const mr = await ctx.db.get(po.materialRequestId);
       if (mr && mr.status === "review_po") {
-        await ctx.db.patch(mr._id, {
-          status: "ready_for_po",
-          updatedBy: user._id,
-          updatedAt: now,
-        });
-
-        await ctx.db.insert("logs", {
-          actorId: user._id,
-          actorRole: user.role,
-          action: "po_rejected_mr_reset",
-          documentType: "material_request",
+        await transition(ctx, {
+          table: "material_request",
           documentId: mr._id,
-          referenceId: mr.refNo,
-          fromStatus: "review_po",
-          toStatus: "ready_for_po",
+          from: "review_po",
+          to: "ready_for_po",
+          actorRole: ["project_manager", "admin"],
+          token: args.token,
+          action: "po_rejected_mr_reset",
           note: `Purchase Order ${po.refNo} was rejected by ${user.name}. Material Request returned to ready_for_po for revision. Reason: ${args.note.trim()}`,
-          timestamp: now,
         });
       }
     }
@@ -1069,49 +1048,32 @@ export const cancelPO = mutation({
 
     // Update parent Material Request status
     if (mr) {
-      const now = new Date().toISOString();
       if (!isShortClose) {
         // Full cancel: reset MR back to ready_for_po if in review_po / pending_po
         if (mr.status === "review_po" || mr.status === "pending_po") {
-          await ctx.db.patch(mr._id, {
-            status: "ready_for_po",
-            updatedBy: user._id,
-            updatedAt: now,
-          });
-
-          await ctx.db.insert("logs", {
-            actorId: user._id,
-            actorRole: user.role,
-            action: "mr_reset_ready_for_po",
-            documentType: "material_request",
+          await transition(ctx, {
+            table: "material_request",
             documentId: mr._id,
-            referenceId: mr.refNo,
-            fromStatus: mr.status,
-            toStatus: "ready_for_po",
+            from: ["review_po", "pending_po"],
+            to: "ready_for_po",
+            actorRole: ["project_manager", "admin"],
+            token: args.token,
+            action: "mr_reset_ready_for_po",
             note: `Purchase Order ${po.refNo} was cancelled. Material Request returned to ready_for_po for re-issuance. Reason: ${args.reason.trim()}`,
-            timestamp: now,
           });
         }
       } else {
         // Short close: goods were received, transition MR to delivered closeout
         if (mr.status !== "delivered") {
-          await ctx.db.patch(mr._id, {
-            status: "delivered",
-            updatedBy: user._id,
-            updatedAt: now,
-          });
-
-          await ctx.db.insert("logs", {
-            actorId: user._id,
-            actorRole: user.role,
-            action: "mr_short_closed_delivered",
-            documentType: "material_request",
+          await transition(ctx, {
+            table: "material_request",
             documentId: mr._id,
-            referenceId: mr.refNo,
-            fromStatus: mr.status,
-            toStatus: "delivered",
+            from: ["pending_po", "delivery_processing", "ordered", "partially_fulfilled"],
+            to: "delivered",
+            actorRole: ["project_manager", "admin"],
+            token: args.token,
+            action: "mr_short_closed_delivered",
             note: `Purchase Order ${po.refNo} was short-closed (${args.reason.trim()}). Material Request closed at delivered quantities.`,
-            timestamp: now,
           });
         }
       }

@@ -291,10 +291,15 @@ export const confirmDeliveryAndGenerateGRN = mutation({
     } else {
       // Partial delivery: MR remains in delivery_processing
       if (po.materialRequestId && mr && mr.status !== "delivery_processing") {
-        await ctx.db.patch(mr._id, {
-          status: "delivery_processing",
-          updatedBy: user._id,
-          updatedAt: now,
+        await transition(ctx, {
+          table: "material_request",
+          documentId: mr._id,
+          from: ["pending_po", "ordered", "partially_fulfilled", "delivery_processing"],
+          to: "delivery_processing",
+          actorRole: ["site_supervisor", "project_manager", "procurement_officer", "admin"],
+          token: args.token,
+          action: "mr_partial_delivery_processing",
+          note: `Partial delivery received on site under PO ${po.refNo} (GRN ${grnRefNo}).`,
         });
       }
 
