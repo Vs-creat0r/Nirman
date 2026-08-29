@@ -236,7 +236,7 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
       updated[index] = {
         ...updated[index],
         itemName: "",
-        unit: "nos",
+        unit: "",
         rate: 0,
         projectItemId: undefined,
         isCustomNewItem: true,
@@ -269,7 +269,7 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
       {
         itemName: "",
         quantity: 1,
-        unit: "nos",
+        unit: "",
         rate: 0,
         isCustomNewItem: true,
         category: "materials",
@@ -295,6 +295,10 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
         const it = lineItems[i];
         if (!it.itemName || !it.itemName.trim()) {
           setError(`Line Item #${i + 1} must have a valid item name.`);
+          return;
+        }
+        if (!it.unit || !it.unit.trim()) {
+          setError(`Line Item #${i + 1} ("${it.itemName || "Item"}") must have a unit of measurement selected.`);
           return;
         }
         if (Number(it.quantity) <= 0 || isNaN(Number(it.quantity))) {
@@ -326,7 +330,7 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
                 projectId: po.projectId,
                 itemName: it.itemName.trim(),
                 category: it.category || "materials",
-                unit: it.unit.trim() || "nos",
+                unit: it.unit.trim(),
                 estimatedRate: Number(it.rate) || undefined,
                 token: token || undefined,
               });
@@ -338,7 +342,7 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
           return {
             itemName: it.itemName.trim(),
             quantity: Number(it.quantity) || 0,
-            unit: it.unit.trim() || "nos",
+            unit: it.unit.trim(),
             rate: Number(it.rate) || 0,
             hsnSacCode: it.hsnSacCode?.trim() || undefined,
             projectItemId,
@@ -581,10 +585,12 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
                           Unit <span className="text-destructive">*</span>
                         </Label>
                         <select
+                          required
                           value={item.unit}
                           onChange={(e) => handleItemChange(index, "unit", e.target.value)}
                           className="flex h-8 w-full rounded-md border border-border bg-input px-2 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         >
+                          <option value="">-- Select Unit --</option>
                           {STANDARD_UNITS.map((u) => (
                             <option key={u} value={u}>
                               {u}
