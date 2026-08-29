@@ -280,7 +280,7 @@ export default function SystemLogsPage() {
                       <td className="px-4 py-3 max-w-xs">
                         {log.note ? (
                           <span className="text-muted-foreground text-[11px] line-clamp-2 italic">
-                            "{log.note}"
+                            &ldquo;{log.note}&rdquo;
                           </span>
                         ) : (
                           <span className="text-muted-foreground/40 text-[10px]">—</span>

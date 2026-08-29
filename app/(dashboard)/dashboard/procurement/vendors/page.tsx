@@ -570,11 +570,13 @@ export default function ProcurementVendorsPage() {
                             <tr key={po._id} className="hover:bg-muted/20">
                               <td className="py-2 px-3 font-mono font-bold text-foreground">{po.refNo}</td>
                               <td className="py-2 px-3 text-muted-foreground">
-                                {new Date(po._creationTime || po.updatedAt || Date.now()).toLocaleDateString("en-IN", {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
+                                {po._creationTime || po.updatedAt
+                                  ? new Date(po._creationTime || po.updatedAt).toLocaleDateString("en-IN", {
+                                      day: "2-digit",
+                                      month: "short",
+                                      year: "numeric",
+                                    })
+                                  : "—"}
                               </td>
 
                               <td className="py-2 px-3">
