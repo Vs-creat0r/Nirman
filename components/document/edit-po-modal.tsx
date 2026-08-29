@@ -134,8 +134,8 @@ interface EditPOModalProps {
 export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
   const router = useRouter();
   const { token } = useSession();
-  const resubmitPOMutation = useMutation(api.purchase_orders.resubmitPO);
-  const deletePOMutation = useMutation(api.purchase_orders.deletePO);
+  const resubmitPOMutation = useMutation(api.purchase_order_approvals.resubmitPO);
+  const deletePOMutation = useMutation(api.purchase_order_closure.deletePO);
   const createProjectItemMutation = useMutation(api.project_items.createProjectItem);
 
   const projectItems = useQuery(

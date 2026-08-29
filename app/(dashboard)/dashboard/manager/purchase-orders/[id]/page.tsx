@@ -38,9 +38,9 @@ export default function ManagerPODetailPage() {
     id && token ? { id, token } : "skip"
   );
 
-  const approvePOMutation = useMutation(api.purchase_orders.approvePO);
-  const rejectPOMutation = useMutation(api.purchase_orders.rejectPO);
-  const queryPOMutation = useMutation(api.purchase_orders.queryPO);
+  const approvePOMutation = useMutation(api.purchase_order_approvals.approvePO);
+  const rejectPOMutation = useMutation(api.purchase_order_approvals.rejectPO);
+  const queryPOMutation = useMutation(api.purchase_order_approvals.queryPO);
 
   const [activeModalAction, setActiveModalAction] = React.useState<ActionType | null>(null);
   const [isActionLoading, setIsActionLoading] = React.useState(false);

@@ -50,7 +50,7 @@ export default function ProcurementPODetailPage() {
     id && token ? { id, token } : "skip"
   );
   const submitPOMutation = useMutation(api.purchase_orders.submitPO);
-  const cancelPOMutation = useMutation(api.purchase_orders.cancelPO);
+  const cancelPOMutation = useMutation(api.purchase_order_closure.cancelPO);
 
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [isDispatchModalOpen, setIsDispatchModalOpen] = React.useState(false);
