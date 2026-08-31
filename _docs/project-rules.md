@@ -28,6 +28,7 @@
   - **Project Manager creates → auto-finalized** (no approval needed)
   - **Procurement Officer creates → goes to Project Manager for approval**
   - **Site Supervisor creates requests only** — they cannot create procurement documents
+  - **Segregation of Duties on Goods Receipt (Option A)**: The role that approves commercial Purchase Orders (`project_manager`) is strictly barred from confirming goods receipt (`grn:create`, `purchase_orders:close_on_receipt`). Goods receipt must be certified on-site by `site_supervisor`, coordinated by `procurement_officer`, or authorized by `admin`.
 
 ### 1.4 Do Not Invent UI Patterns
 - Always use the patterns defined in `ui-rules.md`.
