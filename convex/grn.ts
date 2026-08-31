@@ -12,7 +12,8 @@
 
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
+import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { Id, Doc } from "./_generated/dataModel";
 
@@ -61,9 +62,9 @@ export const confirmDeliveryAndGenerateGRN = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["site_supervisor", "project_manager", "procurement_officer", "admin"],
+      "grn:create",
       args.token
     );
 
@@ -279,9 +280,8 @@ export const confirmDeliveryAndGenerateGRN = mutation({
           documentId: po._id,
           from: ["approved", "submitted"],
           to: "closed",
-          actorRole: ["site_supervisor", "project_manager", "procurement_officer", "admin"],
+          action: "purchase_orders:close_on_receipt",
           token: args.token,
-          action: "close_purchase_order_fully_received",
           note: `Purchase Order ${po.refNo} fully fulfilled (${totalCumulativeReceivedQty}/${totalOrderedQty} items received across ${allPO_GRNs.length} delivery batches).`,
           patch: {
             closureType: "fully_received",
@@ -296,9 +296,8 @@ export const confirmDeliveryAndGenerateGRN = mutation({
           documentId: mr._id,
           from: ["pending_po", "ordered", "partially_fulfilled", "delivery_processing"],
           to: "delivery_processing",
-          actorRole: ["site_supervisor", "project_manager", "procurement_officer", "admin"],
+          action: "material_requests:process_delivery",
           token: args.token,
-          action: "mr_partial_delivery_processing",
           note: `Partial delivery received on site under PO ${po.refNo} (GRN ${grnRefNo}).`,
         });
       }
@@ -336,11 +335,8 @@ export const listGRNs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let grns = await ctx.db.query("grn").collect();
 
@@ -398,11 +394,8 @@ export const getGRN = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const grn = await ctx.db.get(args.id);
     if (!grn) return null;

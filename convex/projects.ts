@@ -4,7 +4,7 @@
 
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { getCurrentUser } from "./rbac";
 
 /**
  * List all active projects accessible to the logged-in user.
@@ -14,11 +14,8 @@ export const listProjects = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const projects = await ctx.db
       .query("projects")
@@ -45,11 +42,8 @@ export const getProject = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     return await ctx.db.get(args.id);
   },

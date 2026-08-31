@@ -4,10 +4,10 @@
  *
  * @module convex/seed
  */
-import { mutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
-export const seedAll = mutation({
+export const seedAll = internalMutation({
   args: {},
   handler: async (ctx) => {
     // ── 0. MIGRATE & DEDUPLICATE USERS ───────────────────────────────────

@@ -7,9 +7,9 @@
 
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
+import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
-import { Id } from "./_generated/dataModel";
 
 /**
  * Generates monotonic reference number: MR-YYYY-NNNN
@@ -63,9 +63,9 @@ export const createMR = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["site_supervisor", "project_manager", "admin"],
+      "material_requests:create",
       args.token
     );
 
@@ -156,9 +156,8 @@ export const submitMR = mutation({
       documentId: args.id,
       from: "draft",
       to: "pending",
-      actorRole: ["site_supervisor", "project_manager", "admin"],
+      action: "material_requests:submit",
       token: args.token,
-      action: "submit_material_request",
     });
   },
 });
@@ -178,9 +177,8 @@ export const approveMR = mutation({
       documentId: args.id,
       from: "pending",
       to: "ready_for_cc",
-      actorRole: ["project_manager", "admin"],
+      action: "material_requests:approve",
       token: args.token,
-      action: "approve_material_request",
       note: args.note || "Approved",
     });
   },
@@ -205,9 +203,8 @@ export const rejectMR = mutation({
       documentId: args.id,
       from: "pending",
       to: "rejected",
-      actorRole: ["project_manager", "admin"],
+      action: "material_requests:reject",
       token: args.token,
-      action: "reject_material_request",
       note: args.note.trim(),
     });
   },
@@ -232,9 +229,8 @@ export const queryMR = mutation({
       documentId: args.id,
       from: "pending",
       to: "queried",
-      actorRole: ["project_manager", "admin"],
+      action: "material_requests:query",
       token: args.token,
-      action: "query_material_request",
       note: args.note.trim(),
     });
   },
@@ -305,17 +301,13 @@ export const resubmitMR = mutation({
     const mr = await ctx.db.get(args.id);
     if (!mr) throw new Error("Material Request not found.");
 
-    const isDraft = mr.status === "draft";
-    const actionName = isDraft ? "edit_and_submit_material_request" : "resubmit_material_request";
-
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
       from: ["draft", "queried"],
       to: "pending",
-      actorRole: ["site_supervisor", "project_manager", "admin"],
+      action: "material_requests:resubmit",
       token: args.token,
-      action: actionName,
       patch: patchData,
     });
   },
@@ -331,9 +323,9 @@ export const deleteMR = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["site_supervisor", "project_manager", "admin"],
+      "material_requests:delete",
       args.token
     );
 
@@ -395,11 +387,8 @@ export const listMRs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let mrs = await ctx.db.query("material_request").collect();
 
@@ -453,11 +442,8 @@ export const getMR = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const mr = await ctx.db.get(args.id);
     if (!mr) return null;

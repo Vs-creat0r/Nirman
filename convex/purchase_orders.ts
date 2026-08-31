@@ -9,7 +9,8 @@
 
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
+import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { adjustCommittedQty } from "./purchase_order_commitments";
 
@@ -62,7 +63,7 @@ export const createPOFromCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(ctx, ["procurement_officer", "project_manager", "admin"], args.token);
+    const user = await requirePermission(ctx, "purchase_orders:create", args.token);
 
     const cc = await ctx.db.get(args.costComparisonId);
     if (!cc) throw new Error("Cost comparison not found.");
@@ -224,9 +225,8 @@ export const createPOFromCC = mutation({
         documentId: mr._id,
         from: ["ready_for_po", "approved_for_rfq", "rfq_in_progress", "review_cc", "draft"],
         to: mrToStatus,
-        actorRole: ["procurement_officer", "project_manager", "admin"],
+        action: "material_requests:update",
         token: args.token,
-        action: "po_generated_for_mr",
         note: `Purchase Order ${refNo} generated (${initialStatus}) with ${vendorName}`,
       });
     }
@@ -248,9 +248,9 @@ export const submitPO = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
+    await requirePermission(
       ctx,
-      ["procurement_officer", "project_manager", "admin"],
+      "purchase_orders:submit",
       args.token
     );
 
@@ -262,9 +262,8 @@ export const submitPO = mutation({
       documentId: args.id,
       from: "draft",
       to: "submitted",
-      actorRole: ["procurement_officer", "project_manager", "admin"],
+      action: "purchase_orders:submit",
       token: args.token,
-      action: "submit_purchase_order",
     });
 
     // Update parent MR to review_po
@@ -276,9 +275,8 @@ export const submitPO = mutation({
           documentId: mr._id,
           from: ["ready_for_po", "draft"],
           to: "review_po",
-          actorRole: ["procurement_officer", "project_manager", "admin"],
+          action: "material_requests:update",
           token: args.token,
-          action: "po_submitted_for_mr",
           note: `Purchase Order ${po.refNo} submitted for manager approval`,
         });
       }
@@ -299,11 +297,8 @@ export const listPOs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let pos = await ctx.db.query("purchase_order").collect();
 
@@ -360,11 +355,8 @@ export const listApprovedCCsForPO = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let ccs = await ctx.db
       .query("cost_comparison")
@@ -429,11 +421,8 @@ export const getPO = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const po = await ctx.db.get(args.id);
     if (!po) return null;

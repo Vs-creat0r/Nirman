@@ -5,7 +5,8 @@
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
+import { getCurrentUser } from "./rbac";
 
 /**
  * List all active T&C templates.
@@ -16,11 +17,8 @@ export const listTCTemplates = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let templates = await ctx.db.query("tc_templates").collect();
     if (!args.includeInactive) {
@@ -45,11 +43,8 @@ export const getDefaultTCTemplate = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const defaultTpl = await ctx.db
       .query("tc_templates")
@@ -79,7 +74,7 @@ export const createTCTemplate = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(ctx, ["admin"], args.token);
+    const user = await requirePermission(ctx, "tc_templates:create", args.token);
 
     if (!args.name.trim()) throw new Error("Template name is required.");
     if (!args.content.trim()) throw new Error("Template content is required.");
@@ -124,7 +119,7 @@ export const updateTCTemplate = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(ctx, ["admin"], args.token);
+    const user = await requirePermission(ctx, "tc_templates:update", args.token);
 
     const tpl = await ctx.db.get(args.id);
     if (!tpl) throw new Error("Template not found.");
@@ -166,7 +161,7 @@ export const deleteTCTemplate = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(ctx, ["admin"], args.token);
+    const user = await requirePermission(ctx, "tc_templates:delete", args.token);
 
     const tpl = await ctx.db.get(args.id);
     if (!tpl) throw new Error("Template not found.");

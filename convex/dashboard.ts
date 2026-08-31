@@ -4,7 +4,7 @@
 
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { getCurrentUser } from "./rbac";
 
 /**
  * Get live metrics and pipeline status for the Procurement Officer dashboard.
@@ -14,11 +14,8 @@ export const getProcurementDashboardMetrics = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "procurement_officer", "project_manager"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     // 1. Material requests ready for CC (exclude MRs that already have an existing active/draft CC)
     const rawMRsReadyForCC = await ctx.db
@@ -52,7 +49,6 @@ export const getProcurementDashboardMetrics = query({
         };
       })
     );
-
 
     // 2. Cost Comparisons
     const draftCCs = allCCs.filter((cc) => cc.status === "draft");
@@ -115,7 +111,6 @@ export const getProcurementDashboardMetrics = query({
         }
       }
     }
-
 
     // 7. Recent procurement activity logs
     const allLogs = await ctx.db.query("logs").collect();
@@ -180,4 +175,3 @@ export const getProcurementDashboardMetrics = query({
     };
   },
 });
-

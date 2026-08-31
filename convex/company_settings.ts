@@ -4,7 +4,8 @@
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
+import { getCurrentUser } from "./rbac";
 
 /**
  * Get Company Profile details for PO printing and document issuance.
@@ -15,11 +16,8 @@ export const getCompanyProfile = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const settingsDoc = await ctx.db.query("settings").first();
 
@@ -53,7 +51,7 @@ export const updateCompanyProfile = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(ctx, ["admin"], args.token);
+    await requirePermission(ctx, "settings:manage", args.token);
 
     const settingsDoc = await ctx.db.query("settings").first();
     const now = new Date().toISOString();

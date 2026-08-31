@@ -4,7 +4,7 @@
 
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { getCurrentUser } from "./rbac";
 
 /**
  * Retrieves audit history for a specific document with actor details.
@@ -16,12 +16,8 @@ export const getDocumentLogs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Any authenticated user can view audit logs
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const logs = args.documentType
       ? await ctx.db
@@ -63,11 +59,8 @@ export const getLogsByReference = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const logs = await ctx.db
       .query("logs")
@@ -103,11 +96,8 @@ export const listAllLogs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let allLogs = await ctx.db.query("logs").collect();
 

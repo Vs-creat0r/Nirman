@@ -4,7 +4,8 @@
 
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
+import { getCurrentUser } from "./rbac";
 
 /**
  * List BOQ items for a project.
@@ -15,11 +16,8 @@ export const listProjectItems = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let itemsQuery = ctx.db.query("project_items");
 
@@ -53,7 +51,7 @@ export const backfillProjectItemCounters = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(ctx, ["admin"], args.token);
+    await requirePermission(ctx, "project_items:backfill", args.token);
 
     const allItems = await ctx.db.query("project_items").collect();
     let updatedCount = 0;
@@ -90,9 +88,9 @@ export const createProjectItem = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["admin", "project_manager", "procurement_officer"],
+      "project_items:create",
       args.token
     );
 
@@ -116,4 +114,3 @@ export const createProjectItem = mutation({
     return id;
   },
 });
-

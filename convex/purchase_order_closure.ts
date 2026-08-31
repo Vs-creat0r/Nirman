@@ -8,7 +8,7 @@
 
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
 import { transition } from "./transition";
 
 /**
@@ -23,9 +23,9 @@ export const cancelPO = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    await requirePermission(
       ctx,
-      ["project_manager", "admin"],
+      "purchase_orders:cancel",
       args.token
     );
 
@@ -101,15 +101,13 @@ export const cancelPO = mutation({
       }
     }
 
-    const actionName = isShortClose ? "short_close_purchase_order" : "cancel_purchase_order";
     const res = await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
       from: ["submitted", "approved"],
       to: targetStatus,
-      actorRole: ["project_manager", "admin"],
+      action: "purchase_orders:cancel",
       token: args.token,
-      action: actionName,
       note: args.reason.trim(),
       patch: {
         cancellationReason: args.reason.trim(),
@@ -127,9 +125,8 @@ export const cancelPO = mutation({
             documentId: mr._id,
             from: ["review_po", "pending_po"],
             to: "ready_for_po",
-            actorRole: ["project_manager", "admin"],
+            action: "material_requests:update",
             token: args.token,
-            action: "mr_reset_ready_for_po",
             note: `Purchase Order ${po.refNo} was cancelled. Material Request returned to ready_for_po for re-issuance. Reason: ${args.reason.trim()}`,
           });
         }
@@ -141,9 +138,8 @@ export const cancelPO = mutation({
             documentId: mr._id,
             from: ["pending_po", "delivery_processing", "ordered", "partially_fulfilled"],
             to: "delivered",
-            actorRole: ["project_manager", "admin"],
+            action: "material_requests:update",
             token: args.token,
-            action: "mr_short_closed_delivered",
             note: `Purchase Order ${po.refNo} was short-closed (${args.reason.trim()}). Material Request closed at delivered quantities.`,
           });
         }
@@ -164,9 +160,9 @@ export const deletePO = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["procurement_officer", "project_manager", "admin"],
+      "purchase_orders:delete",
       args.token
     );
 

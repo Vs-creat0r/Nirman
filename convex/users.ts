@@ -1,6 +1,5 @@
-import { query, mutation } from "./_generated/server";
+import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
 import { QueryCtx } from "./_generated/server";
 
 export async function getUserFromToken(ctx: QueryCtx, token?: string) {
@@ -38,13 +37,5 @@ export const list = query({
     
     const allUsers = await ctx.db.query("users").collect();
     return allUsers.map(({ passwordHash, ...safeUser }) => safeUser);
-  },
-});
-
-export const testAdminOnly = mutation({
-  args: { token: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    await requireRole(ctx, ["admin"], args.token);
-    return { success: true, message: "You are an admin!" };
   },
 });

@@ -7,7 +7,7 @@
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
 
 /**
  * Generates an authorized upload URL for client-side direct uploads.
@@ -18,11 +18,7 @@ export const generateUploadUrl = mutation({
   },
   handler: async (ctx, args) => {
     // Ensure the user is authenticated with any valid role
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    await requirePermission(ctx, "files:upload", args.token);
 
     return await ctx.storage.generateUploadUrl();
   },

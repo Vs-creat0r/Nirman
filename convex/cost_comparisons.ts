@@ -8,7 +8,8 @@
 
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
+import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { Id } from "./_generated/dataModel";
 
@@ -160,9 +161,9 @@ export const createCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["procurement_officer", "project_manager", "admin"],
+      "cost_comparisons:create",
       args.token
     );
 
@@ -244,9 +245,9 @@ export const submitCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["procurement_officer", "project_manager", "admin"],
+      "cost_comparisons:submit",
       args.token
     );
 
@@ -258,9 +259,8 @@ export const submitCC = mutation({
       documentId: args.id,
       from: "draft",
       to: "submitted",
-      actorRole: ["procurement_officer", "project_manager", "admin"],
+      action: "cost_comparisons:submit",
       token: args.token,
-      action: "submit_cost_comparison",
     });
 
     // Transition parent MR to review_cc
@@ -302,9 +302,9 @@ export const approveCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["project_manager", "admin"],
+      "cost_comparisons:approve",
       args.token
     );
 
@@ -336,9 +336,8 @@ export const approveCC = mutation({
       documentId: args.id,
       from: "submitted",
       to: "approved",
-      actorRole: ["project_manager", "admin"],
+      action: "cost_comparisons:approve",
       token: args.token,
-      action: "approve_cost_comparison",
       note: args.note || `Approved quote by ${vendorName} (₹${selectedQuote.total.toLocaleString("en-IN")})`,
       patch: {
         selectedVendorId: args.selectedVendorId,
@@ -386,9 +385,9 @@ export const rejectCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["project_manager", "admin"],
+      "cost_comparisons:reject",
       args.token
     );
 
@@ -405,9 +404,8 @@ export const rejectCC = mutation({
       documentId: args.id,
       from: "submitted",
       to: "rejected",
-      actorRole: ["project_manager", "admin"],
+      action: "cost_comparisons:reject",
       token: args.token,
-      action: "reject_cost_comparison",
       note: args.note.trim(),
       patch: {
         reviewedBy: user._id,
@@ -455,9 +453,9 @@ export const queryCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["project_manager", "admin"],
+      "cost_comparisons:query",
       args.token
     );
 
@@ -471,9 +469,8 @@ export const queryCC = mutation({
       documentId: args.id,
       from: "submitted",
       to: "queried",
-      actorRole: ["project_manager", "admin"],
+      action: "cost_comparisons:query",
       token: args.token,
-      action: "query_cost_comparison",
       note: args.note.trim(),
       patch: {
         reviewedBy: user._id,
@@ -513,9 +510,9 @@ export const resubmitCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["procurement_officer", "project_manager", "admin"],
+      "cost_comparisons:resubmit",
       args.token
     );
 
@@ -525,15 +522,13 @@ export const resubmitCC = mutation({
     const mr = cc.materialRequestId ? await ctx.db.get(cc.materialRequestId) : null;
     const processedQuotes = processVendorQuotes(args.vendorQuotes, mr?.items);
 
-    const actionName = cc.status === "draft" ? "submit_cost_comparison" : "resubmit_cost_comparison";
     const res = await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
       from: ["draft", "queried"],
       to: "submitted",
-      actorRole: ["procurement_officer", "project_manager", "admin"],
+      action: "cost_comparisons:resubmit",
       token: args.token,
-      action: actionName,
       patch: {
         vendorQuotes: processedQuotes,
       },
@@ -577,11 +572,8 @@ export const listCCs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let ccs = await ctx.db.query("cost_comparison").collect();
 
@@ -653,11 +645,8 @@ export const listApprovedMRsForCC = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let mrs = await ctx.db
       .query("material_request")
@@ -711,11 +700,8 @@ export const getCC = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const cc = await ctx.db.get(args.id);
     if (!cc) return null;
@@ -823,9 +809,9 @@ export const deleteCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
+    await requirePermission(
       ctx,
-      ["admin", "procurement_officer"],
+      "cost_comparisons:delete",
       args.token
     );
 

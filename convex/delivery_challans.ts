@@ -11,7 +11,8 @@
 
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
+import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { Id, Doc } from "./_generated/dataModel";
 
@@ -64,9 +65,9 @@ export const createDC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["procurement_officer", "project_manager", "admin"],
+      "delivery_challans:create",
       args.token
     );
 
@@ -229,11 +230,8 @@ export const listDCs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let dcs = await ctx.db.query("delivery_challan").collect();
 
@@ -286,11 +284,8 @@ export const getDC = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const dc = await ctx.db.get(args.id);
     if (!dc) return null;
@@ -336,11 +331,8 @@ export const listApprovedPOsForDispatch = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     // Fetch approved POs
     const approvedPOs = await ctx.db
@@ -456,11 +448,8 @@ export const getPODispatchLedger = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const po = await ctx.db.get(args.purchaseOrderId);
     if (!po) return null;
@@ -574,9 +563,9 @@ export const cancelDC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["procurement_officer", "project_manager", "admin"],
+      "delivery_challans:cancel",
       args.token
     );
 
@@ -592,9 +581,8 @@ export const cancelDC = mutation({
       documentId: args.id,
       from: ["draft", "delivery_processing"],
       to: "cancelled",
-      actorRole: ["procurement_officer", "project_manager", "admin"],
+      action: "delivery_challans:cancel",
       token: args.token,
-      action: "cancel_delivery_challan",
       note: args.note,
     });
   },

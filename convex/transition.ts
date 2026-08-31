@@ -5,16 +5,15 @@
  * (Material Requests, RFQs, Cost Comparisons, POs, DCs, GRNs).
  *
  * Automatically:
- * 1. Enforces RBAC permissions via requireRole()
+ * 1. Enforces RBAC permissions via requirePermission()
  * 2. Validates the expected source status (`from` guard)
  * 3. Updates document status + timestamps + audit metadata
  * 4. Appends an immutable audit log entry to the `logs` table
  */
 
-import { MutationCtx, mutation } from "./_generated/server";
+import { MutationCtx } from "./_generated/server";
 import { Id, TableNames } from "./_generated/dataModel";
-import { v } from "convex/values";
-import { requireRole, UserRole } from "./rbac";
+import { requirePermission, ActionName, UserRole } from "./permissions";
 
 export type TransitionDocumentType =
   | "material_request"
@@ -30,11 +29,10 @@ export type TransitionDocumentType =
 export interface TransitionParams<T extends TableNames> {
   table: T;
   documentId: Id<T>;
-  from?: string | string[];
+  action: ActionName;
   to: string;
-  actorRole: UserRole[];
+  from?: string | string[];
   token?: string;
-  action?: string;
   note?: string;
   patch?: Record<string, unknown>;
 }
@@ -49,17 +47,16 @@ export async function transition<T extends TableNames>(
   const {
     table,
     documentId,
+    action,
     from,
     to,
-    actorRole,
     token,
-    action = `transition_to_${to}`,
     note,
     patch = {},
   } = params;
 
-  // 1. Authenticate & Authorize
-  const user = await requireRole(ctx, actorRole, token);
+  // 1. Authenticate & Authorize against centralized permission matrix
+  const user = await requirePermission(ctx, action, token);
 
   // 2. Fetch document
   const doc: any = await ctx.db.get(documentId);
@@ -118,4 +115,3 @@ export async function transition<T extends TableNames>(
     actorId: user._id,
   };
 }
-

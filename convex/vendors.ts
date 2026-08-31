@@ -7,7 +7,8 @@
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
+import { getCurrentUser } from "./rbac";
 
 /**
  * List all vendors. Active vendors first, sorted alphabetically by name.
@@ -19,11 +20,8 @@ export const listVendors = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let vendors = await ctx.db.query("vendors").collect();
 
@@ -52,11 +50,8 @@ export const listVendorsWithStats = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     let vendors = await ctx.db.query("vendors").collect();
 
@@ -98,11 +93,8 @@ export const getVendorDetails = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     const vendor = await ctx.db.get(args.id);
     if (!vendor) return null;
@@ -138,11 +130,8 @@ export const getVendor = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
-      ctx,
-      ["admin", "project_manager", "procurement_officer", "site_supervisor"],
-      args.token
-    );
+    const user = await getCurrentUser(ctx, args.token);
+    if (!user) throw new Error("Unauthorized");
 
     return await ctx.db.get(args.id);
   },
@@ -165,9 +154,9 @@ export const createVendor = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["procurement_officer", "admin"],
+      "vendors:create",
       args.token
     );
 
@@ -234,9 +223,9 @@ export const updateVendor = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["procurement_officer", "admin"],
+      "vendors:update",
       args.token
     );
 
@@ -293,9 +282,9 @@ export const deactivateVendor = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["procurement_officer", "admin"],
+      "vendors:deactivate",
       args.token
     );
 

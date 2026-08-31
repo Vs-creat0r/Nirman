@@ -10,7 +10,7 @@
 
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireRole } from "./rbac";
+import { requirePermission } from "./permissions";
 import { transition } from "./transition";
 import { adjustCommittedQty } from "./purchase_order_commitments";
 
@@ -24,9 +24,9 @@ export const approvePO = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["project_manager", "admin"],
+      "purchase_orders:approve",
       args.token
     );
 
@@ -39,9 +39,8 @@ export const approvePO = mutation({
       documentId: args.id,
       from: "submitted",
       to: "approved",
-      actorRole: ["project_manager", "admin"],
+      action: "purchase_orders:approve",
       token: args.token,
-      action: "approve_purchase_order",
       note: args.note || "Purchase Order authorized and confirmed.",
       patch: {
         reviewedBy: user._id,
@@ -61,9 +60,8 @@ export const approvePO = mutation({
         documentId: mr._id,
         from: ["review_po", "ready_for_po", "draft"],
         to: "pending_po",
-        actorRole: ["project_manager", "admin"],
+        action: "material_requests:update",
         token: args.token,
-        action: "po_approved_mr_pending_po",
         note: `Purchase Order ${po.refNo} approved by ${user.name}. Awaiting vendor delivery challan.`,
       });
     }
@@ -82,9 +80,9 @@ export const rejectPO = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["project_manager", "admin"],
+      "purchase_orders:reject",
       args.token
     );
 
@@ -101,9 +99,8 @@ export const rejectPO = mutation({
       documentId: args.id,
       from: "submitted",
       to: "rejected",
-      actorRole: ["project_manager", "admin"],
+      action: "purchase_orders:reject",
       token: args.token,
-      action: "reject_purchase_order",
       note: args.note.trim(),
       patch: {
         reviewedBy: user._id,
@@ -121,9 +118,8 @@ export const rejectPO = mutation({
           documentId: mr._id,
           from: "review_po",
           to: "ready_for_po",
-          actorRole: ["project_manager", "admin"],
+          action: "material_requests:update",
           token: args.token,
-          action: "po_rejected_mr_reset",
           note: `Purchase Order ${po.refNo} was rejected by ${user.name}. Material Request returned to ready_for_po for revision. Reason: ${args.note.trim()}`,
         });
       }
@@ -143,9 +139,9 @@ export const queryPO = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireRole(
+    const user = await requirePermission(
       ctx,
-      ["project_manager", "admin"],
+      "purchase_orders:query",
       args.token
     );
 
@@ -159,12 +155,11 @@ export const queryPO = mutation({
       documentId: args.id,
       from: "submitted",
       to: "queried",
-      actorRole: ["project_manager", "admin"],
+      action: "purchase_orders:query",
       token: args.token,
-      action: "query_purchase_order",
       note: args.note.trim(),
       patch: {
-        reviewedBy: (await requireRole(ctx, ["project_manager", "admin"], args.token))._id,
+        reviewedBy: user._id,
         reviewedAt: now,
         reviewNote: args.note.trim(),
       },
@@ -222,9 +217,9 @@ export const resubmitPO = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireRole(
+    await requirePermission(
       ctx,
-      ["procurement_officer", "project_manager", "admin"],
+      "purchase_orders:resubmit",
       args.token
     );
 
@@ -267,12 +262,6 @@ export const resubmitPO = mutation({
 
     const isDraft = po.status === "draft";
     const targetStatus = isDraft && !args.submitImmediately ? "draft" : "submitted";
-    const actionName =
-      isDraft && !args.submitImmediately
-        ? "edit_po_draft"
-        : isDraft
-        ? "submit_purchase_order"
-        : "resubmit_purchase_order";
 
     // Format scope additions & justifications into audit log note
     const additionItems = calculatedItems.filter((it) => it.isUnquotedAddition);
@@ -296,9 +285,8 @@ export const resubmitPO = mutation({
       documentId: args.id,
       from: isDraft ? "draft" : "queried",
       to: targetStatus,
-      actorRole: ["procurement_officer", "project_manager", "admin"],
+      action: "purchase_orders:resubmit",
       token: args.token,
-      action: actionName,
       note: transitionNote,
       patch: {
         lineItems: calculatedItems,
@@ -334,9 +322,8 @@ export const resubmitPO = mutation({
           documentId: mr._id,
           from: ["ready_for_po", "draft", "review_po"],
           to: "review_po",
-          actorRole: ["procurement_officer", "project_manager", "admin"],
+          action: "material_requests:update",
           token: args.token,
-          action: "po_submitted_for_mr",
           note: mrLogNote,
         });
       }
