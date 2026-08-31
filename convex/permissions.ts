@@ -77,6 +77,8 @@ export const PERMISSIONS = {
   "projects:manage": ["admin"],
   "sites:manage": ["admin"],
   "settings:manage": ["admin"],
+  "users:manage": ["admin"],
+  "users:change_role": ["admin"],
   "files:upload": ["site_supervisor", "project_manager", "procurement_officer", "admin"],
 } as const satisfies Record<string, readonly UserRole[]>;
 

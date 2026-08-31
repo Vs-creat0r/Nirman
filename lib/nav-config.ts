@@ -11,6 +11,7 @@ import {
   Activity, 
   UserCog,
   Settings,
+  Building2,
   type LucideIcon 
 } from "lucide-react";
 
@@ -92,6 +93,7 @@ export const navConfig: Record<UserRole, NavGroup[]> = {
       label: "Main",
       items: [
         { title: "Dashboard", href: "/dashboard/admin", icon: Home },
+        { title: "Projects & Sites", href: "/dashboard/admin/projects", icon: Building2 },
         { title: "User Control", href: "/dashboard/users", icon: UserCog },
       ]
     },

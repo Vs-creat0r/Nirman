@@ -331,6 +331,7 @@ export default defineSchema({
     updatedAt: v.optional(v.string()),
   })
     .index("by_projectId", ["projectId"])
+    .index("by_projectId_code", ["projectId", "code"])
     .index("by_projectId_isActive", ["projectId", "isActive"]),
 
   // Terms & Conditions Template — Admin-managed procurement terms templates.

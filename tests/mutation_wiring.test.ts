@@ -73,6 +73,19 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
   "files.ts": {
     generateUploadUrl: "files:upload",
   },
+  "projects.ts": {
+    createProject: "projects:manage",
+    updateProject: "projects:manage",
+  },
+  "sites.ts": {
+    createSite: "sites:manage",
+    updateSite: "sites:manage",
+  },
+  "users.ts": {
+    updateUserAssignments: "users:manage",
+    updateUser: "users:manage",
+    changeUserRole: "users:change_role",
+  },
 };
 
 describe("Mutation Source Wiring", () => {

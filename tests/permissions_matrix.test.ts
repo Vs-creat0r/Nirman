@@ -78,6 +78,8 @@ const EXPECTED_POLICY: Record<ActionName, readonly UserRole[]> = {
   "projects:manage": ["admin"],
   "sites:manage": ["admin"],
   "settings:manage": ["admin"],
+  "users:manage": ["admin"],
+  "users:change_role": ["admin"],
 
   // Shared Uploads
   "files:upload": ["site_supervisor", "project_manager", "procurement_officer", "admin"],

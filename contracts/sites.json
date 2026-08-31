@@ -65,6 +65,10 @@
     ],
     [
       "projectId",
+      "code"
+    ],
+    [
+      "projectId",
       "isActive"
     ]
   ],
