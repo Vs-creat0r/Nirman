@@ -26,5 +26,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Code quality ratchet — fail if any counter exceeds its recorded baseline
+      - name: Metric ratchet
+        run: npm run check:metrics
+
       - name: Typecheck
         run: npx tsc --noEmit
+
+      - name: Tests
+        run: npm test

@@ -191,5 +191,70 @@ Create Request → Pending Manager Approval
 
 ---
 
-*Last Updated: Auto-maintained by AI agent based on project instructions.*
+## Data Scoping & Authorization Model
+
+> **Added in Stage 1 (Sprint 2 hardening sprint).** These rules are enforced server-side in `convex/scoping.ts` and `convex/permissions.ts`. They are machine-checked by the test suite.
+
+### Role Scoping Rules
+
+| Role | Scope | Rule |
+|---|---|---|
+| **Admin** | Global | Unrestricted. Sees all projects, sites, documents. |
+| **Project Manager** | Project-scoped | Full access to all sites under their `assignedProjectIds`. Additional `assignedSiteIds` extend (never narrow) access — e.g. to oversee a specific site in a different project. |
+| **Procurement Officer** | Project-scoped | Same as Project Manager for read/write scope. Action permissions differ (submits → PM approves). |
+| **Site Supervisor** | Site-scoped (strict) | Can ONLY see documents where `siteId` is in their `assignedSiteIds`. The parent `projectId` alone does NOT grant access. |
+
+### Fail-Closed Rule
+If a non-admin user has zero `assignedProjectIds` and zero `assignedSiteIds`, they see **zero documents** and receive `Forbidden` on every direct ID lookup. There is no fallback to "show everything" or "show nothing silently" — the query returns empty and the mutation throws.
+
+### IDOR Prevention
+Every mutation and query that accepts a document ID (MR, CC, PO, DC, GRN) calls `assertDocumentAccess(scope, doc)` before returning data. A user with a valid token who guesses a document ID from another project receives: `Forbidden: You do not have access to document "MR-2026-XXXX" in this project or site.`
+
+---
+
+## Cascade Permission Model
+
+> **Added in Stage 1.** Cascade permissions are distinct from direct-action permissions. They represent the system automatically updating a parent document because a child-document action happened.
+
+### Why Granular Cascade Keys Matter
+When a Procurement Officer approves a Cost Comparison (`cost_comparisons:approve`), the system must advance the parent Material Request status. This is a cascade — the user is acting on a CC, not editing an MR directly. Using `material_requests:update` for this cascade would:
+1. Allow the same permission to be used for direct edits (wrong role set)
+2. Make audit logs unreadable ("user updated MR" gives no context about why)
+
+### Cascade Action Keys
+
+| Cascade Action | Trigger | Allowed Roles |
+|---|---|---|
+| `material_requests:review_on_cc` | CC created or resubmitted against an MR | `procurement_officer`, `project_manager`, `admin` |
+| `material_requests:advance_on_cc_approval` | CC approved by PM → MR moves to `ready_for_po` | `project_manager`, `admin` |
+| `material_requests:reset_on_cc_reject` | CC rejected → MR returns to `ready_for_cc` | `project_manager`, `admin` |
+| `material_requests:advance_on_dc` | DC created against PO → MR moves to `delivery_processing` | `procurement_officer`, `project_manager`, `admin` |
+| `material_requests:close_on_receipt` | All GRN batches complete → MR moves to `delivered` | `site_supervisor`, `procurement_officer`, `admin` |
+| `delivery_challans:deliver` | GRN confirmed → DC moves to `delivered` | `site_supervisor`, `procurement_officer`, `admin` |
+
+### State Machine Invariant
+Every document status change — whether user-initiated or cascade — routes through the `transition()` helper in `convex/transition.ts`. Direct `db.patch(id, { status: ... })` outside `transition.ts` is prohibited and enforced by the Gate 3 static scanner in `tests/transition_matrix.test.ts`.
+
+---
+
+## Plan v2: BOQ Commitment Accounting
+
+> **Added in Stage 1.** Tracks the difference between committed and procured quantities on BOQ items.
+
+### Two Counters per BOQ Item (`project_items`)
+
+| Counter | Meaning | Changes When |
+|---|---|---|
+| `committedQty` | Quantity locked into an approved PO that has not yet been received | PO created (+qty), PO received (-qty), PO cancelled (-qty), PO short-closed (-remainder) |
+| `procuredQty` | Quantity physically received on site (cumulative across all GRN batches) | GRN confirmed (+received qty) |
+
+### Key Invariants
+- `committedQty + procuredQty <= boqQty` at all times (over-delivery blocked at DC creation)
+- On full PO cancellation: `committedQty` reduced by the full PO quantity; `procuredQty` unchanged
+- On short-close: `procuredQty` keeps the partial amount already received; `committedQty` reduced by the unreceived remainder
+- On 100% fulfilment across batches: PO auto-closes as `fully_received`, parent MR auto-transitions to `delivered`
+
+---
+
+*Last Updated: Stage 1 / Sprint 2 hardening (2026-08-31). Scoping and accounting models added.*
 *This document is the source of truth for project scope decisions.*
