@@ -29,6 +29,10 @@ export const PERMISSIONS = {
   "material_requests:review_on_cc": ["procurement_officer", "project_manager", "admin"],
   "material_requests:advance_on_cc_approval": ["project_manager", "admin"],
   "material_requests:reset_on_cc_reject": ["project_manager", "admin"],
+  "material_requests:review_on_po": ["procurement_officer", "project_manager", "admin"],
+  "material_requests:advance_on_po_approval": ["project_manager", "admin"],
+  "material_requests:reset_on_po_reject": ["project_manager", "admin"],
+  "material_requests:close_on_short_close": ["project_manager", "admin"],
   "material_requests:advance_on_dc": ["procurement_officer", "project_manager", "admin"],
   "material_requests:close_on_receipt": ["site_supervisor", "procurement_officer", "admin"],
 

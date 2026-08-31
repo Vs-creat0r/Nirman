@@ -76,7 +76,7 @@ export default function EditQueriedCostComparisonPage() {
             projectItemId: it.projectItemId || undefined,
           })),
           subtotal: Number(q.subtotal) || 0,
-          taxRate: Number(q.taxRate) || 18,
+          taxRate: q.taxRate !== undefined && !isNaN(Number(q.taxRate)) ? Number(q.taxRate) : 18,
           taxAmount: Number(q.taxAmount) || 0,
           freight: Number(q.freight) || 0,
           total: Number(q.total) || 0,

@@ -129,7 +129,7 @@ export const cancelPO = mutation({
             documentId: mr._id,
             from: ["review_po", "pending_po"],
             to: "ready_for_po",
-            action: "material_requests:update",
+            action: "material_requests:reset_on_po_reject",
             token: args.token,
             note: `Purchase Order ${po.refNo} was cancelled. Material Request returned to ready_for_po for re-issuance. Reason: ${args.reason.trim()}`,
           });
@@ -142,7 +142,7 @@ export const cancelPO = mutation({
             documentId: mr._id,
             from: ["pending_po", "delivery_processing", "ordered", "partially_fulfilled"],
             to: "delivered",
-            action: "material_requests:update",
+            action: "material_requests:close_on_short_close",
             token: args.token,
             note: `Purchase Order ${po.refNo} was short-closed (${args.reason.trim()}). Material Request closed at delivered quantities.`,
           });

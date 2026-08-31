@@ -68,9 +68,9 @@ export async function resolveCallerScope(
     // Avoids a full sites table scan on every authenticated request.
     for (const siteIdStr of rawSiteIds) {
       try {
-        const site = await ctx.db.get(siteIdStr as any);
-        if (site && (site as any).projectId) {
-          allowedProjectIds.add(String((site as any).projectId));
+        const site = await ctx.db.get(siteIdStr as Id<"sites">);
+        if (site && "projectId" in site && site.projectId) {
+          allowedProjectIds.add(String(site.projectId));
         }
       } catch {
         // Invalid ID format — skip
@@ -95,7 +95,7 @@ export async function resolveCallerScope(
   for (const projectId of rawProjectIds) {
     const projectSites = await ctx.db
       .query("sites")
-      .withIndex("by_projectId", (q) => q.eq("projectId", projectId as any))
+      .withIndex("by_projectId", (q) => q.eq("projectId", projectId as Id<"projects">))
       .collect();
     for (const site of projectSites) {
       allowedSiteIds.add(String(site._id));
@@ -159,12 +159,59 @@ export function assertDocumentAccess(
   }
 }
 
+export type ScopedTableName =
+  | "material_request"
+  | "cost_comparison"
+  | "purchase_order"
+  | "delivery_challan"
+  | "project_items"
+  | "grn";
+
+interface TableIndexConfig {
+  hasProjectIdStatusIndex?: boolean;
+  hasSiteIdStatusIndex?: boolean;
+  hasProjectIdIndex?: boolean;
+  hasSiteIdIndex?: boolean;
+  hasStatusIndex?: boolean;
+}
+
+/**
+ * Compile-time index capabilities derived directly from convex/schema.ts.
+ * Prevents typos, eliminates caller boolean flags, and avoids silent full-table scan fallbacks.
+ */
+const SCHEMA_INDEX_CAPABILITIES: Record<ScopedTableName, TableIndexConfig> = {
+  material_request: {
+    hasProjectIdIndex: true,
+    hasSiteIdStatusIndex: true,
+    hasStatusIndex: true,
+  },
+  cost_comparison: {
+    hasProjectIdStatusIndex: true,
+    hasStatusIndex: true,
+  },
+  purchase_order: {
+    hasProjectIdStatusIndex: true,
+    hasSiteIdStatusIndex: true,
+    hasStatusIndex: true,
+  },
+  delivery_challan: {
+    hasSiteIdStatusIndex: true,
+    hasStatusIndex: true,
+  },
+  project_items: {
+    hasProjectIdIndex: true,
+  },
+  grn: {
+    hasSiteIdIndex: true,
+  },
+};
+
 /**
  * In-memory filter for collections enforcing caller scoping on every row.
  * Use queryScopedByIndex instead for large tables — this is a fallback for
  * small tables (sites, projects, vendors) or tables without compound indexes.
  */
-export function filterScopedList<T extends { projectId?: any; siteId?: any }>(
+export function filterScopedList<T extends { projectId?: Id<"projects"> | string; siteId?: Id<"sites"> | string }>(
   scope: UserScope,
   items: T[]
 ): T[] {
@@ -176,60 +223,246 @@ export function filterScopedList<T extends { projectId?: any; siteId?: any }>(
  * Index-backed scoped query — replaces collect() → filterScopedList() for large tables.
  *
  * For admins: runs a single unconstrained collect (or status-filtered index query).
- * For site supervisors: runs one by_siteId_status or by_siteId query per allowed site, merges.
- * For PM / procurement officer: runs one by_projectId_status or by_projectId query per
- *   allowed project, merges.
+ * For site supervisors: runs index queries per allowed site (or allowed parent project), merges.
+ * For PM / procurement officer: runs index queries per allowed project (or allowed site), merges.
  *
- * Eliminates full-table scans for the primary list queries used on every dashboard page.
+ * Capabilities are derived from schema — fails fast if an invalid table or unindexed pattern is queried.
  *
  * @param ctx   - Query or mutation context
- * @param table - The Convex table name (must have by_projectId and/or by_siteId indexes)
+ * @param table - The Convex table name (strictly typed to ScopedTableName)
  * @param scope - Resolved caller scope from resolveCallerScope()
- * @param opts  - Optional status filter applied at the index level where supported
+ * @param opts  - Optional status filter applied at the index level
  */
-export async function queryScopedByIndex<
-  T extends { projectId?: any; siteId?: any; status?: any; _creationTime: number }
->(
+async function queryTableByIndex<TableName extends ScopedTableName>(
   ctx: QueryCtx | MutationCtx,
-  table: string,
+  table: TableName,
+  filter: {
+    status?: string;
+    siteId?: string;
+    projectId?: string;
+  }
+): Promise<Doc<TableName>[]> {
+  const { status, siteId, projectId } = filter;
+
+  switch (table) {
+    case "material_request": {
+      if (siteId) {
+        if (status) {
+          const res = await ctx.db
+            .query("material_request")
+            .withIndex("by_siteId_status", (q) =>
+              q.eq("siteId", siteId as Id<"sites">).eq("status", status as any)
+            )
+            .collect();
+          return res as unknown as Doc<TableName>[];
+        }
+        const res = await ctx.db
+          .query("material_request")
+          .withIndex("by_siteId_status", (q) =>
+            q.eq("siteId", siteId as Id<"sites">)
+          )
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      if (projectId) {
+        const rows = await ctx.db
+          .query("material_request")
+          .withIndex("by_projectId", (q) =>
+            q.eq("projectId", projectId as Id<"projects">)
+          )
+          .collect();
+        const res = status ? rows.filter((r) => r.status === status) : rows;
+        return res as unknown as Doc<TableName>[];
+      }
+      if (status) {
+        const res = await ctx.db
+          .query("material_request")
+          .withIndex("by_status", (q) => q.eq("status", status as any))
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      const res = await ctx.db.query("material_request").collect();
+      return res as unknown as Doc<TableName>[];
+    }
+
+    case "cost_comparison": {
+      if (projectId) {
+        if (status) {
+          const res = await ctx.db
+            .query("cost_comparison")
+            .withIndex("by_projectId_status", (q) =>
+              q.eq("projectId", projectId as Id<"projects">).eq("status", status as any)
+            )
+            .collect();
+          return res as unknown as Doc<TableName>[];
+        }
+        const res = await ctx.db
+          .query("cost_comparison")
+          .withIndex("by_projectId_status", (q) =>
+            q.eq("projectId", projectId as Id<"projects">)
+          )
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      if (status) {
+        const res = await ctx.db
+          .query("cost_comparison")
+          .withIndex("by_status", (q) => q.eq("status", status as any))
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      const res = await ctx.db.query("cost_comparison").collect();
+      return res as unknown as Doc<TableName>[];
+    }
+
+    case "purchase_order": {
+      if (projectId) {
+        if (status) {
+          const res = await ctx.db
+            .query("purchase_order")
+            .withIndex("by_projectId_status", (q) =>
+              q.eq("projectId", projectId as Id<"projects">).eq("status", status as any)
+            )
+            .collect();
+          return res as unknown as Doc<TableName>[];
+        }
+        const res = await ctx.db
+          .query("purchase_order")
+          .withIndex("by_projectId_status", (q) =>
+            q.eq("projectId", projectId as Id<"projects">)
+          )
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      if (siteId) {
+        if (status) {
+          const res = await ctx.db
+            .query("purchase_order")
+            .withIndex("by_siteId_status", (q) =>
+              q.eq("siteId", siteId as Id<"sites">).eq("status", status as any)
+            )
+            .collect();
+          return res as unknown as Doc<TableName>[];
+        }
+        const res = await ctx.db
+          .query("purchase_order")
+          .withIndex("by_siteId_status", (q) =>
+            q.eq("siteId", siteId as Id<"sites">)
+          )
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      if (status) {
+        const res = await ctx.db
+          .query("purchase_order")
+          .withIndex("by_status", (q) => q.eq("status", status as any))
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      const res = await ctx.db.query("purchase_order").collect();
+      return res as unknown as Doc<TableName>[];
+    }
+
+    case "delivery_challan": {
+      if (siteId) {
+        if (status) {
+          const res = await ctx.db
+            .query("delivery_challan")
+            .withIndex("by_siteId_status", (q) =>
+              q.eq("siteId", siteId as Id<"sites">).eq("status", status as any)
+            )
+            .collect();
+          return res as unknown as Doc<TableName>[];
+        }
+        const res = await ctx.db
+          .query("delivery_challan")
+          .withIndex("by_siteId_status", (q) =>
+            q.eq("siteId", siteId as Id<"sites">)
+          )
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      if (status) {
+        const res = await ctx.db
+          .query("delivery_challan")
+          .withIndex("by_status", (q) => q.eq("status", status as any))
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      const res = await ctx.db.query("delivery_challan").collect();
+      return res as unknown as Doc<TableName>[];
+    }
+
+    case "project_items": {
+      if (projectId) {
+        const res = await ctx.db
+          .query("project_items")
+          .withIndex("by_projectId", (q) =>
+            q.eq("projectId", projectId as Id<"projects">)
+          )
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      const res = await ctx.db.query("project_items").collect();
+      return res as unknown as Doc<TableName>[];
+    }
+
+    case "grn": {
+      if (siteId) {
+        const res = await ctx.db
+          .query("grn")
+          .withIndex("by_siteId", (q) =>
+            q.eq("siteId", siteId as Id<"sites">)
+          )
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      const res = await ctx.db.query("grn").collect();
+      return res as unknown as Doc<TableName>[];
+    }
+  }
+}
+
+/**
+ * Index-backed scoped query — replaces collect() → filterScopedList() for large tables.
+ *
+ * For admins: runs a single unconstrained collect (or status-filtered index query).
+ * For site supervisors: runs index queries per allowed site (or allowed parent project), merges.
+ * For PM / procurement officer: runs index queries per allowed project (or allowed site), merges.
+ *
+ * Capabilities are derived from schema — fails fast if an invalid table or unindexed pattern is queried.
+ *
+ * @param ctx   - Query or mutation context
+ * @param table - The Convex table name (strictly typed to ScopedTableName)
+ * @param scope - Resolved caller scope from resolveCallerScope()
+ * @param opts  - Optional status filter applied at the index level
+ */
+export async function queryScopedByIndex<TableName extends ScopedTableName>(
+  ctx: QueryCtx | MutationCtx,
+  table: TableName,
   scope: UserScope,
   opts: {
     statusFilter?: string;
-    hasProjectIdStatusIndex?: boolean; // true if table has by_projectId_status index
-    hasSiteIdStatusIndex?: boolean;    // true if table has by_siteId_status index
-    hasProjectIdIndex?: boolean;       // true if table has by_projectId index
-    hasSiteIdIndex?: boolean;          // true if table has by_siteId index
   } = {}
-): Promise<T[]> {
-  const {
-    statusFilter,
-    hasProjectIdStatusIndex = false,
-    hasSiteIdStatusIndex = false,
-    hasProjectIdIndex = false,
-    hasSiteIdIndex = false,
-  } = opts;
+): Promise<Doc<TableName>[]> {
+  const indexCaps = SCHEMA_INDEX_CAPABILITIES[table];
+  if (!indexCaps) {
+    throw new Error(`Table "${table}" is not configured for index-backed scoping.`);
+  }
 
-  const db = ctx.db as any; // Convex typed db — cast needed for dynamic table name
+  const { statusFilter } = opts;
 
   // Admin: single query — no scoping overhead
   if (scope.isAdmin) {
-    if (statusFilter && (hasProjectIdStatusIndex || hasSiteIdStatusIndex)) {
-      return await db
-        .query(table)
-        .withIndex("by_status", (q: any) => q.eq("status", statusFilter))
-        .collect();
-    }
-    return await db.query(table).collect();
+    return await queryTableByIndex(ctx, table, { status: statusFilter });
   }
 
   const seen = new Set<string>();
-  const results: T[] = [];
+  const results: Doc<TableName>[] = [];
 
-  function addUnique(items: T[]) {
+  function addUnique(items: Doc<TableName>[]) {
     for (const item of items) {
-      const id = String(item._creationTime) + JSON.stringify({ p: item.projectId, s: item.siteId });
-      // Use _id if available, otherwise fallback to composite key
-      const key = (item as any)._id ? String((item as any)._id) : id;
+      const key = String(item._id);
       if (!seen.has(key)) {
         seen.add(key);
         results.push(item);
@@ -240,58 +473,41 @@ export async function queryScopedByIndex<
   // Site supervisor: query by siteId for each allowed site
   if (scope.isSiteScoped) {
     for (const siteId of scope.allowedSiteIds) {
-      let rows: T[];
-      if (statusFilter && hasSiteIdStatusIndex) {
-        rows = await db
-          .query(table)
-          .withIndex("by_siteId_status", (q: any) =>
-            q.eq("siteId", siteId).eq("status", statusFilter)
-          )
-          .collect();
-      } else if (hasSiteIdIndex) {
-        rows = await db
-          .query(table)
-          .withIndex("by_siteId", (q: any) => q.eq("siteId", siteId))
-          .collect();
+      if (indexCaps.hasSiteIdStatusIndex || indexCaps.hasSiteIdIndex) {
+        const rows = await queryTableByIndex(ctx, table, { siteId, status: statusFilter });
+        addUnique(rows);
+      } else if (indexCaps.hasProjectIdIndex || indexCaps.hasProjectIdStatusIndex) {
+        for (const projectId of scope.allowedProjectIds) {
+          const pRows = await queryTableByIndex(ctx, table, { projectId, status: statusFilter });
+          addUnique(pRows);
+        }
       } else {
-        // Fallback: filter full collect (table has no siteId index)
-        rows = (await db.query(table).collect()).filter(
-          (r: any) => r.siteId && String(r.siteId) === siteId
+        throw new Error(
+          `Security invariant violation: Scoped table "${table}" lacks site and project indexes for site supervisor access.`
         );
       }
-      if (statusFilter && !hasSiteIdStatusIndex) {
-        rows = rows.filter((r) => r.status === statusFilter);
-      }
+    }
+    return results;
+  }
+
+  // PM / Procurement Officer: query by projectId (or siteId for site-partitioned tables)
+  if (indexCaps.hasProjectIdStatusIndex || indexCaps.hasProjectIdIndex) {
+    for (const projectId of scope.allowedProjectIds) {
+      const rows = await queryTableByIndex(ctx, table, { projectId, status: statusFilter });
       addUnique(rows);
     }
     return results;
   }
 
-  // PM / Procurement Officer: query by projectId for each allowed project
-  for (const projectId of scope.allowedProjectIds) {
-    let rows: T[];
-    if (statusFilter && hasProjectIdStatusIndex) {
-      rows = await db
-        .query(table)
-        .withIndex("by_projectId_status", (q: any) =>
-          q.eq("projectId", projectId).eq("status", statusFilter)
-        )
-        .collect();
-    } else if (hasProjectIdIndex) {
-      rows = await db
-        .query(table)
-        .withIndex("by_projectId", (q: any) => q.eq("projectId", projectId))
-        .collect();
-    } else {
-      rows = (await db.query(table).collect()).filter(
-        (r: any) => r.projectId && String(r.projectId) === projectId
-      );
+  if (indexCaps.hasSiteIdStatusIndex || indexCaps.hasSiteIdIndex) {
+    for (const siteId of scope.allowedSiteIds) {
+      const sRows = await queryTableByIndex(ctx, table, { siteId, status: statusFilter });
+      addUnique(sRows);
     }
-    if (statusFilter && !hasProjectIdStatusIndex) {
-      rows = rows.filter((r) => r.status === statusFilter);
-    }
-    addUnique(rows);
+    return results;
   }
 
-  return results;
+  throw new Error(
+    `Security invariant violation: Scoped table "${table}" lacks project and site indexes for manager access.`
+  );
 }

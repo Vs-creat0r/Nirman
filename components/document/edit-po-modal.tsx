@@ -355,7 +355,7 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
       await resubmitPOMutation({
         id: po._id,
         lineItems: resolvedLineItems,
-        taxRate: Number(taxRate) || 18,
+        taxRate: taxRate !== "" && !isNaN(Number(taxRate)) ? Math.max(0, Math.min(100, Number(taxRate))) : 18,
         freight: Number(freight) > 0 ? Number(freight) : undefined,
         placeOfSupplyStateCode,
         siteContactPerson: siteContactPerson.trim() || undefined,

@@ -9,7 +9,7 @@
 
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { Id, Doc } from "./_generated/dataModel";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
@@ -130,7 +130,10 @@ export const createPOFromCC = mutation({
     const subtotal = Math.round(
       snapshottedLineItems.reduce((acc, cur) => acc + cur.amount, 0) * 100
     ) / 100;
-    const taxRate = Number(winningQuote.taxRate) || 18;
+    const taxRate =
+      winningQuote.taxRate !== undefined && !isNaN(Number(winningQuote.taxRate))
+        ? Math.max(0, Math.min(100, Number(winningQuote.taxRate)))
+        : 18;
     const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
     const freight = Math.max(0, Number(winningQuote.freight) || 0);
     const totalAmount = Math.round((subtotal + taxAmount + freight) * 100) / 100;
@@ -230,7 +233,7 @@ export const createPOFromCC = mutation({
         documentId: mr._id,
         from: ["ready_for_po", "approved_for_rfq", "rfq_in_progress", "review_cc", "draft"],
         to: mrToStatus,
-        action: "material_requests:update",
+        action: initialStatus === "approved" ? "material_requests:advance_on_po_approval" : "material_requests:review_on_po",
         token: args.token,
         note: `Purchase Order ${refNo} generated (${initialStatus}) with ${vendorName}`,
       });
@@ -280,7 +283,7 @@ export const submitPO = mutation({
           documentId: mr._id,
           from: ["ready_for_po", "draft"],
           to: "review_po",
-          action: "material_requests:update",
+          action: "material_requests:review_on_po",
           token: args.token,
           note: `Purchase Order ${po.refNo} submitted for manager approval`,
         });
@@ -305,17 +308,11 @@ export const listPOs = query({
     const scope = await resolveCallerScope(ctx, args.token);
 
     // Indexed range query — no full PO table scan
-    let pos = await queryScopedByIndex<any>(
+    let pos = await queryScopedByIndex(
       ctx,
       "purchase_order",
       scope,
-      {
-        statusFilter: args.status,
-        hasProjectIdStatusIndex: true, // schema has by_projectId_status
-        hasSiteIdStatusIndex: true,    // schema has by_siteId_status
-        hasProjectIdIndex: false,
-        hasSiteIdIndex: false,
-      }
+      { statusFilter: args.status }
     );
 
     if (args.projectId) {
@@ -332,22 +329,22 @@ export const listPOs = query({
     // Enrich with Project, Site, Vendor, and MR references
     const enriched = await Promise.all(
       pos.map(async (po) => {
-        const project = await ctx.db.get(po.projectId as Id<"projects">);
-        const site = po.siteId ? await ctx.db.get(po.siteId as Id<"sites">) : null;
-        const vendor = await ctx.db.get(po.vendorId as Id<"vendors">);
-        const mr = po.materialRequestId ? await ctx.db.get(po.materialRequestId as Id<"material_request">) : null;
-        const cc = po.costComparisonId ? await ctx.db.get(po.costComparisonId as Id<"cost_comparison">) : null;
-        const creator = (await ctx.db.get(po.createdBy as Id<"users">)) as { name?: string } | null;
+        const project = await ctx.db.get(po.projectId);
+        const site = po.siteId ? await ctx.db.get(po.siteId) : null;
+        const vendor = await ctx.db.get(po.vendorId);
+        const mr = po.materialRequestId ? await ctx.db.get(po.materialRequestId) : null;
+        const cc = po.costComparisonId ? await ctx.db.get(po.costComparisonId) : null;
+        const creator = (await ctx.db.get(po.createdBy)) as { name?: string } | null;
 
         return {
           ...po,
-          projectName: (project as any)?.name || "Unknown Project",
-          projectCode: (project as any)?.code || "",
-          siteName: site ? `${(site as any).name} (${(site as any).code})` : "Main Site",
-          vendorName: (vendor as any)?.name || "Unknown Vendor",
-          vendorPhone: (vendor as any)?.phone || "",
-          materialRequestRefNo: (mr as any)?.refNo || "MR",
-          costComparisonRefNo: (cc as any)?.refNo || "CC",
+          projectName: project?.name || "Unknown Project",
+          projectCode: project?.code || "",
+          siteName: site ? `${site.name} (${site.code})` : "Main Site",
+          vendorName: vendor?.name || "Unknown Vendor",
+          vendorPhone: vendor?.phone || "",
+          materialRequestRefNo: mr?.refNo || "MR",
+          costComparisonRefNo: cc?.refNo || "CC",
           creatorName: creator?.name || "Unknown User",
           itemCount: po.lineItems.length,
         };
@@ -412,7 +409,10 @@ export const listApprovedCCsForPO = query({
           selectedVendorPhone: vendor?.phone || "",
           winningTotal: winningQuote?.total || 0,
           winningSubtotal: winningQuote?.subtotal || 0,
-          winningTaxRate: winningQuote?.taxRate || 18,
+          winningTaxRate:
+            winningQuote?.taxRate !== undefined && !isNaN(Number(winningQuote.taxRate))
+              ? Number(winningQuote.taxRate)
+              : 18,
           winningFreight: winningQuote?.freight || 0,
           winningPaymentTerms: winningQuote?.paymentTerms,
           winningDeliveryDays: winningQuote?.deliveryDays,

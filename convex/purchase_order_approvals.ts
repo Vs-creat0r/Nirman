@@ -64,7 +64,7 @@ export const approvePO = mutation({
         documentId: mr._id,
         from: ["review_po", "ready_for_po", "draft"],
         to: "pending_po",
-        action: "material_requests:update",
+        action: "material_requests:advance_on_po_approval",
         token: args.token,
         note: `Purchase Order ${po.refNo} approved by ${user.name}. Awaiting vendor delivery challan.`,
       });
@@ -125,7 +125,7 @@ export const rejectPO = mutation({
           documentId: mr._id,
           from: "review_po",
           to: "ready_for_po",
-          action: "material_requests:update",
+          action: "material_requests:reset_on_po_reject",
           token: args.token,
           note: `Purchase Order ${po.refNo} was rejected by ${user.name}. Material Request returned to ready_for_po for revision. Reason: ${args.note.trim()}`,
         });
@@ -271,7 +271,10 @@ export const resubmitPO = mutation({
       calculatedItems.reduce((acc, cur) => acc + cur.amount, 0) * 100
     ) / 100;
     const totalQty = calculatedItems.reduce((acc, cur) => acc + cur.quantity, 0);
-    const taxRate = Number(args.taxRate) || 18;
+    const taxRate =
+      args.taxRate !== undefined && !isNaN(Number(args.taxRate))
+        ? Math.max(0, Math.min(100, Number(args.taxRate)))
+        : 18;
     const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
     const freight = Math.max(0, Number(args.freight) || 0);
     const totalAmount = Math.round((subtotal + taxAmount + freight) * 100) / 100;
@@ -338,9 +341,9 @@ export const resubmitPO = mutation({
           documentId: mr._id,
           from: ["ready_for_po", "draft", "review_po"],
           to: "review_po",
-          action: "material_requests:update",
+          action: "material_requests:review_on_po",
           token: args.token,
-          note: mrLogNote,
+          note: `Purchase Order ${po.refNo} resubmitted for manager approval`,
         });
       }
     }

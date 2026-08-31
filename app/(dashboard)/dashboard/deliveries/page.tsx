@@ -13,20 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Truck,
-  Plus,
-  Search,
-  CheckCircle2,
-  Clock,
-  Phone,
-  Building2,
-  Package,
-  Calendar,
-  AlertTriangle,
-  FileText,
-  Eye,
-  X,
-  ExternalLink,
+  Truck, Plus, Search, CheckCircle2, Clock, Phone, Building2,
+  Package, Calendar, AlertTriangle, FileText, Eye, X, ExternalLink
 } from "lucide-react";
 
 export default function DeliveriesPage() {

@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { Id, Doc } from "@/convex/_generated/dataModel";
+import { UserRole } from "@/convex/permissions";
 import { useSession } from "@/components/providers/auth-provider";
 import { useRole } from "@/hooks/use-role";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,7 @@ export default function UsersPage() {
 
   // Scoping Dialog State
   const [isScopingOpen, setIsScopingOpen] = React.useState(false);
-  const [selectedUser, setSelectedUser] = React.useState<any | null>(null);
+  const [selectedUser, setSelectedUser] = React.useState<Doc<"users"> | null>(null);
   const [assignedProjectIds, setAssignedProjectIds] = React.useState<string[]>([]);
   const [assignedSiteIds, setAssignedSiteIds] = React.useState<string[]>([]);
   const [scopingError, setScopingError] = React.useState<string | null>(null);
@@ -53,7 +54,7 @@ export default function UsersPage() {
 
   // Role Change Dialog State
   const [isRoleDialogOpen, setIsRoleDialogOpen] = React.useState(false);
-  const [newRole, setNewRole] = React.useState<string>("site_supervisor");
+  const [newRole, setNewRole] = React.useState<UserRole>("site_supervisor");
   const [roleError, setRoleError] = React.useState<string | null>(null);
   const [isSavingRole, setIsSavingRole] = React.useState(false);
 
@@ -120,7 +121,7 @@ export default function UsersPage() {
   };
 
   // Open Scoping Dialog
-  const openScopingDialog = (u: any) => {
+  const openScopingDialog = (u: Doc<"users">) => {
     setSelectedUser(u);
     setAssignedProjectIds(u.assignedProjectIds || []);
     setAssignedSiteIds(u.assignedSiteIds || []);
@@ -133,8 +134,8 @@ export default function UsersPage() {
       const exists = prev.includes(projectId);
       if (exists) {
         // Remove project and its sites
-        const projectSites = (allSites || []).filter((s) => s.projectId === projectId).map((s) => s._id);
-        setAssignedSiteIds((sites) => sites.filter((id) => !projectSites.includes(id as any)));
+        const projectSites = (allSites || []).filter((s) => s.projectId === projectId).map((s) => String(s._id));
+        setAssignedSiteIds((sites) => sites.filter((id) => !projectSites.includes(id)));
         return prev.filter((id) => id !== projectId);
       } else {
         return [...prev, projectId];
@@ -172,17 +173,17 @@ export default function UsersPage() {
         token,
       });
       setIsScopingOpen(false);
-    } catch (err: any) {
-      setScopingError(err.message || "Failed to update assignments.");
+    } catch (err: unknown) {
+      setScopingError(err instanceof Error ? err.message : "Failed to update assignments.");
     } finally {
       setIsSavingScoping(false);
     }
   };
 
   // Open Role Dialog
-  const openRoleDialog = (u: any) => {
+  const openRoleDialog = (u: Doc<"users">) => {
     setSelectedUser(u);
-    setNewRole(u.role);
+    setNewRole(u.role as UserRole);
     setRoleError(null);
     setIsRoleDialogOpen(true);
   };
@@ -197,19 +198,19 @@ export default function UsersPage() {
     try {
       await changeUserRole({
         userId: selectedUser._id,
-        newRole: newRole as any,
+        newRole,
         token,
       });
       setIsRoleDialogOpen(false);
-    } catch (err: any) {
-      setRoleError(err.message || "Failed to change user role.");
+    } catch (err: unknown) {
+      setRoleError(err instanceof Error ? err.message : "Failed to change user role.");
     } finally {
       setIsSavingRole(false);
     }
   };
 
   // Open Profile Dialog
-  const openProfileDialog = (u: any) => {
+  const openProfileDialog = (u: Doc<"users">) => {
     setSelectedUser(u);
     setEditName(u.name || "");
     setEditEmail(u.email || "");
@@ -236,8 +237,8 @@ export default function UsersPage() {
         token,
       });
       setIsProfileDialogOpen(false);
-    } catch (err: any) {
-      setProfileError(err.message || "Failed to update profile.");
+    } catch (err: unknown) {
+      setProfileError(err instanceof Error ? err.message : "Failed to update profile.");
     } finally {
       setIsSavingProfile(false);
     }
@@ -378,7 +379,7 @@ export default function UsersPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
                           {getRoleIcon(u.role)}
-                          <Badge variant={getRoleBadgeVariant(u.role) as any}>
+                          <Badge variant={getRoleBadgeVariant(u.role)}>
                             {u.role.replace("_", " ")}
                           </Badge>
                         </div>
@@ -633,7 +634,7 @@ export default function UsersPage() {
               <label className="text-xs font-semibold text-foreground">Select New Role</label>
               <select
                 value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
+                onChange={(e) => setNewRole(e.target.value as UserRole)}
                 className="w-full h-9 text-xs px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="site_supervisor">Site Supervisor (MRs & GRNs on site)</option>

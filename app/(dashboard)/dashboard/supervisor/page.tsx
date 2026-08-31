@@ -29,7 +29,7 @@ export default function SupervisorDashboard() {
 
   const pendingCount = materialRequests?.filter((r) => r.status === "pending").length ?? 0;
   const queriedCount = materialRequests?.filter((r) => r.status === "queried").length ?? 0;
-  const inTransitDeliveries = (deliveries as any[])?.filter((d: any) => d.status === "delivery_processing") ?? [];
+  const inTransitDeliveries = deliveries?.filter((d) => d.status === "delivery_processing") ?? [];
   const inTransitCount = inTransitDeliveries.length;
 
   return (
@@ -125,7 +125,7 @@ export default function SupervisorDashboard() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {(inTransitDeliveries as any[]).slice(0, 2).map((dc: any) => (
+            {inTransitDeliveries.slice(0, 2).map((dc) => (
               <div
                 key={dc._id}
                 className="p-3 bg-card border border-border rounded-lg flex items-center justify-between gap-3 text-xs shadow-sm"

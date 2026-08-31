@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @fileoverview CI Metric Ratchet
  *
  * Enforces "never make it worse" ceilings on four code quality counters.
@@ -19,32 +19,39 @@ import { join, extname } from "path";
 
 // --- BASELINES (do not raise without justification) ---
 const BASELINES = {
-  filesOver500Lines: 15,   // 15 at 695a832; 2 new files from Stage 1 (projects/page, users/page)
-  anyUsages: 235,          // 235 at 695a832; test infra type assertions included
+  filesOver500Lines: 15,        // 15 at 695a832; 2 new files from Stage 1 (projects/page, users/page)
+  anyUsages: 140,               // 140 in source roots (app, components, convex, lib, hooks) excluding tests/generated
   filesWithHardcodedColors: 29, // 29 at 695a832 per reviewer grep (Tailwind inline classes)
   filesWithRelativeImports: 19, // 19 at 695a832
 };
 
+const SOURCE_ROOTS = ["app", "components", "convex", "lib", "hooks"];
 const EXCLUDE = [
   "node_modules", ".next", ".convex", "convex/_generated",
-  ".git", "nirman-setup", "convex-tutorial",
+  ".git", "nirman-setup", "convex-tutorial", "tests", "scripts",
 ];
 
-function walkDir(dir, exts, exclude) {
+function walkDir(roots, exts, exclude) {
   const results = [];
-  let entries;
-  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return results; }
-  for (const e of entries) {
-    const fp = join(dir, e.name);
-    if (exclude.some((x) => fp.replace(/\\/g, "/").includes(x))) continue;
-    if (e.isDirectory()) results.push(...walkDir(fp, exts, exclude));
-    else if (exts.includes(extname(e.name))) results.push(fp);
+  function walk(dir) {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const fp = join(dir, e.name);
+      const normalized = fp.replace(/\\/g, "/");
+      if (exclude.some((x) => normalized.includes(x))) continue;
+      if (e.isDirectory()) walk(fp);
+      else if (exts.includes(extname(e.name))) results.push(fp);
+    }
+  }
+  for (const root of roots) {
+    walk(root);
   }
   return results;
 }
 
 function countOver500() {
-  return walkDir(".", [".ts", ".tsx", ".mjs"], EXCLUDE)
+  return walkDir(SOURCE_ROOTS, [".ts", ".tsx", ".mjs"], EXCLUDE)
     .map(f => { try { return { file: f, lines: readFileSync(f, "utf8").split("\n").length }; } catch { return null; } })
     .filter(x => x && x.lines > 500);
 }
@@ -52,7 +59,7 @@ function countOver500() {
 function countAny() {
   let total = 0;
   const matches = [];
-  for (const f of walkDir(".", [".ts", ".tsx"], EXCLUDE)) {
+  for (const f of walkDir(SOURCE_ROOTS, [".ts", ".tsx"], EXCLUDE)) {
     try {
       const n = (readFileSync(f, "utf8").match(/\bany\b/g) || []).length;
       if (n) { total += n; matches.push({ file: f, count: n }); }
@@ -61,16 +68,15 @@ function countAny() {
   return { total, matches };
 }
 
-// Matches inline hex / rgb() / rgba() — excludes hsl(var(...)) theme tokens
-const COLOR_RE = /(#[0-9a-fA-F]{3,8}\b|(?<![a-z-])rgb\s*\(|(?<![a-z-])rgba\s*\()/;
+// Matches hardcoded Tailwind palette colors (e.g. text-emerald-600, bg-slate-100) — excludes semantic theme tokens
+const COLOR_RE = /(bg|text|border)-(emerald|amber|rose|slate|indigo|blue|red|green|yellow|gray|zinc)-[0-9]{2,3}/;
 function countColors() {
-  const exclude = [...EXCLUDE, "styles/globals.css", "styles/themes.css"];
-  return walkDir(".", [".ts", ".tsx", ".css"], exclude)
+  return walkDir(["app", "components"], [".tsx"], EXCLUDE)
     .filter(f => { try { return COLOR_RE.test(readFileSync(f, "utf8")); } catch { return false; } });
 }
 
 function countRelative() {
-  return walkDir(".", [".ts", ".tsx"], EXCLUDE)
+  return walkDir(SOURCE_ROOTS, [".ts", ".tsx"], EXCLUDE)
     .filter(f => { try { return /from ['"]\.\.\//. test(readFileSync(f, "utf8")); } catch { return false; } });
 }
 

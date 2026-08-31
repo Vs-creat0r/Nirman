@@ -229,17 +229,11 @@ export const listDCs = query({
 
     // Indexed range query — no full DC table scan
     const statusArg = args.status && args.status !== "all" ? args.status : undefined;
-    let dcs = await queryScopedByIndex<any>(
+    let dcs = await queryScopedByIndex(
       ctx,
       "delivery_challan",
       scope,
-      {
-        statusFilter: statusArg,
-        hasProjectIdStatusIndex: false,
-        hasSiteIdStatusIndex: true,  // schema has by_siteId_status
-        hasProjectIdIndex: false,
-        hasSiteIdIndex: false,
-      }
+      { statusFilter: statusArg }
     );
 
     if (args.siteId) {
@@ -253,23 +247,23 @@ export const listDCs = query({
     const enriched = await Promise.all(
       dcs.map(async (dc) => {
         const [po, vendor, site, creator] = await Promise.all([
-          ctx.db.get(dc.purchaseOrderId as Id<"purchase_order">),
-          ctx.db.get(dc.vendorId as Id<"vendors">),
-          dc.siteId ? ctx.db.get(dc.siteId as Id<"sites">) : null,
-          ctx.db.get(dc.createdBy as Id<"users">),
+          ctx.db.get(dc.purchaseOrderId),
+          ctx.db.get(dc.vendorId),
+          dc.siteId ? ctx.db.get(dc.siteId) : null,
+          ctx.db.get(dc.createdBy),
         ]);
 
         return {
           ...dc,
-          poRefNo: (po as any)?.refNo || "Unknown PO",
-          poStatus: (po as any)?.status || "unknown",
-          materialRequestId: (po as any)?.materialRequestId,
-          vendorName: (vendor as any)?.name || "Unknown Vendor",
-          vendorPhone: (vendor as any)?.phone,
-          siteName: (site as any)?.name || "Unknown Site",
-          createdByName: (creator as any)?.name || "Unknown User",
+          poRefNo: po?.refNo || "Unknown PO",
+          poStatus: po?.status || "unknown",
+          materialRequestId: po?.materialRequestId,
+          vendorName: vendor?.name || "Unknown Vendor",
+          vendorPhone: vendor?.phone,
+          siteName: site?.name || "Unknown Site",
+          createdByName: creator?.name || "Unknown User",
           itemCount: dc.dispatchedItems.length,
-          totalQty: dc.dispatchedItems.reduce((sum: number, item: any) => sum + item.dispatchedQty, 0),
+          totalQty: dc.dispatchedItems.reduce((sum: number, item: { dispatchedQty: number }) => sum + item.dispatchedQty, 0),
         };
       })
     );

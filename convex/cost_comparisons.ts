@@ -11,7 +11,7 @@ import { v } from "convex/values";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
-import { Id } from "./_generated/dataModel";
+import { Id, Doc } from "./_generated/dataModel";
 import { resolveCallerScope, filterScopedList, assertDocumentAccess, queryScopedByIndex } from "./scoping";
 
 /**
@@ -40,7 +40,7 @@ async function generateCCRefNo(ctx: MutationCtx): Promise<string> {
 /**
  * Helper to calculate and validate vendor quotes server-side.
  */
-function processVendorQuotes(
+export function processVendorQuotes(
   vendorQuotes: Array<{
     vendorId: Id<"vendors">;
     items: Array<{
@@ -85,8 +85,14 @@ function processVendorQuotes(
 
     let subtotal = 0;
     const computedItems = quote.items.map((it) => {
-      const qty = Number(it.quantity) || 0;
-      const rate = Math.max(0, Number(it.rate) || 0);
+      const qty = Number(it.quantity);
+      if (isNaN(qty) || qty <= 0) {
+        throw new Error(`Quoted quantity for item "${it.itemName || "Item"}" must be a positive number greater than 0.`);
+      }
+      const rate = Number(it.rate);
+      if (isNaN(rate) || rate < 0) {
+        throw new Error(`Quoted rate for item "${it.itemName || "Item"}" must be a non-negative number.`);
+      }
       const amount = Math.round(qty * rate * 100) / 100;
       subtotal += amount;
 
@@ -111,9 +117,17 @@ function processVendorQuotes(
     });
 
     subtotal = Math.round(subtotal * 100) / 100;
-    const taxRate = Math.max(0, Math.min(100, Number(quote.taxRate) || 0));
+    const rawTaxRate = Number(quote.taxRate);
+    if (isNaN(rawTaxRate) || rawTaxRate < 0 || rawTaxRate > 100) {
+      throw new Error("Tax rate for vendor quote must be a valid percentage between 0% and 100%.");
+    }
+    const taxRate = rawTaxRate;
     const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
-    const freight = Math.max(0, Number(quote.freight) || 0);
+    const rawFreight = quote.freight !== undefined ? Number(quote.freight) : 0;
+    if (isNaN(rawFreight) || rawFreight < 0) {
+      throw new Error("Freight amount for vendor quote must be non-negative.");
+    }
+    const freight = rawFreight;
     const total = Math.round((subtotal + taxAmount + freight) * 100) / 100;
 
     return {
@@ -536,17 +550,11 @@ export const listCCs = query({
     const scope = await resolveCallerScope(ctx, args.token);
 
     // Indexed range query — no full CC table scan
-    let ccs = await queryScopedByIndex<any>(
+    let ccs = await queryScopedByIndex(
       ctx,
       "cost_comparison",
       scope,
-      {
-        statusFilter: args.status,
-        hasProjectIdStatusIndex: true, // schema has by_projectId_status
-        hasSiteIdStatusIndex: false,
-        hasProjectIdIndex: false,
-        hasSiteIdIndex: false,
-      }
+      { statusFilter: args.status }
     );
 
     if (args.projectId) {
@@ -563,33 +571,33 @@ export const listCCs = query({
     // Enrich with Project, MR, and Vendor data
     const enriched = await Promise.all(
       ccs.map(async (cc) => {
-        const project = await ctx.db.get(cc.projectId as Id<"projects">);
-        const mr = await ctx.db.get(cc.materialRequestId as Id<"material_request">);
-        const creator = (await ctx.db.get(cc.createdBy as Id<"users">)) as { name?: string } | null;
+        const project = await ctx.db.get(cc.projectId);
+        const mr = await ctx.db.get(cc.materialRequestId);
+        const creator = (await ctx.db.get(cc.createdBy)) as { name?: string } | null;
 
         // Fetch vendor names for the quotes
         const vendorNames = await Promise.all(
-          cc.vendorQuotes.map(async (q: any) => {
-            const vv = await ctx.db.get(q.vendorId as Id<"vendors">);
-            return (vv as any)?.name || "Unknown Vendor";
+          cc.vendorQuotes.map(async (q) => {
+            const vv = await ctx.db.get(q.vendorId);
+            return vv?.name || "Unknown Vendor";
           })
         );
 
         let selectedVendorName: string | null = null;
         if (cc.selectedVendorId) {
-          const sv = await ctx.db.get(cc.selectedVendorId as Id<"vendors">);
-          selectedVendorName = (sv as any)?.name || null;
+          const sv = await ctx.db.get(cc.selectedVendorId);
+          selectedVendorName = sv?.name || null;
         }
 
-        const totals = cc.vendorQuotes.map((q: any) => q.total);
+        const totals = cc.vendorQuotes.map((q) => q.total);
         const minTotal = Math.min(...totals);
         const maxTotal = Math.max(...totals);
 
         return {
           ...cc,
-          projectName: (project as any)?.name || "Unknown Project",
-          projectCode: (project as any)?.code || "",
-          materialRequestRefNo: (mr as any)?.refNo || "MR",
+          projectName: project?.name || "Unknown Project",
+          projectCode: project?.code || "",
+          materialRequestRefNo: mr?.refNo || "MR",
           creatorName: creator?.name || "Unknown User",
           quoteCount: cc.vendorQuotes.length,
           vendorNames,

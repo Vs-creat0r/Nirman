@@ -204,11 +204,15 @@ Create Request → Pending Manager Approval
 | **Procurement Officer** | Project-scoped | Same as Project Manager for read/write scope. Action permissions differ (submits → PM approves). |
 | **Site Supervisor** | Site-scoped (strict) | Can ONLY see documents where `siteId` is in their `assignedSiteIds`. The parent `projectId` alone does NOT grant access. |
 
-### Fail-Closed Rule
-If a non-admin user has zero `assignedProjectIds` and zero `assignedSiteIds`, they see **zero documents** and receive `Forbidden` on every direct ID lookup. There is no fallback to "show everything" or "show nothing silently" — the query returns empty and the mutation throws.
+### Core Security Invariants
 
-### IDOR Prevention
-Every mutation and query that accepts a document ID (MR, CC, PO, DC, GRN) calls `assertDocumentAccess(scope, doc)` before returning data. A user with a valid token who guesses a document ID from another project receives: `Forbidden: You do not have access to document "MR-2026-XXXX" in this project or site.`
+1. **Fail-Closed Rule**: If a non-admin user has zero `assignedProjectIds` and zero `assignedSiteIds`, they see **zero documents** and receive `Forbidden` on every direct ID lookup. There is no fallback to "show everything" or "show nothing silently" — the query returns an empty list and any direct mutation or ID lookup throws `Forbidden`.
+2. **Site-Level Precedence**: For Site Supervisors, data access is strictly partitioned at the site level. Knowing the parent `projectId` never grants access to documents belonging to other sites under that project.
+3. **PM Extend-Never-Narrow**: When a Project Manager or Procurement Officer is assigned to a project, `resolveCallerScope()` automatically queries all child sites under that project and merges them into `allowedSiteIds`. Assigning additional specific sites extends their access without narrowing project-level authority.
+4. **Schema-Derived Index Capabilities (`SCHEMA_INDEX_CAPABILITIES`)**:
+   Query scoping uses compile-time static capability mapping derived directly from `convex/schema.ts`. It prevents dynamic string typos, eliminates caller-supplied boolean flags, and leverages prefix indexing (e.g. querying `by_siteId_status` by `siteId` alone when `status` is omitted) to execute bounded range queries rather than collection-wide scans.
+5. **IDOR Prevention**:
+   Every mutation and query that accepts a document ID (MR, CC, PO, DC, GRN) calls `assertDocumentAccess(scope, doc)` before returning data. A user with a valid token who guesses a document ID from another project receives: `Forbidden: You do not have access to document "MR-2026-XXXX" in this project or site.`
 
 ---
 
@@ -217,19 +221,24 @@ Every mutation and query that accepts a document ID (MR, CC, PO, DC, GRN) calls 
 > **Added in Stage 1.** Cascade permissions are distinct from direct-action permissions. They represent the system automatically updating a parent document because a child-document action happened.
 
 ### Why Granular Cascade Keys Matter
-When a Procurement Officer approves a Cost Comparison (`cost_comparisons:approve`), the system must advance the parent Material Request status. This is a cascade — the user is acting on a CC, not editing an MR directly. Using `material_requests:update` for this cascade would:
-1. Allow the same permission to be used for direct edits (wrong role set)
-2. Make audit logs unreadable ("user updated MR" gives no context about why)
+When a Procurement Officer creates a PO against an MR (`purchase_orders:create_from_cc`), the system must advance the parent Material Request status to `review_po`. This is a cascade — the user is acting on a PO, not editing an MR directly. Using `material_requests:update` for this cascade would:
+1. Allow the same permission to be used for direct edits (wrong role set — e.g. allowing procurement officer to directly rewrite MR specifications).
+2. Flatten role boundaries and break Segregation of Duties.
+3. Make audit logs unreadable ("user updated MR" gives no context about the triggering child document action).
 
-### Cascade Action Keys
+### Ten Granular Cascade Action Keys
 
 | Cascade Action | Trigger | Allowed Roles |
 |---|---|---|
-| `material_requests:review_on_cc` | CC created or resubmitted against an MR | `procurement_officer`, `project_manager`, `admin` |
+| `material_requests:review_on_cc` | CC created or resubmitted against an MR → MR moves to `review_cc` | `procurement_officer`, `project_manager`, `admin` |
 | `material_requests:advance_on_cc_approval` | CC approved by PM → MR moves to `ready_for_po` | `project_manager`, `admin` |
 | `material_requests:reset_on_cc_reject` | CC rejected → MR returns to `ready_for_cc` | `project_manager`, `admin` |
+| `material_requests:review_on_po` | PO submitted or resubmitted against an MR → MR moves to `review_po` | `procurement_officer`, `project_manager`, `admin` |
+| `material_requests:advance_on_po_approval` | PO approved by PM → MR moves to `pending_po` | `project_manager`, `admin` |
+| `material_requests:reset_on_po_reject` | PO rejected or cancelled → MR returns to `ready_for_po` | `project_manager`, `admin` |
+| `material_requests:close_on_short_close` | PO short-closed → MR moves to `delivered` | `project_manager`, `admin` |
 | `material_requests:advance_on_dc` | DC created against PO → MR moves to `delivery_processing` | `procurement_officer`, `project_manager`, `admin` |
-| `material_requests:close_on_receipt` | All GRN batches complete → MR moves to `delivered` | `site_supervisor`, `procurement_officer`, `admin` |
+| `material_requests:close_on_receipt` | All GRN batches complete → MR moves to `delivered` | `site_supervisor`, `project_manager`, `admin` |
 | `delivery_challans:deliver` | GRN confirmed → DC moves to `delivered` | `site_supervisor`, `procurement_officer`, `admin` |
 
 ### State Machine Invariant
