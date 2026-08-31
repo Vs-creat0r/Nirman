@@ -13,6 +13,7 @@ import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { adjustCommittedQty } from "./purchase_order_commitments";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
 
 /**
  * Generates monotonic reference number: PO-YYYY-NNNN
@@ -297,10 +298,12 @@ export const listPOs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    let pos = await ctx.db.query("purchase_order").collect();
+    let allPos = await ctx.db.query("purchase_order").collect();
+
+    // Enforce scoping
+    let pos = filterScopedList(scope, allPos);
 
     if (args.status) {
       pos = pos.filter((po) => po.status === args.status);
@@ -355,13 +358,15 @@ export const listApprovedCCsForPO = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    let ccs = await ctx.db
+    let allCcs = await ctx.db
       .query("cost_comparison")
       .withIndex("by_status", (q) => q.eq("status", "approved"))
       .collect();
+
+    // Enforce scoping
+    let ccs = filterScopedList(scope, allCcs);
 
     if (args.projectId) {
       ccs = ccs.filter((cc) => cc.projectId === args.projectId);
@@ -421,11 +426,13 @@ export const getPO = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     const po = await ctx.db.get(args.id);
     if (!po) return null;
+
+    // Assert document scope access
+    assertDocumentAccess(scope, po, po.refNo);
 
     const project = await ctx.db.get(po.projectId);
     const site = po.siteId ? await ctx.db.get(po.siteId) : null;

@@ -37,13 +37,13 @@ export const getMyUser = query({
 });
 
 /**
- * List all users (Admin and authenticated system query).
+ * List all users (Admin management query).
+ * Strictly gated to "users:manage" (Admin only).
  */
 export const list = query({
-  args: { token: v.string() },
+  args: { token: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const me = await getUserFromToken(ctx, args.token);
-    if (!me) throw new Error("Unauthenticated");
+    await requirePermission(ctx, "users:manage", args.token);
     
     const allUsers = await ctx.db.query("users").collect();
     return allUsers.map(({ passwordHash, ...safeUser }) => safeUser);

@@ -12,6 +12,7 @@ import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { Id } from "./_generated/dataModel";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
 
 /**
  * Generates monotonic reference number: CC-YYYY-NNNN
@@ -572,10 +573,12 @@ export const listCCs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    let ccs = await ctx.db.query("cost_comparison").collect();
+    let allCcs = await ctx.db.query("cost_comparison").collect();
+
+    // Enforce scoping
+    let ccs = filterScopedList(scope, allCcs);
 
     if (args.status) {
       ccs = ccs.filter((cc) => cc.status === args.status);
@@ -645,13 +648,15 @@ export const listApprovedMRsForCC = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    let mrs = await ctx.db
+    let allMrs = await ctx.db
       .query("material_request")
       .withIndex("by_status", (q) => q.eq("status", "ready_for_cc"))
       .collect();
+
+    // Enforce caller scope on candidate MRs
+    let mrs = filterScopedList(scope, allMrs);
 
     if (args.projectId) {
       mrs = mrs.filter((mr) => mr.projectId === args.projectId);
@@ -700,11 +705,13 @@ export const getCC = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     const cc = await ctx.db.get(args.id);
     if (!cc) return null;
+
+    // Assert caller access
+    assertDocumentAccess(scope, cc, cc.refNo);
 
     const project = await ctx.db.get(cc.projectId);
     const site = cc.siteId ? await ctx.db.get(cc.siteId) : null;

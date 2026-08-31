@@ -15,6 +15,7 @@ import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { Id, Doc } from "./_generated/dataModel";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
 
 /**
  * Generates monotonic reference number: DC-YYYY-NNNN
@@ -230,10 +231,12 @@ export const listDCs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    let dcs = await ctx.db.query("delivery_challan").collect();
+    let allDcs = await ctx.db.query("delivery_challan").collect();
+
+    // Enforce scoping
+    let dcs = filterScopedList(scope, allDcs);
 
     if (args.siteId) {
       dcs = dcs.filter((d) => d.siteId === args.siteId);
@@ -284,11 +287,13 @@ export const getDC = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     const dc = await ctx.db.get(args.id);
     if (!dc) return null;
+
+    // Assert caller access
+    assertDocumentAccess(scope, dc, dc.refNo);
 
     const [po, vendor, site, creator] = await Promise.all([
       ctx.db.get(dc.purchaseOrderId),
@@ -331,14 +336,16 @@ export const listApprovedPOsForDispatch = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     // Fetch approved POs
-    const approvedPOs = await ctx.db
+    const allApprovedPOs = await ctx.db
       .query("purchase_order")
       .withIndex("by_status", (q) => q.eq("status", "approved"))
       .collect();
+
+    // Enforce scoping
+    const approvedPOs = filterScopedList(scope, allApprovedPOs);
 
     // Fetch all active DCs
     const allDCs = await ctx.db.query("delivery_challan").collect();
@@ -448,11 +455,13 @@ export const getPODispatchLedger = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     const po = await ctx.db.get(args.purchaseOrderId);
     if (!po) return null;
+
+    // Assert caller access
+    assertDocumentAccess(scope, po, po.refNo);
 
     const [vendor, site, project] = await Promise.all([
       ctx.db.get(po.vendorId),

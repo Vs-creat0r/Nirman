@@ -16,6 +16,7 @@ import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { Id, Doc } from "./_generated/dataModel";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
 
 /**
  * Generates monotonic reference number: GRN-YYYY-NNNN
@@ -335,10 +336,12 @@ export const listGRNs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    let grns = await ctx.db.query("grn").collect();
+    let allGrns = await ctx.db.query("grn").collect();
+
+    // Enforce scoping
+    let grns = filterScopedList(scope, allGrns);
 
     if (args.siteId) {
       grns = grns.filter((g) => g.siteId === args.siteId);
@@ -394,11 +397,13 @@ export const getGRN = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     const grn = await ctx.db.get(args.id);
     if (!grn) return null;
+
+    // Assert caller access
+    assertDocumentAccess(scope, grn, grn.refNo);
 
     const [po, dc, vendor, site, confirmedByUser] = await Promise.all([
       ctx.db.get(grn.purchaseOrderId),

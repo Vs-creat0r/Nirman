@@ -6,9 +6,10 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
+import { resolveCallerScope, filterScopedList } from "./scoping";
 
 /**
- * List active sites, optionally filtered by projectId (for user dropdowns).
+ * List active sites, optionally filtered by projectId (scoped to caller permissions).
  */
 export const listSites = query({
   args: {
@@ -16,10 +17,9 @@ export const listSites = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    const sites = args.projectId
+    const allSites = args.projectId
       ? await ctx.db
           .query("sites")
           .withIndex("by_projectId_isActive", (q) =>
@@ -31,7 +31,13 @@ export const listSites = query({
           .filter((q) => q.eq(q.field("isActive"), true))
           .collect();
 
-    return sites.map((s) => ({
+    // Enforce scoping
+    const scopedSites = filterScopedList(
+      scope,
+      allSites.map((s) => ({ ...s, siteId: s._id }))
+    );
+
+    return scopedSites.map((s) => ({
       _id: s._id,
       value: s._id,
       label: `${s.name} (${s.code})`,

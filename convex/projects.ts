@@ -6,24 +6,30 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
 
 /**
- * List all active projects accessible to the logged-in user (for dropdown selectors).
+ * List all active projects accessible to the logged-in user (scoped by assignments).
  */
 export const listProjects = query({
   args: {
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    const projects = await ctx.db
+    const allProjects = await ctx.db
       .query("projects")
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    return projects.map((p) => ({
+    // Map projects to format with projectId for scoping check
+    const scopedProjects = filterScopedList(
+      scope,
+      allProjects.map((p) => ({ ...p, projectId: p._id }))
+    );
+
+    return scopedProjects.map((p) => ({
       _id: p._id,
       value: p._id,
       label: `${p.name} (${p.code})`,
@@ -36,7 +42,7 @@ export const listProjects = query({
 });
 
 /**
- * Get single project by ID.
+ * Get single project by ID with IDOR protection.
  */
 export const getProject = query({
   args: {
@@ -44,10 +50,14 @@ export const getProject = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    return await ctx.db.get(args.id);
+    const project = await ctx.db.get(args.id);
+    if (!project) return null;
+
+    assertDocumentAccess(scope, { projectId: project._id }, project.name);
+
+    return project;
   },
 });
 

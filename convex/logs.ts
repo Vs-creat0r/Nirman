@@ -1,13 +1,14 @@
 /**
- * @fileoverview Audit log query endpoints.
+ * @fileoverview Audit log query endpoints with caller scoping.
  */
 
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser } from "./rbac";
+import { resolveCallerScope, assertDocumentAccess, canAccessDocument } from "./scoping";
 
 /**
  * Retrieves audit history for a specific document with actor details.
+ * Scoped to caller's project/site access.
  */
 export const getDocumentLogs = query({
   args: {
@@ -16,8 +17,25 @@ export const getDocumentLogs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
+
+    // If caller is not admin, verify they have permission to access the parent document
+    if (!scope.isAdmin && args.documentType) {
+      if (
+        args.documentType === "material_request" ||
+        args.documentType === "cost_comparison" ||
+        args.documentType === "purchase_order" ||
+        args.documentType === "delivery_challan" ||
+        args.documentType === "grn"
+      ) {
+        const doc = await ctx.db.get(args.documentId as any);
+        if (doc) {
+          assertDocumentAccess(scope, doc as any);
+        }
+      } else if (args.documentType === "projects") {
+        assertDocumentAccess(scope, { projectId: args.documentId as any });
+      }
+    }
 
     const logs = args.documentType
       ? await ctx.db
@@ -59,13 +77,29 @@ export const getLogsByReference = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     const logs = await ctx.db
       .query("logs")
       .withIndex("by_referenceId", (q) => q.eq("referenceId", args.referenceId))
       .collect();
+
+    // Non-admins: if log has documentId, verify access
+    if (!scope.isAdmin && logs.length > 0) {
+      const firstLog = logs[0];
+      if (
+        firstLog.documentType === "material_request" ||
+        firstLog.documentType === "cost_comparison" ||
+        firstLog.documentType === "purchase_order" ||
+        firstLog.documentType === "delivery_challan" ||
+        firstLog.documentType === "grn"
+      ) {
+        const doc = await ctx.db.get(firstLog.documentId as any);
+        if (doc) {
+          assertDocumentAccess(scope, doc as any, args.referenceId);
+        }
+      }
+    }
 
     const enrichedLogs = await Promise.all(
       logs.map(async (log) => {
@@ -96,8 +130,7 @@ export const listAllLogs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     let allLogs = await ctx.db.query("logs").collect();
 

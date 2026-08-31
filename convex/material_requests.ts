@@ -10,6 +10,7 @@ import { v } from "convex/values";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
 
 /**
  * Generates monotonic reference number: MR-YYYY-NNNN
@@ -387,16 +388,12 @@ export const listMRs = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
-    let mrs = await ctx.db.query("material_request").collect();
+    let allMrs = await ctx.db.query("material_request").collect();
 
-    // Role-based scoping:
-    if (user.role === "site_supervisor") {
-      // Supervisor sees requests created by themselves
-      mrs = mrs.filter((mr) => mr.createdBy === user._id);
-    }
+    // Enforce centralized scoping boundary
+    let mrs = filterScopedList(scope, allMrs);
 
     // Optional status filter
     if (args.status) {
@@ -435,6 +432,7 @@ export const listMRs = query({
 
 /**
  * Get a single Material Request with enriched data and logs.
+ * Enforces IDOR protection via assertDocumentAccess.
  */
 export const getMR = query({
   args: {
@@ -442,11 +440,13 @@ export const getMR = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     const mr = await ctx.db.get(args.id);
     if (!mr) return null;
+
+    // IDOR guard: assert caller has access to this project/site
+    assertDocumentAccess(scope, mr, mr.refNo);
 
     const project = await ctx.db.get(mr.projectId);
     const site = mr.siteId ? await ctx.db.get(mr.siteId) : null;

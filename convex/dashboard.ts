@@ -1,10 +1,11 @@
 /**
  * @fileoverview Dashboard metrics and live pipeline counts for all roles.
+ * Scoped to caller's authorized projects and sites.
  */
 
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser } from "./rbac";
+import { resolveCallerScope, filterScopedList } from "./scoping";
 
 /**
  * Get live metrics and pipeline status for the Procurement Officer dashboard.
@@ -14,8 +15,7 @@ export const getProcurementDashboardMetrics = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     // 1. Material requests ready for CC (exclude MRs that already have an existing active/draft CC)
     const rawMRsReadyForCC = await ctx.db
@@ -23,7 +23,14 @@ export const getProcurementDashboardMetrics = query({
       .withIndex("by_status", (q) => q.eq("status", "ready_for_cc"))
       .collect();
 
-    const allCCs = await ctx.db.query("cost_comparison").collect();
+    const rawAllCCs = await ctx.db.query("cost_comparison").collect();
+    const rawAllPOs = await ctx.db.query("purchase_order").collect();
+
+    // Enforce scoping
+    const allCCs = filterScopedList(scope, rawAllCCs);
+    const allPOs = filterScopedList(scope, rawAllPOs);
+    const scopedMRsReadyForCC = filterScopedList(scope, rawMRsReadyForCC);
+
     const ccsByMR = new Set(
       allCCs
         .filter((cc) => cc.status !== "rejected")
@@ -31,7 +38,7 @@ export const getProcurementDashboardMetrics = query({
         .filter(Boolean)
     );
 
-    const mrsReadyForCC = rawMRsReadyForCC.filter((mr) => !ccsByMR.has(String(mr._id)));
+    const mrsReadyForCC = scopedMRsReadyForCC.filter((mr) => !ccsByMR.has(String(mr._id)));
 
     // Enrich MRs ready for CC
     const enrichedMRsReadyForCC = await Promise.all(
@@ -57,7 +64,6 @@ export const getProcurementDashboardMetrics = query({
     const approvedCCs = allCCs.filter((cc) => cc.status === "approved");
 
     // 3. Purchase Orders
-    const allPOs = await ctx.db.query("purchase_order").collect();
     const draftPOs = allPOs.filter((po) => po.status === "draft");
     const submittedPOs = allPOs.filter((po) => po.status === "submitted");
     const approvedPOs = allPOs.filter((po) => po.status === "approved");
@@ -113,8 +119,8 @@ export const getProcurementDashboardMetrics = query({
     }
 
     // 7. Recent procurement activity logs
-    const allLogs = await ctx.db.query("logs").collect();
-    const procurementLogs = allLogs.filter(
+    const rawLogs = await ctx.db.query("logs").collect();
+    const procurementLogs = rawLogs.filter(
       (l) =>
         l.documentType === "cost_comparison" ||
         l.documentType === "purchase_order" ||

@@ -9,6 +9,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
+import { resolveCallerScope, filterScopedList } from "./scoping";
 
 /**
  * List all vendors. Active vendors first, sorted alphabetically by name.
@@ -41,7 +42,7 @@ export const listVendors = query({
 });
 
 /**
- * List all vendors with aggregated metrics (total PO count, total spend, etc.)
+ * List all vendors with aggregated metrics (scoped by caller's allowed projects).
  */
 export const listVendorsWithStats = query({
   args: {
@@ -50,8 +51,7 @@ export const listVendorsWithStats = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     let vendors = await ctx.db.query("vendors").collect();
 
@@ -66,8 +66,9 @@ export const listVendorsWithStats = query({
     // Sort alphabetically by name
     vendors.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Fetch all POs to aggregate spend
-    const allPOs = await ctx.db.query("purchase_order").collect();
+    // Fetch all POs to aggregate spend (scoped to caller's allowed projects)
+    const rawAllPOs = await ctx.db.query("purchase_order").collect();
+    const allPOs = filterScopedList(scope, rawAllPOs);
 
     return vendors.map((v) => {
       const vendorPOs = allPOs.filter((po) => po.vendorId === v._id);
@@ -93,23 +94,23 @@ export const getVendorDetails = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     const vendor = await ctx.db.get(args.id);
     if (!vendor) return null;
 
-    const pos = await ctx.db
+    const allPos = await ctx.db
       .query("purchase_order")
       .withIndex("by_vendorId", (q) => q.eq("vendorId", args.id))
       .collect();
+
+    // Scope POs to caller's allowed projects/sites to prevent cross-project spend leakage
+    const pos = filterScopedList(scope, allPos);
 
     pos.sort((a, b) => b._creationTime - a._creationTime);
 
     const approvedPOs = pos.filter((po) => po.status === "approved");
     const totalSpend = approvedPOs.reduce((acc, po) => acc + (po.totalAmount || 0), 0);
-
-
 
     return {
       ...vendor,

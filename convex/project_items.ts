@@ -6,9 +6,10 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
+import { resolveCallerScope, filterScopedList } from "./scoping";
 
 /**
- * List BOQ items for a project.
+ * List BOQ items for a project (enforcing caller scoping).
  */
 export const listProjectItems = query({
   args: {
@@ -16,8 +17,7 @@ export const listProjectItems = query({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx, args.token);
-    if (!user) throw new Error("Unauthorized");
+    const scope = await resolveCallerScope(ctx, args.token);
 
     let itemsQuery = ctx.db.query("project_items");
 
@@ -25,7 +25,8 @@ export const listProjectItems = query({
       itemsQuery = itemsQuery.filter((q) => q.eq(q.field("projectId"), args.projectId));
     }
 
-    const items = await itemsQuery.collect();
+    const allItems = await itemsQuery.collect();
+    const items = filterScopedList(scope, allItems);
 
     return items.map((item) => ({
       _id: item._id,
