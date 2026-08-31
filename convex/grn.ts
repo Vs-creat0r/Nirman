@@ -74,6 +74,17 @@ export const confirmDeliveryAndGenerateGRN = mutation({
       throw new Error("Mandatory unloading proof photo is required to confirm delivery receipt.");
     }
 
+    // Verify each storage ID actually exists — rejects phantom or tampered IDs
+    for (const photoId of args.photos) {
+      const meta = await ctx.storage.getMetadata(photoId);
+      if (!meta) {
+        throw new Error(
+          `Photo proof validation failed: storage ID "${photoId}" does not exist. ` +
+            "Upload the photo via generateUploadUrl before confirming delivery."
+        );
+      }
+    }
+
     if (!args.receivedItems || args.receivedItems.length === 0) {
       throw new Error("At least one received line item is required.");
     }

@@ -9,11 +9,12 @@
 
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { adjustCommittedQty } from "./purchase_order_commitments";
-import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess, queryScopedByIndex } from "./scoping";
 
 /**
  * Generates monotonic reference number: PO-YYYY-NNNN
@@ -303,21 +304,26 @@ export const listPOs = query({
   handler: async (ctx, args) => {
     const scope = await resolveCallerScope(ctx, args.token);
 
-    let allPos = await ctx.db.query("purchase_order").collect();
-
-    // Enforce scoping
-    let pos = filterScopedList(scope, allPos);
-
-    if (args.status) {
-      pos = pos.filter((po) => po.status === args.status);
-    }
+    // Indexed range query — no full PO table scan
+    let pos = await queryScopedByIndex<any>(
+      ctx,
+      "purchase_order",
+      scope,
+      {
+        statusFilter: args.status,
+        hasProjectIdStatusIndex: true, // schema has by_projectId_status
+        hasSiteIdStatusIndex: true,    // schema has by_siteId_status
+        hasProjectIdIndex: false,
+        hasSiteIdIndex: false,
+      }
+    );
 
     if (args.projectId) {
-      pos = pos.filter((po) => po.projectId === args.projectId);
+      pos = pos.filter((po) => String(po.projectId) === String(args.projectId));
     }
 
     if (args.vendorId) {
-      pos = pos.filter((po) => po.vendorId === args.vendorId);
+      pos = pos.filter((po) => String(po.vendorId) === String(args.vendorId));
     }
 
     // Sort newest first
@@ -326,22 +332,22 @@ export const listPOs = query({
     // Enrich with Project, Site, Vendor, and MR references
     const enriched = await Promise.all(
       pos.map(async (po) => {
-        const project = await ctx.db.get(po.projectId);
-        const site = po.siteId ? await ctx.db.get(po.siteId) : null;
-        const vendor = await ctx.db.get(po.vendorId);
-        const mr = po.materialRequestId ? await ctx.db.get(po.materialRequestId) : null;
-        const cc = po.costComparisonId ? await ctx.db.get(po.costComparisonId) : null;
-        const creator = (await ctx.db.get(po.createdBy)) as { name?: string } | null;
+        const project = await ctx.db.get(po.projectId as Id<"projects">);
+        const site = po.siteId ? await ctx.db.get(po.siteId as Id<"sites">) : null;
+        const vendor = await ctx.db.get(po.vendorId as Id<"vendors">);
+        const mr = po.materialRequestId ? await ctx.db.get(po.materialRequestId as Id<"material_request">) : null;
+        const cc = po.costComparisonId ? await ctx.db.get(po.costComparisonId as Id<"cost_comparison">) : null;
+        const creator = (await ctx.db.get(po.createdBy as Id<"users">)) as { name?: string } | null;
 
         return {
           ...po,
-          projectName: project?.name || "Unknown Project",
-          projectCode: project?.code || "",
-          siteName: site ? `${site.name} (${site.code})` : "Main Site",
-          vendorName: vendor?.name || "Unknown Vendor",
-          vendorPhone: vendor?.phone || "",
-          materialRequestRefNo: mr?.refNo || "MR",
-          costComparisonRefNo: cc?.refNo || "CC",
+          projectName: (project as any)?.name || "Unknown Project",
+          projectCode: (project as any)?.code || "",
+          siteName: site ? `${(site as any).name} (${(site as any).code})` : "Main Site",
+          vendorName: (vendor as any)?.name || "Unknown Vendor",
+          vendorPhone: (vendor as any)?.phone || "",
+          materialRequestRefNo: (mr as any)?.refNo || "MR",
+          costComparisonRefNo: (cc as any)?.refNo || "CC",
           creatorName: creator?.name || "Unknown User",
           itemCount: po.lineItems.length,
         };

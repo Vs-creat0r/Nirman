@@ -61,7 +61,7 @@ export default function ProcurementCostComparisonsPage() {
       cc.refNo.toLowerCase().includes(q) ||
       cc.materialRequestRefNo.toLowerCase().includes(q) ||
       cc.projectName.toLowerCase().includes(q) ||
-      cc.vendorNames.some((v) => v.toLowerCase().includes(q))
+      cc.vendorNames.some((v: string) => v.toLowerCase().includes(q))
     );
   });
 

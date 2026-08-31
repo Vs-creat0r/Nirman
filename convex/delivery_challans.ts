@@ -15,7 +15,7 @@ import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { Id, Doc } from "./_generated/dataModel";
-import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess, queryScopedByIndex } from "./scoping";
 
 /**
  * Generates monotonic reference number: DC-YYYY-NNNN
@@ -227,43 +227,49 @@ export const listDCs = query({
   handler: async (ctx, args) => {
     const scope = await resolveCallerScope(ctx, args.token);
 
-    let allDcs = await ctx.db.query("delivery_challan").collect();
-
-    // Enforce scoping
-    let dcs = filterScopedList(scope, allDcs);
+    // Indexed range query — no full DC table scan
+    const statusArg = args.status && args.status !== "all" ? args.status : undefined;
+    let dcs = await queryScopedByIndex<any>(
+      ctx,
+      "delivery_challan",
+      scope,
+      {
+        statusFilter: statusArg,
+        hasProjectIdStatusIndex: false,
+        hasSiteIdStatusIndex: true,  // schema has by_siteId_status
+        hasProjectIdIndex: false,
+        hasSiteIdIndex: false,
+      }
+    );
 
     if (args.siteId) {
-      dcs = dcs.filter((d) => d.siteId === args.siteId);
-    }
-
-    if (args.status && args.status !== "all") {
-      dcs = dcs.filter((d) => d.status === args.status);
+      dcs = dcs.filter((d) => String(d.siteId) === String(args.siteId));
     }
 
     // Sort newest first
-    dcs.sort((a, b) => new Date(b._creationTime).getTime() - new Date(a._creationTime).getTime());
+    dcs.sort((a, b) => b._creationTime - a._creationTime);
 
     // Enrich with relations
     const enriched = await Promise.all(
       dcs.map(async (dc) => {
         const [po, vendor, site, creator] = await Promise.all([
-          ctx.db.get(dc.purchaseOrderId),
-          ctx.db.get(dc.vendorId),
-          dc.siteId ? ctx.db.get(dc.siteId) : null,
-          ctx.db.get(dc.createdBy),
+          ctx.db.get(dc.purchaseOrderId as Id<"purchase_order">),
+          ctx.db.get(dc.vendorId as Id<"vendors">),
+          dc.siteId ? ctx.db.get(dc.siteId as Id<"sites">) : null,
+          ctx.db.get(dc.createdBy as Id<"users">),
         ]);
 
         return {
           ...dc,
-          poRefNo: po?.refNo || "Unknown PO",
-          poStatus: po?.status || "unknown",
-          materialRequestId: po?.materialRequestId,
-          vendorName: vendor?.name || "Unknown Vendor",
-          vendorPhone: vendor?.phone,
-          siteName: site?.name || "Unknown Site",
-          createdByName: creator?.name || "Unknown User",
+          poRefNo: (po as any)?.refNo || "Unknown PO",
+          poStatus: (po as any)?.status || "unknown",
+          materialRequestId: (po as any)?.materialRequestId,
+          vendorName: (vendor as any)?.name || "Unknown Vendor",
+          vendorPhone: (vendor as any)?.phone,
+          siteName: (site as any)?.name || "Unknown Site",
+          createdByName: (creator as any)?.name || "Unknown User",
           itemCount: dc.dispatchedItems.length,
-          totalQty: dc.dispatchedItems.reduce((sum, item) => sum + item.dispatchedQty, 0),
+          totalQty: dc.dispatchedItems.reduce((sum: number, item: any) => sum + item.dispatchedQty, 0),
         };
       })
     );

@@ -12,7 +12,7 @@ import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { Id } from "./_generated/dataModel";
-import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess, queryScopedByIndex } from "./scoping";
 
 /**
  * Generates monotonic reference number: CC-YYYY-NNNN
@@ -535,21 +535,26 @@ export const listCCs = query({
   handler: async (ctx, args) => {
     const scope = await resolveCallerScope(ctx, args.token);
 
-    let allCcs = await ctx.db.query("cost_comparison").collect();
-
-    // Enforce scoping
-    let ccs = filterScopedList(scope, allCcs);
-
-    if (args.status) {
-      ccs = ccs.filter((cc) => cc.status === args.status);
-    }
+    // Indexed range query — no full CC table scan
+    let ccs = await queryScopedByIndex<any>(
+      ctx,
+      "cost_comparison",
+      scope,
+      {
+        statusFilter: args.status,
+        hasProjectIdStatusIndex: true, // schema has by_projectId_status
+        hasSiteIdStatusIndex: false,
+        hasProjectIdIndex: false,
+        hasSiteIdIndex: false,
+      }
+    );
 
     if (args.projectId) {
-      ccs = ccs.filter((cc) => cc.projectId === args.projectId);
+      ccs = ccs.filter((cc) => String(cc.projectId) === String(args.projectId));
     }
 
     if (args.materialRequestId) {
-      ccs = ccs.filter((cc) => cc.materialRequestId === args.materialRequestId);
+      ccs = ccs.filter((cc) => String(cc.materialRequestId) === String(args.materialRequestId));
     }
 
     // Sort newest first
@@ -558,33 +563,33 @@ export const listCCs = query({
     // Enrich with Project, MR, and Vendor data
     const enriched = await Promise.all(
       ccs.map(async (cc) => {
-        const project = await ctx.db.get(cc.projectId);
-        const mr = await ctx.db.get(cc.materialRequestId);
-        const creator = (await ctx.db.get(cc.createdBy)) as { name?: string } | null;
+        const project = await ctx.db.get(cc.projectId as Id<"projects">);
+        const mr = await ctx.db.get(cc.materialRequestId as Id<"material_request">);
+        const creator = (await ctx.db.get(cc.createdBy as Id<"users">)) as { name?: string } | null;
 
         // Fetch vendor names for the quotes
         const vendorNames = await Promise.all(
-          cc.vendorQuotes.map(async (q) => {
-            const v = await ctx.db.get(q.vendorId);
-            return v?.name || "Unknown Vendor";
+          cc.vendorQuotes.map(async (q: any) => {
+            const vv = await ctx.db.get(q.vendorId as Id<"vendors">);
+            return (vv as any)?.name || "Unknown Vendor";
           })
         );
 
         let selectedVendorName: string | null = null;
         if (cc.selectedVendorId) {
-          const sv = await ctx.db.get(cc.selectedVendorId);
-          selectedVendorName = sv?.name || null;
+          const sv = await ctx.db.get(cc.selectedVendorId as Id<"vendors">);
+          selectedVendorName = (sv as any)?.name || null;
         }
 
-        const totals = cc.vendorQuotes.map((q) => q.total);
+        const totals = cc.vendorQuotes.map((q: any) => q.total);
         const minTotal = Math.min(...totals);
         const maxTotal = Math.max(...totals);
 
         return {
           ...cc,
-          projectName: project?.name || "Unknown Project",
-          projectCode: project?.code || "",
-          materialRequestRefNo: mr?.refNo || "MR",
+          projectName: (project as any)?.name || "Unknown Project",
+          projectCode: (project as any)?.code || "",
+          materialRequestRefNo: (mr as any)?.refNo || "MR",
           creatorName: creator?.name || "Unknown User",
           quoteCount: cc.vendorQuotes.length,
           vendorNames,

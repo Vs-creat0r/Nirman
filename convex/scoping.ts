@@ -64,13 +64,16 @@ export async function resolveCallerScope(
     const allowedSiteIds = new Set<string>(rawSiteIds);
     const allowedProjectIds = new Set<string>();
 
-    // Resolve parent project IDs for the supervisor's assigned sites
-    if (rawSiteIds.length > 0) {
-      const allSites = await ctx.db.query("sites").collect();
-      for (const site of allSites) {
-        if (allowedSiteIds.has(String(site._id))) {
-          allowedProjectIds.add(String(site.projectId));
+    // Resolve parent project IDs for the supervisor's assigned sites via direct get()
+    // Avoids a full sites table scan on every authenticated request.
+    for (const siteIdStr of rawSiteIds) {
+      try {
+        const site = await ctx.db.get(siteIdStr as any);
+        if (site && (site as any).projectId) {
+          allowedProjectIds.add(String((site as any).projectId));
         }
+      } catch {
+        // Invalid ID format — skip
       }
     }
 
@@ -87,12 +90,15 @@ export async function resolveCallerScope(
   const allowedProjectIds = new Set<string>(rawProjectIds);
   const allowedSiteIds = new Set<string>(rawSiteIds);
 
-  if (rawProjectIds.length > 0) {
-    const allSites = await ctx.db.query("sites").collect();
-    for (const site of allSites) {
-      if (allowedProjectIds.has(String(site.projectId))) {
-        allowedSiteIds.add(String(site._id));
-      }
+  // Resolve all sites under allowed projects using the by_projectId index.
+  // Avoids a full sites table scan on every authenticated request.
+  for (const projectId of rawProjectIds) {
+    const projectSites = await ctx.db
+      .query("sites")
+      .withIndex("by_projectId", (q) => q.eq("projectId", projectId as any))
+      .collect();
+    for (const site of projectSites) {
+      allowedSiteIds.add(String(site._id));
     }
   }
 
@@ -155,7 +161,8 @@ export function assertDocumentAccess(
 
 /**
  * In-memory filter for collections enforcing caller scoping on every row.
- * (Note: S1-10 will supplement with indexed compound queries for large datasets).
+ * Use queryScopedByIndex instead for large tables — this is a fallback for
+ * small tables (sites, projects, vendors) or tables without compound indexes.
  */
 export function filterScopedList<T extends { projectId?: any; siteId?: any }>(
   scope: UserScope,
@@ -163,4 +170,128 @@ export function filterScopedList<T extends { projectId?: any; siteId?: any }>(
 ): T[] {
   if (scope.isAdmin) return items;
   return items.filter((item) => canAccessDocument(scope, item));
+}
+
+/**
+ * Index-backed scoped query — replaces collect() → filterScopedList() for large tables.
+ *
+ * For admins: runs a single unconstrained collect (or status-filtered index query).
+ * For site supervisors: runs one by_siteId_status or by_siteId query per allowed site, merges.
+ * For PM / procurement officer: runs one by_projectId_status or by_projectId query per
+ *   allowed project, merges.
+ *
+ * Eliminates full-table scans for the primary list queries used on every dashboard page.
+ *
+ * @param ctx   - Query or mutation context
+ * @param table - The Convex table name (must have by_projectId and/or by_siteId indexes)
+ * @param scope - Resolved caller scope from resolveCallerScope()
+ * @param opts  - Optional status filter applied at the index level where supported
+ */
+export async function queryScopedByIndex<
+  T extends { projectId?: any; siteId?: any; status?: any; _creationTime: number }
+>(
+  ctx: QueryCtx | MutationCtx,
+  table: string,
+  scope: UserScope,
+  opts: {
+    statusFilter?: string;
+    hasProjectIdStatusIndex?: boolean; // true if table has by_projectId_status index
+    hasSiteIdStatusIndex?: boolean;    // true if table has by_siteId_status index
+    hasProjectIdIndex?: boolean;       // true if table has by_projectId index
+    hasSiteIdIndex?: boolean;          // true if table has by_siteId index
+  } = {}
+): Promise<T[]> {
+  const {
+    statusFilter,
+    hasProjectIdStatusIndex = false,
+    hasSiteIdStatusIndex = false,
+    hasProjectIdIndex = false,
+    hasSiteIdIndex = false,
+  } = opts;
+
+  const db = ctx.db as any; // Convex typed db — cast needed for dynamic table name
+
+  // Admin: single query — no scoping overhead
+  if (scope.isAdmin) {
+    if (statusFilter && (hasProjectIdStatusIndex || hasSiteIdStatusIndex)) {
+      return await db
+        .query(table)
+        .withIndex("by_status", (q: any) => q.eq("status", statusFilter))
+        .collect();
+    }
+    return await db.query(table).collect();
+  }
+
+  const seen = new Set<string>();
+  const results: T[] = [];
+
+  function addUnique(items: T[]) {
+    for (const item of items) {
+      const id = String(item._creationTime) + JSON.stringify({ p: item.projectId, s: item.siteId });
+      // Use _id if available, otherwise fallback to composite key
+      const key = (item as any)._id ? String((item as any)._id) : id;
+      if (!seen.has(key)) {
+        seen.add(key);
+        results.push(item);
+      }
+    }
+  }
+
+  // Site supervisor: query by siteId for each allowed site
+  if (scope.isSiteScoped) {
+    for (const siteId of scope.allowedSiteIds) {
+      let rows: T[];
+      if (statusFilter && hasSiteIdStatusIndex) {
+        rows = await db
+          .query(table)
+          .withIndex("by_siteId_status", (q: any) =>
+            q.eq("siteId", siteId).eq("status", statusFilter)
+          )
+          .collect();
+      } else if (hasSiteIdIndex) {
+        rows = await db
+          .query(table)
+          .withIndex("by_siteId", (q: any) => q.eq("siteId", siteId))
+          .collect();
+      } else {
+        // Fallback: filter full collect (table has no siteId index)
+        rows = (await db.query(table).collect()).filter(
+          (r: any) => r.siteId && String(r.siteId) === siteId
+        );
+      }
+      if (statusFilter && !hasSiteIdStatusIndex) {
+        rows = rows.filter((r) => r.status === statusFilter);
+      }
+      addUnique(rows);
+    }
+    return results;
+  }
+
+  // PM / Procurement Officer: query by projectId for each allowed project
+  for (const projectId of scope.allowedProjectIds) {
+    let rows: T[];
+    if (statusFilter && hasProjectIdStatusIndex) {
+      rows = await db
+        .query(table)
+        .withIndex("by_projectId_status", (q: any) =>
+          q.eq("projectId", projectId).eq("status", statusFilter)
+        )
+        .collect();
+    } else if (hasProjectIdIndex) {
+      rows = await db
+        .query(table)
+        .withIndex("by_projectId", (q: any) => q.eq("projectId", projectId))
+        .collect();
+    } else {
+      rows = (await db.query(table).collect()).filter(
+        (r: any) => r.projectId && String(r.projectId) === projectId
+      );
+    }
+    if (statusFilter && !hasProjectIdStatusIndex) {
+      rows = rows.filter((r) => r.status === statusFilter);
+    }
+    addUnique(rows);
+  }
+
+  return results;
 }

@@ -7,10 +7,11 @@
 
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
-import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess, queryScopedByIndex } from "./scoping";
 
 /**
  * Generates monotonic reference number: MR-YYYY-NNNN
@@ -403,19 +404,23 @@ export const listMRs = query({
   handler: async (ctx, args) => {
     const scope = await resolveCallerScope(ctx, args.token);
 
-    let allMrs = await ctx.db.query("material_request").collect();
+    // Use indexed range queries per allowed project/site — no full table scan
+    let mrs = await queryScopedByIndex<any>(
+      ctx,
+      "material_request",
+      scope,
+      {
+        statusFilter: args.status,
+        hasProjectIdStatusIndex: false, // schema has by_projectId (no status compound)
+        hasSiteIdStatusIndex: true,     // schema has by_siteId_status
+        hasProjectIdIndex: true,        // schema has by_projectId
+        hasSiteIdIndex: false,          // no bare by_siteId
+      }
+    );
 
-    // Enforce centralized scoping boundary
-    let mrs = filterScopedList(scope, allMrs);
-
-    // Optional status filter
-    if (args.status) {
-      mrs = mrs.filter((mr) => mr.status === args.status);
-    }
-
-    // Optional project filter
+    // Optional project filter for PM/admin drill-down
     if (args.projectId) {
-      mrs = mrs.filter((mr) => mr.projectId === args.projectId);
+      mrs = mrs.filter((mr) => String(mr.projectId) === String(args.projectId));
     }
 
     // Sort newest first
@@ -424,15 +429,15 @@ export const listMRs = query({
     // Enrich with Project, Site, and User details
     const enriched = await Promise.all(
       mrs.map(async (mr) => {
-        const project = await ctx.db.get(mr.projectId);
-        const site = mr.siteId ? await ctx.db.get(mr.siteId) : null;
-        const creator = (await ctx.db.get(mr.createdBy)) as { name?: string } | null;
+        const project = await ctx.db.get(mr.projectId as Id<"projects">);
+        const site = mr.siteId ? await ctx.db.get(mr.siteId as Id<"sites">) : null;
+        const creator = (await ctx.db.get(mr.createdBy as Id<"users">)) as { name?: string } | null;
 
         return {
           ...mr,
-          projectName: project?.name || "Unknown Project",
-          projectCode: project?.code || "",
-          siteName: site ? `${site.name} (${site.code})` : "Main / Primary Site",
+          projectName: (project as any)?.name || "Unknown Project",
+          projectCode: (project as any)?.code || "",
+          siteName: site ? `${(site as any).name} (${(site as any).code})` : "Main / Primary Site",
           creatorName: creator?.name || "Unknown User",
           itemCount: mr.items.length,
         };
