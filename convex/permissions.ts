@@ -26,6 +26,11 @@ export const PERMISSIONS = {
   "material_requests:delete": ["site_supervisor", "project_manager", "admin"],
   "material_requests:add_note": ["site_supervisor", "project_manager", "procurement_officer", "admin"],
   "material_requests:process_delivery": ["site_supervisor", "procurement_officer", "admin"],
+  "material_requests:review_on_cc": ["procurement_officer", "project_manager", "admin"],
+  "material_requests:advance_on_cc_approval": ["project_manager", "admin"],
+  "material_requests:reset_on_cc_reject": ["project_manager", "admin"],
+  "material_requests:advance_on_dc": ["procurement_officer", "project_manager", "admin"],
+  "material_requests:close_on_receipt": ["site_supervisor", "procurement_officer", "admin"],
 
   // Cost Comparisons
   "cost_comparisons:create": ["procurement_officer", "project_manager", "admin"],

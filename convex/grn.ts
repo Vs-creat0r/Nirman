@@ -142,24 +142,14 @@ export const confirmDeliveryAndGenerateGRN = mutation({
     });
 
     // 6. Transition Delivery Challan status to `delivered`
-    await ctx.db.patch(dc._id, {
-      status: "delivered",
-      updatedBy: user._id,
-      updatedAt: now,
-    });
-
-    // Log DC delivered
-    await ctx.db.insert("logs", {
-      actorId: user._id,
-      actorRole: user.role,
-      action: "dc_confirmed_delivered",
-      documentType: "delivery_challan",
+    await transition(ctx, {
+      table: "delivery_challan",
       documentId: dc._id,
-      referenceId: dc.refNo,
-      fromStatus: dc.status,
-      toStatus: "delivered",
+      from: "delivery_processing",
+      to: "delivered",
+      action: "delivery_challans:deliver",
+      token: args.token,
       note: `Delivery confirmed on site by ${user.name}. GRN ${grnRefNo} auto-generated.`,
-      timestamp: now,
     });
 
     // Log GRN generated
@@ -257,23 +247,14 @@ export const confirmDeliveryAndGenerateGRN = mutation({
     // 10. If all ordered items are fully received, close the procurement loop! [FIX-I4]
     if (isPOFullyDelivered) {
       if (po.materialRequestId && mr && mr.status !== "delivered") {
-        await ctx.db.patch(mr._id, {
-          status: "delivered",
-          updatedBy: user._id,
-          updatedAt: now,
-        });
-
-        await ctx.db.insert("logs", {
-          actorId: user._id,
-          actorRole: user.role,
-          action: "mr_closed_delivered",
-          documentType: "material_request",
+        await transition(ctx, {
+          table: "material_request",
           documentId: mr._id,
-          referenceId: mr.refNo,
-          fromStatus: mr.status,
-          toStatus: "delivered",
+          from: ["delivery_processing", "pending_po"],
+          to: "delivered",
+          action: "material_requests:close_on_receipt",
+          token: args.token,
           note: `Procurement complete. All ${totalCumulativeReceivedQty}/${totalOrderedQty} items received on site across ${allPO_GRNs.length} GRN(s) (final GRN ${grnRefNo}).`,
-          timestamp: now,
         });
       }
 

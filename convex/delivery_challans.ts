@@ -194,23 +194,14 @@ export const createDC = mutation({
     if (po.materialRequestId) {
       const mr = await ctx.db.get(po.materialRequestId);
       if (mr && mr.status !== "delivery_processing" && mr.status !== "delivered") {
-        await ctx.db.patch(mr._id, {
-          status: "delivery_processing",
-          updatedBy: user._id,
-          updatedAt: now,
-        });
-
-        await ctx.db.insert("logs", {
-          actorId: user._id,
-          actorRole: user.role,
-          action: "mr_out_for_delivery",
-          documentType: "material_request",
+        await transition(ctx, {
+          table: "material_request",
           documentId: mr._id,
-          referenceId: mr.refNo,
-          fromStatus: mr.status,
-          toStatus: "delivery_processing",
+          from: ["pending_po", "ready_for_po"],
+          to: "delivery_processing",
+          action: "material_requests:advance_on_dc",
+          token: args.token,
           note: `Shipment dispatched under DC ${refNo}. Out for site delivery.`,
-          timestamp: now,
         });
       }
     }

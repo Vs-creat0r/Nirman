@@ -212,23 +212,14 @@ export const createCC = mutation({
 
     // If submitted immediately, update parent MR status to review_cc
     if (initialStatus === "submitted" && (mr.status === "ready_for_cc" || mr.status === "draft")) {
-      await ctx.db.patch(mr._id, {
-        status: "review_cc",
-        updatedBy: user._id,
-        updatedAt: now,
-      });
-
-      await ctx.db.insert("logs", {
-        actorId: user._id,
-        actorRole: user.role,
-        action: "cc_submitted_for_mr",
-        documentType: "material_request",
+      await transition(ctx, {
+        table: "material_request",
         documentId: mr._id,
-        referenceId: mr.refNo,
-        fromStatus: mr.status,
-        toStatus: "review_cc",
+        from: ["ready_for_cc", "draft"],
+        to: "review_cc",
+        action: "material_requests:review_on_cc",
+        token: args.token,
         note: `Cost Comparison ${refNo} submitted for review`,
-        timestamp: now,
       });
     }
 
@@ -270,23 +261,14 @@ export const submitCC = mutation({
     // Transition parent MR to review_cc
     const mr = await ctx.db.get(cc.materialRequestId);
     if (mr && (mr.status === "ready_for_cc" || mr.status === "draft")) {
-      await ctx.db.patch(mr._id, {
-        status: "review_cc",
-        updatedBy: user._id,
-        updatedAt: new Date().toISOString(),
-      });
-
-      await ctx.db.insert("logs", {
-        actorId: user._id,
-        actorRole: user.role,
-        action: "cc_submitted_for_mr",
-        documentType: "material_request",
+      await transition(ctx, {
+        table: "material_request",
         documentId: mr._id,
-        referenceId: mr.refNo,
-        fromStatus: mr.status,
-        toStatus: "review_cc",
+        from: ["ready_for_cc", "draft"],
+        to: "review_cc",
+        action: "material_requests:review_on_cc",
+        token: args.token,
         note: `Cost Comparison ${cc.refNo} submitted for review`,
-        timestamp: new Date().toISOString(),
       });
     }
 
@@ -355,23 +337,14 @@ export const approveCC = mutation({
     // Advance parent MR to ready_for_po
     const mr = await ctx.db.get(cc.materialRequestId);
     if (mr) {
-      await ctx.db.patch(mr._id, {
-        status: "ready_for_po",
-        updatedBy: user._id,
-        updatedAt: now,
-      });
-
-      await ctx.db.insert("logs", {
-        actorId: user._id,
-        actorRole: user.role,
-        action: "cc_approved_mr_ready_for_po",
-        documentType: "material_request",
+      await transition(ctx, {
+        table: "material_request",
         documentId: mr._id,
-        referenceId: mr.refNo,
-        fromStatus: mr.status,
-        toStatus: "ready_for_po",
+        from: "review_cc",
+        to: "ready_for_po",
+        action: "material_requests:advance_on_cc_approval",
+        token: args.token,
         note: `Cost Comparison ${cc.refNo} approved with winning vendor ${vendorName}. Ready for Purchase Order.`,
-        timestamp: now,
       });
     }
 
@@ -422,23 +395,14 @@ export const rejectCC = mutation({
     if (cc.materialRequestId) {
       const mr = await ctx.db.get(cc.materialRequestId);
       if (mr && mr.status === "review_cc") {
-        await ctx.db.patch(mr._id, {
-          status: "ready_for_cc",
-          updatedBy: user._id,
-          updatedAt: now,
-        });
-
-        await ctx.db.insert("logs", {
-          actorId: user._id,
-          actorRole: user.role,
-          action: "cc_rejected_mr_reset",
-          documentType: "material_request",
+        await transition(ctx, {
+          table: "material_request",
           documentId: mr._id,
-          referenceId: mr.refNo,
-          fromStatus: "review_cc",
-          toStatus: "ready_for_cc",
+          from: "review_cc",
+          to: "ready_for_cc",
+          action: "material_requests:reset_on_cc_reject",
+          token: args.token,
           note: `Cost comparison ${cc.refNo} was rejected by ${user.name}. Material Request returned to ready_for_cc for revision. Reason: ${args.note.trim()}`,
-          timestamp: now,
         });
       }
     }
@@ -542,25 +506,15 @@ export const resubmitCC = mutation({
     });
 
     // Transition parent MR to review_cc
-    if (mr && (mr.status === "ready_for_cc" || mr.status === "draft" || mr.status === "review_cc")) {
-      const now = new Date().toISOString();
-      await ctx.db.patch(mr._id, {
-        status: "review_cc",
-        updatedBy: user._id,
-        updatedAt: now,
-      });
-
-      await ctx.db.insert("logs", {
-        actorId: user._id,
-        actorRole: user.role,
-        action: "cc_submitted_for_mr",
-        documentType: "material_request",
+    if (mr && (mr.status === "ready_for_cc" || mr.status === "review_cc")) {
+      await transition(ctx, {
+        table: "material_request",
         documentId: mr._id,
-        referenceId: mr.refNo,
-        fromStatus: mr.status,
-        toStatus: "review_cc",
+        from: ["ready_for_cc", "review_cc"],
+        to: "review_cc",
+        action: "material_requests:review_on_cc",
+        token: args.token,
         note: `Cost Comparison ${cc.refNo} submitted for manager review`,
-        timestamp: now,
       });
     }
 
