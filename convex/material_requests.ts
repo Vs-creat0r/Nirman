@@ -70,6 +70,13 @@ export const createMR = mutation({
       args.token
     );
 
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(
+      scope,
+      { projectId: args.projectId, siteId: args.siteId },
+      "New Material Request"
+    );
+
     if (args.items.length === 0) {
       throw new Error("A material request must have at least one line item.");
     }
@@ -302,6 +309,9 @@ export const resubmitMR = mutation({
     const mr = await ctx.db.get(args.id);
     if (!mr) throw new Error("Material Request not found.");
 
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, mr, mr.refNo);
+
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
@@ -332,6 +342,9 @@ export const deleteMR = mutation({
 
     const mr = await ctx.db.get(args.id);
     if (!mr) throw new Error("Material Request not found.");
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, mr, mr.refNo);
 
     if (mr.status !== "draft") {
       throw new Error(

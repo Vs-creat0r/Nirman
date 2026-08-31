@@ -84,6 +84,9 @@ export const confirmDeliveryAndGenerateGRN = mutation({
       throw new Error("Delivery Challan not found.");
     }
 
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, dc, dc.refNo);
+
     if (dc.status === "delivered") {
       throw new Error(`Delivery Challan ${dc.refNo} has already been marked as delivered.`);
     }

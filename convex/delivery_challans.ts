@@ -78,6 +78,9 @@ export const createDC = mutation({
       throw new Error("Purchase order not found.");
     }
 
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, po, po.refNo);
+
     if (po.status !== "approved") {
       throw new Error(
         `Cannot dispatch delivery for unapproved PO. Current PO status is "${po.status}".`
@@ -580,6 +583,9 @@ export const cancelDC = mutation({
 
     const dc = await ctx.db.get(args.id);
     if (!dc) throw new Error("Delivery Challan not found.");
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, dc, dc.refNo);
 
     if (dc.status === "delivered") {
       throw new Error("Cannot cancel an already delivered challan.");

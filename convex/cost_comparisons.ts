@@ -174,6 +174,9 @@ export const createCC = mutation({
       throw new Error("Material Request not found.");
     }
 
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, mr, mr.refNo);
+
     // Process & calculate quotes server-side with MR items for projectItemId resolution
     const processedQuotes = processVendorQuotes(args.vendorQuotes, mr.items);
 
@@ -520,6 +523,9 @@ export const resubmitCC = mutation({
     const cc = await ctx.db.get(args.id);
     if (!cc) throw new Error("Cost comparison not found.");
 
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, cc, cc.refNo);
+
     const mr = cc.materialRequestId ? await ctx.db.get(cc.materialRequestId) : null;
     const processedQuotes = processVendorQuotes(args.vendorQuotes, mr?.items);
 
@@ -824,6 +830,9 @@ export const deleteCC = mutation({
 
     const cc = await ctx.db.get(args.id);
     if (!cc) throw new Error("Cost Comparison not found.");
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, cc, cc.refNo);
     if (cc.status !== "draft") {
       throw new Error(
         `Only draft Cost Comparisons can be deleted. Current status: ${cc.status}`

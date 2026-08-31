@@ -6,7 +6,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
-import { resolveCallerScope, filterScopedList } from "./scoping";
+import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
 
 /**
  * List BOQ items for a project (enforcing caller scoping).
@@ -94,6 +94,9 @@ export const createProjectItem = mutation({
       "project_items:create",
       args.token
     );
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, { projectId: args.projectId }, "Project Item");
 
     const now = new Date().toISOString();
     const id = await ctx.db.insert("project_items", {

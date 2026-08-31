@@ -6,14 +6,16 @@
  *
  * Automatically:
  * 1. Enforces RBAC permissions via requirePermission()
- * 2. Validates the expected source status (`from` guard)
- * 3. Updates document status + timestamps + audit metadata
- * 4. Appends an immutable audit log entry to the `logs` table
+ * 2. Enforces data scoping boundaries via assertDocumentAccess()
+ * 3. Validates the expected source status (`from` guard)
+ * 4. Updates document status + timestamps + audit metadata
+ * 5. Appends an immutable audit log entry to the `logs` table
  */
 
 import { MutationCtx } from "./_generated/server";
 import { Id, TableNames } from "./_generated/dataModel";
 import { requirePermission, ActionName, UserRole } from "./permissions";
+import { resolveCallerScope, assertDocumentAccess } from "./scoping";
 
 export type TransitionDocumentType =
   | "material_request"
@@ -64,7 +66,20 @@ export async function transition<T extends TableNames>(
     throw new Error(`Document ${documentId} not found in table "${table}".`);
   }
 
-  // 3. Verify status guard
+  // 3. Enforce document-level data scoping & IDOR prevention
+  const scopedTables: TableNames[] = [
+    "material_request",
+    "cost_comparison",
+    "purchase_order",
+    "delivery_challan",
+    "grn",
+  ];
+  if (scopedTables.includes(table)) {
+    const scope = await resolveCallerScope(ctx, token);
+    assertDocumentAccess(scope, doc, doc.refNo || (documentId as string));
+  }
+
+  // 4. Verify status guard
   const currentStatus = doc.status;
   if (from !== undefined) {
     const expected = Array.isArray(from) ? from : [from];
@@ -79,7 +94,7 @@ export async function transition<T extends TableNames>(
 
   const now = new Date().toISOString();
 
-  // 4. Update document payload
+  // 5. Update document payload
   const updateData: Record<string, unknown> = {
     ...patch,
     status: to,
@@ -90,7 +105,7 @@ export async function transition<T extends TableNames>(
   // Apply update to document
   await ctx.db.patch(documentId, updateData as any);
 
-  // 5. Append immutable row to logs table
+  // 6. Append immutable row to logs table
   const refNo = doc.refNo || (documentId as string);
 
   await ctx.db.insert("logs", {

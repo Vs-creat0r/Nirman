@@ -10,6 +10,7 @@ import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requirePermission } from "./permissions";
 import { transition } from "./transition";
+import { resolveCallerScope, assertDocumentAccess } from "./scoping";
 
 /**
  * Cancel or Short-Close an active Purchase Order [FIX-I5, FIX-I7, D2].
@@ -35,6 +36,9 @@ export const cancelPO = mutation({
 
     const po = await ctx.db.get(args.id);
     if (!po) throw new Error("Purchase Order not found.");
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, po, po.refNo);
 
     if (po.status !== "submitted" && po.status !== "approved") {
       throw new Error(
@@ -168,6 +172,9 @@ export const deletePO = mutation({
 
     const po = await ctx.db.get(args.id);
     if (!po) throw new Error("Purchase Order not found.");
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, po, po.refNo);
 
     if (po.status !== "draft" && po.status !== "queried") {
       throw new Error(

@@ -68,6 +68,9 @@ export const createPOFromCC = mutation({
 
     const cc = await ctx.db.get(args.costComparisonId);
     if (!cc) throw new Error("Cost comparison not found.");
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, cc, cc.refNo);
     if (cc.status !== "approved") {
       throw new Error("Cost comparison must be approved by the Project Manager before generating a Purchase Order.");
     }

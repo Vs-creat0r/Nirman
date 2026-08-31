@@ -20,20 +20,33 @@ export const getDocumentLogs = query({
     const scope = await resolveCallerScope(ctx, args.token);
 
     // If caller is not admin, verify they have permission to access the parent document
-    if (!scope.isAdmin && args.documentType) {
-      if (
-        args.documentType === "material_request" ||
-        args.documentType === "cost_comparison" ||
-        args.documentType === "purchase_order" ||
-        args.documentType === "delivery_challan" ||
-        args.documentType === "grn"
-      ) {
-        const doc = await ctx.db.get(args.documentId as any);
-        if (doc) {
-          assertDocumentAccess(scope, doc as any);
+    if (!scope.isAdmin) {
+      let docType = args.documentType;
+      if (!docType) {
+        const firstLog = await ctx.db
+          .query("logs")
+          .filter((q) => q.eq(q.field("documentId"), args.documentId))
+          .first();
+        if (firstLog) {
+          docType = firstLog.documentType;
         }
-      } else if (args.documentType === "projects") {
-        assertDocumentAccess(scope, { projectId: args.documentId as any });
+      }
+
+      if (docType) {
+        if (
+          docType === "material_request" ||
+          docType === "cost_comparison" ||
+          docType === "purchase_order" ||
+          docType === "delivery_challan" ||
+          docType === "grn"
+        ) {
+          const doc = await ctx.db.get(args.documentId as any);
+          if (doc) {
+            assertDocumentAccess(scope, doc as any);
+          }
+        } else if (docType === "projects") {
+          assertDocumentAccess(scope, { projectId: args.documentId as any });
+        }
       }
     }
 

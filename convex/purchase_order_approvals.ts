@@ -13,6 +13,7 @@ import { v } from "convex/values";
 import { requirePermission } from "./permissions";
 import { transition } from "./transition";
 import { adjustCommittedQty } from "./purchase_order_commitments";
+import { resolveCallerScope, assertDocumentAccess } from "./scoping";
 
 /**
  * Manager approves Purchase Order → moves to approved (MR moves to pending_po).
@@ -32,6 +33,9 @@ export const approvePO = mutation({
 
     const po = await ctx.db.get(args.id);
     if (!po) throw new Error("Purchase Order not found.");
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, po, po.refNo);
 
     const now = new Date().toISOString();
     const res = await transition(ctx, {
@@ -94,6 +98,9 @@ export const rejectPO = mutation({
     const po = await ctx.db.get(args.id);
     if (!po) throw new Error("Purchase Order not found.");
 
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, po, po.refNo);
+
     const res = await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
@@ -148,6 +155,12 @@ export const queryPO = mutation({
     if (!args.note.trim()) {
       throw new Error("A query clarification note is required.");
     }
+
+    const po = await ctx.db.get(args.id);
+    if (!po) throw new Error("Purchase Order not found.");
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, po, po.refNo);
 
     const now = new Date().toISOString();
     return await transition(ctx, {
@@ -223,6 +236,12 @@ export const resubmitPO = mutation({
       args.token
     );
 
+    const po = await ctx.db.get(args.id);
+    if (!po) throw new Error("Purchase Order not found.");
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, po, po.refNo);
+
     // Validate unquoted additions have reason [FIX-B1]
     for (const item of args.lineItems) {
       if (item.isUnquotedAddition && !item.additionReason?.trim()) {
@@ -256,9 +275,6 @@ export const resubmitPO = mutation({
     const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
     const freight = Math.max(0, Number(args.freight) || 0);
     const totalAmount = Math.round((subtotal + taxAmount + freight) * 100) / 100;
-
-    const po = await ctx.db.get(args.id);
-    if (!po) throw new Error("Purchase Order not found.");
 
     const isDraft = po.status === "draft";
     const targetStatus = isDraft && !args.submitImmediately ? "draft" : "submitted";
