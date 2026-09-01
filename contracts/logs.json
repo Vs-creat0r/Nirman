@@ -57,7 +57,9 @@
           "grn",
           "vendors",
           "users",
-          "projects"
+          "projects",
+          "stock_movements",
+          "inventory"
         ]
       }
     },

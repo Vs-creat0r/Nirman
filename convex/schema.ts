@@ -113,22 +113,26 @@ export default defineSchema({
     .index("by_siteId", ["siteId"])
     .index("by_deliveredAt", ["deliveredAt"]),
 
-  // Inventory — Stock levels on site and in the office warehouse. DEFERRED TO SPRINT 2.
+  // Inventory — Stock balance cache per site and item. Derived strictly from stock_movements; never edited directly.
   inventory: defineTable({
     itemName: v.string(),
     category: v.optional(v.string()),
     quantity: v.number(),
     unit: v.string(),
     siteId: v.optional(v.id("sites")),
+    projectId: v.optional(v.id("projects")),
     location: v.optional(v.string()),
     reorderLevel: v.optional(v.number()),
+    lastMovementId: v.optional(v.id("stock_movements")),
     lastUpdated: v.optional(v.string()),
     createdBy: v.id("users"),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.string()),
   })
-    .index("by_itemName", ["itemName"])
+    .index("by_siteId_itemName", ["siteId", "itemName"])
+    .index("by_projectId", ["projectId"])
     .index("by_siteId", ["siteId"])
+    .index("by_itemName", ["itemName"])
     .index("by_category", ["category"]),
 
   // Audit Log — One row per state transition. Written exclusively by the transition() helper; never edited or deleted.
@@ -136,7 +140,7 @@ export default defineSchema({
     actorId: v.id("users"),
     actorRole: v.union(v.literal("admin"), v.literal("project_manager"), v.literal("procurement_officer"), v.literal("site_supervisor")),
     action: v.string(),
-    documentType: v.union(v.literal("material_request"), v.literal("rfq"), v.literal("cost_comparison"), v.literal("purchase_order"), v.literal("delivery_challan"), v.literal("grn"), v.literal("vendors"), v.literal("users"), v.literal("projects")),
+    documentType: v.union(v.literal("material_request"), v.literal("rfq"), v.literal("cost_comparison"), v.literal("purchase_order"), v.literal("delivery_challan"), v.literal("grn"), v.literal("vendors"), v.literal("users"), v.literal("projects"), v.literal("stock_movements"), v.literal("inventory")),
     documentId: v.string(),
     referenceId: v.string(),
     fromStatus: v.optional(v.string()),
@@ -333,6 +337,33 @@ export default defineSchema({
     .index("by_projectId", ["projectId"])
     .index("by_projectId_code", ["projectId", "code"])
     .index("by_projectId_isActive", ["projectId", "isActive"]),
+
+  // Stock Movement — Immutable append-only ledger for all physical inventory movements. Every quantity change without exception goes through postMovement().
+  stock_movements: defineTable({
+    siteId: v.id("sites"),
+    projectId: v.id("projects"),
+    projectItemId: v.optional(v.id("project_items")),
+    itemName: v.string(),
+    category: v.string(),
+    unit: v.string(),
+    movementType: v.union(v.literal("receipt"), v.literal("issue"), v.literal("transfer_out"), v.literal("transfer_in"), v.literal("return"), v.literal("wastage"), v.literal("adjustment"), v.literal("reversal")),
+    quantity: v.number(),
+    adjustmentDirection: v.optional(v.union(v.literal("add"), v.literal("subtract"))),
+    sourceType: v.union(v.literal("grn"), v.literal("manual"), v.literal("transfer"), v.literal("backfill")),
+    sourceId: v.optional(v.string()),
+    sourceLineIndex: v.optional(v.number()),
+    counterpartySiteId: v.optional(v.id("sites")),
+    purpose: v.optional(v.string()),
+    reversalOfId: v.optional(v.id("stock_movements")),
+    isNegativeStock: v.boolean(),
+    balanceAfter: v.number(),
+    createdBy: v.id("users"),
+  })
+    .index("by_siteId_itemName", ["siteId", "itemName"])
+    .index("by_siteId_movementType", ["siteId", "movementType"])
+    .index("by_projectId", ["projectId"])
+    .index("by_sourceId", ["sourceId"])
+    .index("by_projectItemId", ["projectItemId"]),
 
   // Terms & Conditions Template — Admin-managed procurement terms templates.
   tc_templates: defineTable({

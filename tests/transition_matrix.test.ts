@@ -83,6 +83,90 @@ describe("🔴 GATE 3 — Zero Status Writes Outside transition.ts", () => {
   });
 });
 
+/**
+ * Multi-line scanner that inspects every `db.patch` and direct `db.insert` call
+ * in convex files and returns any violations where `inventory.quantity` or `stock_movements`
+ * are modified outside `movements.ts`.
+ */
+function findDirectQuantityWrites(filePath: string): Array<{ line: number; snippet: string }> {
+  const content = fs.readFileSync(filePath, "utf-8");
+  const lines = content.split("\n");
+  const violations: Array<{ line: number; snippet: string }> = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Check direct insert into stock_movements or inventory
+    if (
+      line.includes('db.insert("stock_movements"') ||
+      line.includes("db.insert('stock_movements')") ||
+      line.includes('db.insert("inventory"') ||
+      line.includes("db.insert('inventory')")
+    ) {
+      violations.push({
+        line: i + 1,
+        snippet: line.trim(),
+      });
+      continue;
+    }
+
+    if (line.includes("db.patch(")) {
+      let patchBody = "";
+      let j = i;
+      while (j < lines.length && j < i + 15) {
+        patchBody += lines[j] + "\n";
+        if (lines[j].includes("});") || lines[j].includes("})")) {
+          break;
+        }
+        j++;
+      }
+
+      // Check if `quantity:` is modified in this patch payload
+      if (/\bquantity\s*:/i.test(patchBody)) {
+        violations.push({
+          line: i + 1,
+          snippet: lines.slice(i, i + 3).map((l) => l.trim()).join(" "),
+        });
+      }
+    }
+  }
+
+  return violations;
+}
+
+describe("🔴 GATE 1 — Zero Quantity Writes Outside movements.ts", () => {
+  const allConvexFiles = fs
+    .readdirSync(CONVEX_DIR)
+    .filter((f) => f.endsWith(".ts") && !f.endsWith(".d.ts"))
+    .filter((f) => f !== "movements.ts" && f !== "seed.ts");
+
+  it("statically proves that no convex module modifies physical inventory quantity or stock_movements outside movements.ts", () => {
+    const allViolations: Array<{ file: string; line: number; snippet: string }> = [];
+
+    for (const file of allConvexFiles) {
+      const fullPath = path.join(CONVEX_DIR, file);
+      const violations = findDirectQuantityWrites(fullPath);
+      for (const v of violations) {
+        allViolations.push({
+          file: `convex/${file}`,
+          line: v.line,
+          snippet: v.snippet,
+        });
+      }
+    }
+
+    if (allViolations.length > 0) {
+      const formatted = allViolations
+        .map((v) => `  - ${v.file}:${v.line} → ${v.snippet}`)
+        .join("\n");
+      expect.fail(
+        `🔴 GATE 1 VIOLATION: Found ${allViolations.length} direct quantity/movement writes outside movements.ts:\n${formatted}\n\nAll physical stock quantity changes MUST route through postMovement().`
+      );
+    }
+
+    expect(allViolations).toHaveLength(0);
+  });
+});
+
 describe("State Machine Transition Matrix & Guard Validation", () => {
   // Import transition function dynamically or test its invariant logic
   it("rejects illegal transitions when current status does not match from guard", async () => {

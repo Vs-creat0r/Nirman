@@ -4,7 +4,7 @@
 export const ROLES = ["admin", "project_manager", "procurement_officer", "site_supervisor"] as const;
 export type Role = (typeof ROLES)[number];
 
-export const CONTRACT_TABLES = ["cost_comparison", "delivery_challan", "grn", "inventory", "logs", "material_request", "project_items", "projects", "purchase_order", "rfq", "sessions", "settings", "sites", "tc_templates", "users", "vendors"] as const;
+export const CONTRACT_TABLES = ["cost_comparison", "delivery_challan", "grn", "inventory", "logs", "material_request", "project_items", "projects", "purchase_order", "rfq", "sessions", "settings", "sites", "stock_movements", "tc_templates", "users", "vendors"] as const;
 export type ContractTable = (typeof CONTRACT_TABLES)[number];
 
 /** Every status any document can hold, union of all contracts. */

@@ -86,6 +86,9 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
     updateUser: "users:manage",
     changeUserRole: "users:change_role",
   },
+  "movements.ts": {
+    reverseMovement: "movements:reverse",
+  },
 };
 
 describe("Mutation Source Wiring", () => {

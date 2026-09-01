@@ -29,18 +29,13 @@ export interface UserScope {
 }
 
 /**
- * Resolves the authenticated caller's security scope and authorized project/site sets.
- * Throws immediately if token is missing, invalid, or user is deactivated.
+ * Resolves security scope from an already-authenticated user entity.
+ * Shared by resolveCallerScope and mutation cascade helpers.
  */
-export async function resolveCallerScope(
+export async function buildUserScope(
   ctx: QueryCtx | MutationCtx,
-  token?: string
+  user: Doc<"users">
 ): Promise<UserScope> {
-  const user = await getCurrentUser(ctx, token);
-  if (!user) {
-    throw new Error("Unauthorized: Invalid or missing authentication token.");
-  }
-
   if (!user.isActive) {
     throw new Error("Unauthorized: Your account has been deactivated. Contact an administrator.");
   }
@@ -64,8 +59,6 @@ export async function resolveCallerScope(
     const allowedSiteIds = new Set<string>(rawSiteIds);
     const allowedProjectIds = new Set<string>();
 
-    // Resolve parent project IDs for the supervisor's assigned sites via direct get()
-    // Avoids a full sites table scan on every authenticated request.
     for (const siteIdStr of rawSiteIds) {
       try {
         const site = await ctx.db.get(siteIdStr as Id<"sites">);
@@ -90,8 +83,6 @@ export async function resolveCallerScope(
   const allowedProjectIds = new Set<string>(rawProjectIds);
   const allowedSiteIds = new Set<string>(rawSiteIds);
 
-  // Resolve all sites under allowed projects using the by_projectId index.
-  // Avoids a full sites table scan on every authenticated request.
   for (const projectId of rawProjectIds) {
     const projectSites = await ctx.db
       .query("sites")
@@ -109,6 +100,21 @@ export async function resolveCallerScope(
     allowedProjectIds,
     allowedSiteIds,
   };
+}
+
+/**
+ * Resolves the authenticated caller's security scope and authorized project/site sets.
+ * Throws immediately if token is missing, invalid, or user is deactivated.
+ */
+export async function resolveCallerScope(
+  ctx: QueryCtx | MutationCtx,
+  token?: string
+): Promise<UserScope> {
+  const user = await getCurrentUser(ctx, token);
+  if (!user) {
+    throw new Error("Unauthorized: Invalid or missing authentication token.");
+  }
+  return await buildUserScope(ctx, user);
 }
 
 /**

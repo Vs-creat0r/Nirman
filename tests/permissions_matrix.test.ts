@@ -92,6 +92,16 @@ const EXPECTED_POLICY: Record<ActionName, readonly UserRole[]> = {
 
   // Shared Uploads
   "files:upload": ["site_supervisor", "project_manager", "procurement_officer", "admin"],
+
+  // Stock Movements & Inventory
+  "movements:receive": ["site_supervisor", "procurement_officer", "admin"],
+  "movements:issue": ["site_supervisor", "project_manager", "admin"],
+  "movements:transfer": ["project_manager", "admin"],
+  "movements:return": ["site_supervisor", "procurement_officer", "project_manager", "admin"],
+  "movements:wastage": ["site_supervisor", "project_manager", "admin"],
+  "movements:adjust": ["project_manager", "admin"],
+  "movements:reverse": ["project_manager", "admin"],
+  "movements:read": ["site_supervisor", "project_manager", "procurement_officer", "admin"],
 };
 
 describe("Role-Matrix Permission Specification", () => {

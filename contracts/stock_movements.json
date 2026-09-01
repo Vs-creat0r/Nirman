@@ -1,0 +1,247 @@
+{
+  "$schema": "contract.v1",
+  "name": "stock_movements",
+  "label": "Stock Movement",
+  "version": "1.1.0",
+  "description": "Immutable append-only ledger for all physical inventory movements. Every quantity change without exception goes through postMovement().",
+  "fields": [
+    {
+      "field": "siteId",
+      "label": "Site",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "sites"
+      },
+      "optionsFrom": "sites"
+    },
+    {
+      "field": "projectId",
+      "label": "Project",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "projects"
+      },
+      "optionsFrom": "projects"
+    },
+    {
+      "field": "projectItemId",
+      "label": "Project Item (BOQ Line)",
+      "type": "reference",
+      "input": "select",
+      "required": false,
+      "relation": {
+        "table": "project_items"
+      },
+      "optionsFrom": "project_items"
+    },
+    {
+      "field": "itemName",
+      "label": "Item",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "minLength": 1,
+        "maxLength": 180
+      }
+    },
+    {
+      "field": "category",
+      "label": "Category",
+      "type": "string",
+      "input": "select",
+      "required": true,
+      "validation": {
+        "enum": [
+          "cement",
+          "steel",
+          "aggregates",
+          "consumables",
+          "electrical",
+          "plumbing",
+          "finishes",
+          "other"
+        ]
+      }
+    },
+    {
+      "field": "unit",
+      "label": "Unit",
+      "type": "string",
+      "input": "select",
+      "required": true,
+      "validation": {
+        "enum": [
+          "bags",
+          "MT",
+          "kg",
+          "nos",
+          "cum",
+          "brass",
+          "sqm",
+          "ltr",
+          "rmt"
+        ]
+      }
+    },
+    {
+      "field": "movementType",
+      "label": "Movement Type",
+      "type": "enum",
+      "input": "select",
+      "required": true,
+      "validation": {
+        "enum": [
+          "receipt",
+          "issue",
+          "transfer_out",
+          "transfer_in",
+          "return",
+          "wastage",
+          "adjustment",
+          "reversal"
+        ]
+      }
+    },
+    {
+      "field": "quantity",
+      "label": "Quantity",
+      "type": "number",
+      "input": "number",
+      "required": true,
+      "validation": {
+        "min": 0.0001
+      },
+      "help": "Always positive; direction is derived strictly from movementType and adjustmentDirection"
+    },
+    {
+      "field": "adjustmentDirection",
+      "label": "Adjustment Direction",
+      "type": "enum",
+      "input": "select",
+      "required": false,
+      "validation": {
+        "enum": [
+          "add",
+          "subtract"
+        ]
+      }
+    },
+    {
+      "field": "sourceType",
+      "label": "Source Type",
+      "type": "enum",
+      "input": "select",
+      "required": true,
+      "validation": {
+        "enum": [
+          "grn",
+          "manual",
+          "transfer",
+          "backfill"
+        ]
+      }
+    },
+    {
+      "field": "sourceId",
+      "label": "Source ID",
+      "type": "string",
+      "input": "text",
+      "required": false,
+      "validation": {
+        "maxLength": 100
+      }
+    },
+    {
+      "field": "sourceLineIndex",
+      "label": "Source Line Index",
+      "type": "number",
+      "input": "readonly",
+      "required": false,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "counterpartySiteId",
+      "label": "Counterparty Site",
+      "type": "reference",
+      "input": "select",
+      "required": false,
+      "relation": {
+        "table": "sites"
+      },
+      "optionsFrom": "sites"
+    },
+    {
+      "field": "purpose",
+      "label": "Purpose",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 600
+      }
+    },
+    {
+      "field": "reversalOfId",
+      "label": "Reversal Of Movement",
+      "type": "reference",
+      "input": "readonly",
+      "required": false,
+      "relation": {
+        "table": "stock_movements"
+      }
+    },
+    {
+      "field": "isNegativeStock",
+      "label": "Is Negative Stock",
+      "type": "boolean",
+      "input": "readonly",
+      "required": true
+    },
+    {
+      "field": "balanceAfter",
+      "label": "Balance After",
+      "type": "number",
+      "input": "readonly",
+      "required": true
+    }
+  ],
+  "relations": {
+    "siteId": "sites",
+    "projectId": "projects",
+    "projectItemId": "project_items",
+    "counterpartySiteId": "sites",
+    "reversalOfId": "stock_movements"
+  },
+  "indexes": [
+    [
+      "siteId",
+      "itemName"
+    ],
+    [
+      "siteId",
+      "movementType"
+    ],
+    [
+      "projectId"
+    ],
+    [
+      "sourceId"
+    ],
+    [
+      "projectItemId"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": false,
+    "trackUpdatedAt": false
+  }
+}

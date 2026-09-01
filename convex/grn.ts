@@ -17,6 +17,7 @@ import { getCurrentUser } from "./rbac";
 import { transition } from "./transition";
 import { Id, Doc } from "./_generated/dataModel";
 import { resolveCallerScope, filterScopedList, assertDocumentAccess } from "./scoping";
+import { postMovementCore } from "./movements";
 
 /**
  * Generates monotonic reference number: GRN-YYYY-NNNN
@@ -310,6 +311,60 @@ export const confirmDeliveryAndGenerateGRN = mutation({
       });
     }
 
+    // 11. Post a `receipt` stock movement per received line item via the single writer engine.
+    //     actorUser is forwarded from the already-authenticated grn:create check — no double permission
+    //     call needed. postMovementCore normalises units and enforces idempotency before posting.
+    const movementResults: Array<{ movementId: string; itemName: string; balanceAfter: number; isDuplicate: boolean }> = [];
+    for (let lineIndex = 0; lineIndex < args.receivedItems.length; lineIndex++) {
+      const ri = args.receivedItems[lineIndex];
+      if (ri.receivedQty <= 0) continue;
+      if (!dc.siteId) continue;
+
+      // Resolve category: projectItem.category first, then "other".
+      // Record any fallback directly in purpose so it is permanently stored in the ledger.
+      const matchedPOLine = po.lineItems.find(
+        (poi) => poi.itemName.toLowerCase().trim() === ri.itemName.toLowerCase().trim()
+      );
+      let projectItemId = matchedPOLine?.projectItemId;
+      if (!projectItemId && mr?.items) {
+        const matchedMRItem = mr.items.find(
+          (m) => m.itemName.toLowerCase().trim() === ri.itemName.toLowerCase().trim()
+        );
+        if (matchedMRItem?.projectItemId) projectItemId = matchedMRItem.projectItemId;
+      }
+
+      let category = "other";
+      let categoryNote = "";
+      if (projectItemId) {
+        const pi = await ctx.db.get(projectItemId);
+        if (pi?.category) {
+          category = pi.category;
+        } else {
+          categoryNote = " [Category: other (unassigned in projectItem)]";
+        }
+      } else {
+        categoryNote = " [Category: other (unresolved projectItem)]";
+      }
+
+      const result = await postMovementCore(ctx, {
+        siteId: dc.siteId,
+        itemName: ri.itemName,
+        unit: ri.unit,
+        category,
+        movementType: "receipt",
+        quantity: ri.receivedQty,
+        sourceType: "grn",
+        sourceId: String(grnId),
+        sourceLineIndex: lineIndex,
+        projectItemId,
+        purpose: `Delivery confirmed on site via GRN ${grnRefNo} (Challan ${dc.refNo})${categoryNote}`,
+        actorUser: user,
+        token: args.token,
+      });
+
+      movementResults.push({ movementId: result.movementId, itemName: ri.itemName, balanceAfter: result.balanceAfter, isDuplicate: result.isDuplicate });
+    }
+
     return {
       id: grnId,
       refNo: grnRefNo,
@@ -318,6 +373,7 @@ export const confirmDeliveryAndGenerateGRN = mutation({
       isPOFullyDelivered,
       totalDeliveredQty: totalCumulativeReceivedQty,
       totalPendingQty,
+      movementResults,
     };
   },
 });

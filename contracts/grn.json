@@ -89,8 +89,21 @@
             "field": "unit",
             "label": "Unit",
             "type": "string",
-            "input": "text",
-            "required": true
+            "input": "select",
+            "required": true,
+            "validation": {
+              "enum": [
+                "bags",
+                "MT",
+                "kg",
+                "nos",
+                "cum",
+                "brass",
+                "sqm",
+                "ltr",
+                "rmt"
+              ]
+            }
           }
         ]
       },

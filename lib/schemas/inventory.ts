@@ -10,6 +10,7 @@ export const inventorySchema = z.object({
   quantity: z.coerce.number().min(0, "Quantity must be at least 0"),
   unit: z.enum(["bags", "MT", "kg", "nos", "cum", "brass", "sqm", "ltr", "rmt"]),
   siteId: z.string().min(1, "Site is required").optional(),
+  projectId: z.string().min(1, "Project is required").optional(),
   location: z.string().max(120, "Location is too long").optional(),
   reorderLevel: z.coerce.number().min(0, "Reorder level must be at least 0").optional(),
 });

@@ -2,8 +2,8 @@
   "$schema": "contract.v1",
   "name": "inventory",
   "label": "Inventory",
-  "version": "1.0.0",
-  "description": "Stock levels on site and in the office warehouse. DEFERRED TO SPRINT 2.",
+  "version": "1.1.0",
+  "description": "Stock balance cache per site and item. Derived strictly from stock_movements; never edited directly.",
   "fields": [
     {
       "field": "itemName",
@@ -77,6 +77,17 @@
       "optionsFrom": "sites"
     },
     {
+      "field": "projectId",
+      "label": "Project",
+      "type": "reference",
+      "input": "select",
+      "required": false,
+      "relation": {
+        "table": "projects"
+      },
+      "optionsFrom": "projects"
+    },
+    {
       "field": "location",
       "label": "Location",
       "type": "string",
@@ -98,6 +109,16 @@
       }
     },
     {
+      "field": "lastMovementId",
+      "label": "Last Movement",
+      "type": "reference",
+      "input": "readonly",
+      "required": false,
+      "relation": {
+        "table": "stock_movements"
+      }
+    },
+    {
       "field": "lastUpdated",
       "label": "Last updated",
       "type": "date",
@@ -106,14 +127,23 @@
     }
   ],
   "relations": {
-    "siteId": "sites"
+    "siteId": "sites",
+    "projectId": "projects",
+    "lastMovementId": "stock_movements"
   },
   "indexes": [
     [
+      "siteId",
       "itemName"
     ],
     [
+      "projectId"
+    ],
+    [
       "siteId"
+    ],
+    [
+      "itemName"
     ],
     [
       "category"
