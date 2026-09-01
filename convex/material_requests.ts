@@ -90,6 +90,25 @@ export const createMR = mutation({
       if (typeof it.quantity !== "number" || isNaN(it.quantity) || it.quantity <= 0) {
         throw new Error(`Quantity for item "${it.itemName}" must be greater than zero.`);
       }
+
+      // S2-12 BOQ Guardrail: warn & require override reason if exceeding remaining balance
+      if (it.projectItemId) {
+        const pItem = await ctx.db.get(it.projectItemId);
+        if (pItem) {
+          const boq = pItem.boqQty ?? 0;
+          const committed = pItem.committedQty ?? 0;
+          const procured = pItem.procuredQty ?? 0;
+          const available = boq - committed - procured;
+          if (it.quantity > available && available >= 0) {
+            const hasOverride = (it.description && it.description.trim().length > 0) || (args.notes && args.notes.trim().length > 0);
+            if (!hasOverride) {
+              throw new Error(
+                `Requested quantity (${it.quantity} ${it.unit}) for "${it.itemName}" exceeds remaining BOQ balance (${available} ${it.unit}). Please provide an override reason in the notes or item description.`
+              );
+            }
+          }
+        }
+      }
     }
 
     const refNo = await generateMRRefNo(ctx);

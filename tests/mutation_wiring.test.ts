@@ -66,6 +66,9 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
   "project_items.ts": {
     backfillProjectItemCounters: "project_items:backfill",
     createProjectItem: "project_items:create",
+    updateProjectItem: "project_items:update",
+    deleteProjectItem: "project_items:delete",
+    bulkImportProjectItems: "project_items:bulk_import",
   },
   "company_settings.ts": {
     updateCompanyProfile: "settings:manage",

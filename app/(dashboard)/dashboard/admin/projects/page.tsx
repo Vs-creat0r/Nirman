@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -445,6 +446,15 @@ export default function ProjectsSitesManagementPage() {
 
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <Link href={`/dashboard/admin/projects/${p._id}`}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-[11px] gap-1 text-primary hover:underline"
+                            >
+                              <Layers className="h-3 w-3" /> BOQ & Detail
+                            </Button>
+                          </Link>
                           <Button
                             variant="ghost"
                             size="sm"
