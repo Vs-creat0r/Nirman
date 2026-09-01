@@ -243,8 +243,6 @@ export const confirmDeliveryAndGenerateGRN = mutation({
             committedQty: newCommitted,
           });
         }
-      } else {
-        console.error(`[GRN Receipt] Could not resolve projectItemId for received item "${ri.itemName}"`);
       }
     }
 

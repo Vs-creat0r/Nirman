@@ -47,8 +47,6 @@ export async function adjustCommittedQty(
           committedQty: newCommitted,
         });
       }
-    } else {
-      console.error(`[PO Commitment] Could not resolve projectItemId for item "${item.itemName}"`);
     }
   }
 }

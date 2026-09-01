@@ -17,12 +17,12 @@
 import { readFileSync, readdirSync } from "fs";
 import { join, extname } from "path";
 
-// --- BASELINES (do not raise without justification) ---
 const BASELINES = {
   filesOver500Lines: 15,        // 15 at 695a832; 2 new files from Stage 1 (projects/page, users/page)
   anyUsages: 140,               // 140 in source roots (app, components, convex, lib, hooks) excluding tests/generated
   filesWithHardcodedColors: 29, // 29 at 695a832 per reviewer grep (Tailwind inline classes)
   filesWithRelativeImports: 19, // 19 at 695a832
+  consoleCallsInConvex: 0,      // 0 in convex/ backend (enforces zero console logging)
 };
 
 const SOURCE_ROOTS = ["app", "components", "convex", "lib", "hooks"];
@@ -80,6 +80,17 @@ function countRelative() {
     .filter(f => { try { return /from ['"]\.\.\//. test(readFileSync(f, "utf8")); } catch { return false; } });
 }
 
+function countConvexConsoleCalls() {
+  return walkDir(["convex"], [".ts"], EXCLUDE)
+    .map(f => {
+      try {
+        const n = (readFileSync(f, "utf8").match(/\bconsole\.(log|warn|error|info|debug)\b/g) || []).length;
+        return { file: f, count: n };
+      } catch { return { file: f, count: 0 }; }
+    })
+    .filter(x => x.count > 0);
+}
+
 // --- Main ---
 console.log("\n=================================================================");
 console.log("  NIRMAN CI - Code Quality Metric Ratchet  (baseline: 695a832)");
@@ -126,6 +137,15 @@ check(
   relative.length,
   BASELINES.filesWithRelativeImports,
   relative
+);
+
+const convexConsole = countConvexConsoleCalls();
+const totalConsole = convexConsole.reduce((sum, x) => sum + x.count, 0);
+check(
+  "Console calls in `convex/`  ",
+  totalConsole,
+  BASELINES.consoleCallsInConvex,
+  convexConsole.map(x => `${x.file} (${x.count} calls)`)
 );
 
 console.log("\n=================================================================");

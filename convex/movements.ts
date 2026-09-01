@@ -136,6 +136,10 @@ export async function postMovementCore(
   const projectId = site.projectId;
 
   const action = ACTION_BY_MOVEMENT_TYPE[args.movementType];
+  // SECURITY WARNING: Passing `actorUser` completely bypasses `requirePermission`
+  // under the assumption that the upstream caller has already authenticated and verified
+  // authorization (e.g. `confirmDeliveryAndGenerateGRN` checking `grn:create`).
+  // NEVER accept `actorUser` from untrusted client mutation arguments.
   const user = args.actorUser ?? (await requirePermission(ctx, action, args.token));
   const scope = args.actorUser
     ? await buildUserScope(ctx, user)
