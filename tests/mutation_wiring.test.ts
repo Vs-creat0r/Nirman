@@ -93,6 +93,7 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
     recordWastage: "movements:wastage",
     adjustStock: "movements:adjust",
     reverseMovement: "movements:reverse",
+    backfillMovementsFromGRNs: "movements:backfill",
   },
 };
 

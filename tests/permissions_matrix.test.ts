@@ -101,6 +101,7 @@ const EXPECTED_POLICY: Record<ActionName, readonly UserRole[]> = {
   "movements:wastage": ["site_supervisor", "project_manager", "admin"],
   "movements:adjust": ["project_manager", "admin"],
   "movements:reverse": ["project_manager", "admin"],
+  "movements:backfill": ["admin"],
   "movements:read": ["site_supervisor", "project_manager", "procurement_officer", "admin"],
 };
 

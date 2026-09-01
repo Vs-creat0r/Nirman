@@ -1270,5 +1270,225 @@ describe("S2-06 · Scoping, Index Capabilities & Transfer Succession", () => {
   });
 });
 
+/**
+ * S2-07 — Backfill Movements from Existing GRNs
+ */
+describe("S2-07 · Backfill Movements from Existing GRNs", () => {
+  function createMockCtx() {
+    const db = {
+      inventory: [] as any[],
+      stock_movements: [] as any[],
+      logs: [] as any[],
+      grn: [
+        {
+          _id: "grn_hist_1" as any,
+          refNo: "GRN-HIST-001",
+          siteId: "site_A1" as any,
+          purchaseOrderId: "po_1" as any,
+          receivedItems: [
+            { itemName: "M-Sand", receivedQty: 100, unit: "tonnes", expectedQty: 100 },
+            { itemName: "Coarse Aggregate 20mm", receivedQty: 50, unit: "tonnes", expectedQty: 50 },
+          ],
+          deliveredAt: "2026-08-15T10:00:00Z",
+          confirmedBy: "user_sup_1" as any,
+          createdBy: "user_sup_1" as any,
+        },
+        {
+          _id: "grn_hist_2" as any,
+          refNo: "GRN-HIST-002",
+          siteId: "site_A1" as any,
+          purchaseOrderId: "po_1" as any,
+          receivedItems: [
+            { itemName: "M-Sand", receivedQty: 60, unit: "tonnes", expectedQty: 60 },
+          ],
+          deliveredAt: "2026-08-20T10:00:00Z",
+          confirmedBy: "user_sup_1" as any,
+          createdBy: "user_sup_1" as any,
+        },
+      ],
+      sessions: [
+        { _id: "s_admin", userId: "user_admin_1", token: "admin_token", expiresAt: Date.now() + 100000 },
+        { _id: "s_sup", userId: "user_sup_1", token: "sup_token", expiresAt: Date.now() + 100000 },
+      ],
+      sites: [
+        { _id: "site_A1" as any, name: "Site Alpha", projectId: "proj_Alpha" as any },
+      ],
+      purchase_order: [
+        {
+          _id: "po_1" as any,
+          refNo: "PO-2026-001",
+          projectId: "proj_Alpha" as any,
+          lineItems: [
+            { itemName: "M-Sand", quantity: 200, unit: "tonnes", projectItemId: "pi_sand" as any },
+            { itemName: "Coarse Aggregate 20mm", quantity: 50, unit: "tonnes", projectItemId: "pi_agg" as any },
+          ],
+        },
+      ],
+      project_items: [
+        { _id: "pi_sand" as any, itemName: "M-Sand", category: "Raw Materials", unit: "tonnes", projectId: "proj_Alpha" as any },
+        { _id: "pi_agg" as any, itemName: "Coarse Aggregate 20mm", category: "Raw Materials", unit: "tonnes", projectId: "proj_Alpha" as any },
+      ],
+      users: [
+        {
+          _id: "user_admin_1" as any,
+          role: "admin",
+          name: "Admin",
+          isActive: true,
+        },
+        {
+          _id: "user_sup_1" as any,
+          role: "site_supervisor",
+          name: "Supervisor",
+          isActive: true,
+          assignedSiteIds: ["site_A1" as any],
+          assignedProjectIds: ["proj_Alpha" as any],
+        },
+      ],
+
+      async get(id: string) {
+        if (id === "site_A1") return { _id: "site_A1", name: "Site Alpha", projectId: "proj_Alpha" };
+        if (id === "user_admin_1") return { _id: "user_admin_1", role: "admin", isActive: true, name: "Admin" };
+        if (id === "user_sup_1") return { _id: "user_sup_1", role: "site_supervisor", isActive: true, name: "Supervisor" };
+        if (id === "po_1") return this.purchase_order[0];
+        if (id === "pi_sand") return this.project_items[0];
+        if (id === "pi_agg") return this.project_items[1];
+        return null;
+      },
+
+      query(tableName: string) {
+        const self = this;
+        const tableMap: Record<string, any[]> = {
+          inventory: self.inventory,
+          stock_movements: self.stock_movements,
+          sessions: self.sessions,
+          sites: self.sites,
+          users: self.users,
+          grn: self.grn,
+          purchase_order: self.purchase_order,
+          project_items: self.project_items,
+        };
+        const items = tableMap[tableName] || [];
+        return {
+          order(_direction: string) {
+            return {
+              async paginate(opts: { cursor: any; numItems: number }) {
+                const slice = items.slice(0, opts.numItems);
+                return { page: slice, isDone: true, continueCursor: "done" };
+              },
+            };
+          },
+          withIndex(_idx: string, filterFn?: (q: any) => any) {
+            let filtered = [...items];
+            if (_idx === "by_siteId_itemName" && filterFn) {
+              const q = { eq: (f: string, v: any) => ({ eq: (_f2: string, v2: any) => { filtered = filtered.filter((i) => i.siteId === v && i.itemName === v2); return q; } }) };
+              filterFn(q);
+            }
+            if (_idx === "by_sourceId" && filterFn) {
+              const q = { eq: (_f: string, v: any) => { filtered = filtered.filter((m) => m.sourceId === v); return q; } };
+              filterFn(q);
+            }
+            if (_idx === "by_token" && filterFn) {
+              const q = { eq: (_f: string, v: any) => { filtered = self.sessions.filter((s) => s.token === v); return q; } };
+              filterFn(q);
+            }
+            return { async unique() { return filtered[0] || null; }, async first() { return filtered[0] || null; }, async collect() { return filtered; } };
+          },
+          filter(_fn: any) { return { async first() { return items[0] || null; }, async collect() { return [...items]; } }; },
+          async collect() { return [...items]; },
+        };
+      },
+
+      async insert(table: string, doc: any) {
+        const _id = `${table}_${Math.random().toString(36).slice(2, 9)}`;
+        const row = { _id, _creationTime: Date.now(), ...doc };
+        if (table === "inventory") this.inventory.push(row);
+        if (table === "stock_movements") this.stock_movements.push(row);
+        if (table === "logs") this.logs.push(row);
+        return _id;
+      },
+
+      async patch(id: string, patch: any) {
+        const inv = this.inventory.find((i: any) => i._id === id);
+        if (inv) Object.assign(inv, patch);
+      },
+    };
+    return { db } as any;
+  }
+
+  it("backfills movements for pre-existing GRNs and establishes accurate stock balances", async () => {
+    const ctx = createMockCtx();
+    const { backfillMovementsFromGRNs } = await import("../convex/movement_actions");
+
+    const res = await (backfillMovementsFromGRNs as any)._handler(ctx, { token: "admin_token" });
+
+    expect(res.success).toBe(true);
+    expect(res.processedGRNs).toBe(2);
+    expect(res.movementsCreated).toBe(3); // 2 from GRN 1, 1 from GRN 2
+    expect(res.movementsSkipped).toBe(0);
+
+    // Verify inventory balances
+    const sandInv = ctx.db.inventory.find((i: any) => i.itemName === "M-Sand");
+    const aggInv = ctx.db.inventory.find((i: any) => i.itemName === "Coarse Aggregate 20mm");
+
+    expect(sandInv.quantity).toBe(160); // 100 + 60
+    expect(sandInv.unit).toBe("MT");
+    expect(sandInv.category).toBe("Raw Materials");
+    expect(aggInv.quantity).toBe(50);
+  });
+
+  it("running backfill multiple times is strictly idempotent: 0 duplicate rows and 0 balance changes", async () => {
+    const ctx = createMockCtx();
+    const { backfillMovementsFromGRNs } = await import("../convex/movement_actions");
+
+    // Run 1
+    const run1 = await (backfillMovementsFromGRNs as any)._handler(ctx, { token: "admin_token" });
+    expect(run1.movementsCreated).toBe(3);
+    const countAfterRun1 = ctx.db.stock_movements.length;
+
+    // Run 2 (immediate re-run)
+    const run2 = await (backfillMovementsFromGRNs as any)._handler(ctx, { token: "admin_token" });
+    expect(run2.movementsCreated).toBe(0);
+    expect(run2.movementsSkipped).toBe(3);
+    expect(ctx.db.stock_movements.length).toBe(countAfterRun1);
+
+    // Balances must remain identical
+    const sandInv = ctx.db.inventory.find((i: any) => i.itemName === "M-Sand");
+    expect(sandInv.quantity).toBe(160);
+  });
+
+  it("does not duplicate receipts for GRNs that were already processed via live grn creation", async () => {
+    const ctx = createMockCtx();
+    const { backfillMovementsFromGRNs } = await import("../convex/movement_actions");
+
+    // Live flow already posted GRN 1 with sourceType: "grn"
+    await postMovementCore(ctx, {
+      siteId: "site_A1" as any, itemName: "M-Sand", unit: "tonnes", category: "Raw Materials",
+      movementType: "receipt", quantity: 100, sourceType: "grn", sourceId: "grn_hist_1",
+      sourceLineIndex: 0, actorUser: { _id: "user_admin_1", role: "admin", isActive: true } as any,
+      token: "admin_token",
+    });
+
+    // Run backfill
+    const res = await (backfillMovementsFromGRNs as any)._handler(ctx, { token: "admin_token" });
+
+    // GRN 1 Line 0 (M-Sand) should be recognized as duplicate and skipped!
+    expect(res.movementsSkipped).toBe(1);
+    expect(res.movementsCreated).toBe(2); // GRN 1 Line 1 (Agg) + GRN 2 Line 0 (M-Sand)
+
+    const sandInv = ctx.db.inventory.find((i: any) => i.itemName === "M-Sand");
+    expect(sandInv.quantity).toBe(160);
+  });
+
+  it("strictly rejects non-admin users attempting to execute backfill", async () => {
+    const ctx = createMockCtx();
+    const { backfillMovementsFromGRNs } = await import("../convex/movement_actions");
+
+    await expect(
+      (backfillMovementsFromGRNs as any)._handler(ctx, { token: "sup_token" })
+    ).rejects.toThrow(/requires one of these roles: \[admin\]/);
+  });
+});
+
+
 
 

@@ -203,7 +203,9 @@ export async function postMovementCore(
       (m) =>
         m.siteId === args.siteId &&
         m.itemName === args.itemName &&
-        m.sourceType === args.sourceType &&
+        (m.sourceType === args.sourceType ||
+          ((args.sourceType === "grn" || args.sourceType === "backfill") &&
+            (m.sourceType === "grn" || m.sourceType === "backfill"))) &&
         (args.sourceLineIndex === undefined || m.sourceLineIndex === args.sourceLineIndex)
     );
 

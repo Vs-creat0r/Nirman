@@ -292,3 +292,83 @@ export const reverseMovement = mutation({
     });
   },
 });
+
+/**
+ * Admin-only mutation to backfill receipt movements for pre-existing GRNs.
+ * Fully idempotent: safe to run multiple times without duplicating entries or modifying balances.
+ * Supports cursor pagination for safe batch processing.
+ */
+export const backfillMovementsFromGRNs = mutation({
+  args: {
+    token: v.string(),
+    cursor: v.optional(v.string()),
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requirePermission(ctx, "movements:backfill", args.token);
+    const limit = Math.min(Math.max(args.batchSize ?? 50, 1), 200);
+
+    const grnQuery = ctx.db.query("grn").order("asc");
+    const page = await grnQuery.paginate({
+      cursor: args.cursor ?? null,
+      numItems: limit,
+    });
+
+    let movementsCreated = 0;
+    let movementsSkipped = 0;
+
+    for (const grn of page.page) {
+      if (!grn.siteId || !grn.receivedItems?.length) continue;
+      const site = await ctx.db.get(grn.siteId);
+      if (!site) continue;
+
+      const po = grn.purchaseOrderId ? await ctx.db.get(grn.purchaseOrderId) : null;
+
+      for (let lineIndex = 0; lineIndex < grn.receivedItems.length; lineIndex++) {
+        const ri = grn.receivedItems[lineIndex];
+        if (ri.receivedQty <= 0) continue;
+
+        const matchedPOLine = po?.lineItems?.find(
+          (poi) => poi.itemName.toLowerCase().trim() === ri.itemName.toLowerCase().trim()
+        );
+        const projectItemId = matchedPOLine?.projectItemId;
+        let category = "other";
+        if (projectItemId) {
+          const pi = await ctx.db.get(projectItemId);
+          if (pi?.category) category = pi.category;
+        }
+
+        const result = await postMovementCore(ctx, {
+          siteId: grn.siteId,
+          itemName: ri.itemName,
+          unit: ri.unit,
+          category,
+          movementType: "receipt",
+          quantity: ri.receivedQty,
+          sourceType: "backfill",
+          sourceId: String(grn._id),
+          sourceLineIndex: lineIndex,
+          projectItemId,
+          purpose: `Backfill receipt from GRN ${grn.refNo}`,
+          actorUser: user,
+          token: args.token,
+        });
+
+        if (result.isDuplicate) {
+          movementsSkipped++;
+        } else {
+          movementsCreated++;
+        }
+      }
+    }
+
+    return {
+      success: true,
+      processedGRNs: page.page.length,
+      movementsCreated,
+      movementsSkipped,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
