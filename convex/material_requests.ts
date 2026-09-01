@@ -126,7 +126,6 @@ export const createMR = mutation({
       updatedAt: now,
     });
 
-    // Write audit log entry for creation
     await ctx.db.insert("logs", {
       actorId: user._id,
       actorRole: user.role,
@@ -136,29 +135,16 @@ export const createMR = mutation({
       referenceId: refNo,
       fromStatus: undefined,
       toStatus: initialStatus,
-      note:
-        initialStatus === "ready_for_cc"
-          ? "Auto-approved (raised by manager/admin)"
-          : undefined,
+      note: initialStatus === "ready_for_cc" ? "Auto-approved (raised by manager/admin)" : undefined,
       timestamp: now,
     });
 
-    return {
-      id: mrId,
-      refNo,
-      status: initialStatus,
-    };
+    return { id: mrId, refNo, status: initialStatus };
   },
 });
 
-/**
- * Submit a draft Material Request for manager review.
- */
 export const submitMR = mutation({
-  args: {
-    id: v.id("material_request"),
-    token: v.optional(v.string()),
-  },
+  args: { id: v.id("material_request"), token: v.optional(v.string()) },
   handler: async (ctx, args) => {
     return await transition(ctx, {
       table: "material_request",
@@ -171,15 +157,8 @@ export const submitMR = mutation({
   },
 });
 
-/**
- * Manager approves Material Request → moves to ready_for_cc.
- */
 export const approveMR = mutation({
-  args: {
-    id: v.id("material_request"),
-    note: v.optional(v.string()),
-    token: v.optional(v.string()),
-  },
+  args: { id: v.id("material_request"), note: v.optional(v.string()), token: v.optional(v.string()) },
   handler: async (ctx, args) => {
     return await transition(ctx, {
       table: "material_request",
@@ -193,20 +172,10 @@ export const approveMR = mutation({
   },
 });
 
-/**
- * Manager rejects Material Request with mandatory reason note.
- */
 export const rejectMR = mutation({
-  args: {
-    id: v.id("material_request"),
-    note: v.string(),
-    token: v.optional(v.string()),
-  },
+  args: { id: v.id("material_request"), note: v.string(), token: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    if (!args.note.trim()) {
-      throw new Error("A rejection reason note is required.");
-    }
-
+    if (!args.note.trim()) throw new Error("A rejection reason note is required.");
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
@@ -219,20 +188,10 @@ export const rejectMR = mutation({
   },
 });
 
-/**
- * Manager queries Material Request with required feedback note.
- */
 export const queryMR = mutation({
-  args: {
-    id: v.id("material_request"),
-    note: v.string(),
-    token: v.optional(v.string()),
-  },
+  args: { id: v.id("material_request"), note: v.string(), token: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    if (!args.note.trim()) {
-      throw new Error("A query note explaining the feedback is required.");
-    }
-
+    if (!args.note.trim()) throw new Error("A query note explaining the feedback is required.");
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
