@@ -856,3 +856,256 @@ describe("S2-04 · Issue to Consumption", () => {
   });
 });
 
+/**
+ * S2-05 — Transfer, Return, Wastage, Adjustment
+ */
+describe("S2-05 · Transfer, Return, Wastage, Adjustment", () => {
+  function createMockCtx() {
+    const db = {
+      inventory: [] as any[],
+      stock_movements: [] as any[],
+      logs: [] as any[],
+      grn: [
+        {
+          _id: "grn_site_B1" as Id<"grn">,
+          siteId: "site_B1" as Id<"sites">,
+          refNo: "GRN-2026-0001",
+        },
+        {
+          _id: "grn_site_A1" as Id<"grn">,
+          siteId: "site_A1" as Id<"sites">,
+          refNo: "GRN-2026-0002",
+        },
+      ],
+      sessions: [{ _id: "s1", userId: "user_pm_1", token: "test_token", expiresAt: Date.now() + 100000 }],
+      sites: [
+        { _id: "site_B1" as Id<"sites">, name: "Site Beta", projectId: "proj_Beta" as Id<"projects"> },
+        { _id: "site_A1" as Id<"sites">, name: "Site Alpha", projectId: "proj_Alpha" as Id<"projects"> },
+      ],
+      users: [
+        {
+          _id: "user_pm_1" as Id<"users">,
+          role: "project_manager",
+          name: "PM",
+          isActive: true,
+          assignedSiteIds: ["site_B1" as Id<"sites">, "site_A1" as Id<"sites">],
+          assignedProjectIds: ["proj_Beta" as Id<"projects">, "proj_Alpha" as Id<"projects">],
+        },
+        {
+          _id: "user_sup_1" as Id<"users">,
+          role: "site_supervisor",
+          name: "Supervisor",
+          isActive: true,
+          assignedSiteIds: ["site_B1" as Id<"sites">],
+          assignedProjectIds: ["proj_Beta" as Id<"projects">],
+        },
+      ],
+
+      async get(id: string) {
+        if (id === "site_B1") return { _id: "site_B1", name: "Site Beta", projectId: "proj_Beta" };
+        if (id === "site_A1") return { _id: "site_A1", name: "Site Alpha", projectId: "proj_Alpha" };
+        const grnDoc = this.grn.find((g: any) => g._id === id);
+        if (grnDoc) return grnDoc;
+        const mov = this.stock_movements.find((m: any) => m._id === id);
+        if (mov) return mov;
+        return null;
+      },
+
+      query(tableName: string) {
+        const self = this;
+        const tableMap: Record<string, any[]> = {
+          inventory: self.inventory,
+          stock_movements: self.stock_movements,
+          sessions: self.sessions,
+          sites: self.sites,
+          users: self.users,
+          grn: self.grn,
+        };
+        const items = tableMap[tableName] || [];
+        return {
+          withIndex(_idx: string, filterFn: (q: any) => any) {
+            let filtered = [...items];
+            if (_idx === "by_siteId_itemName") {
+              const q = { eq: (f: string, v: any) => ({ eq: (_f2: string, v2: any) => { filtered = filtered.filter((i) => i.siteId === v && i.itemName === v2); return q; } }) };
+              filterFn(q);
+            }
+            if (_idx === "by_sourceId") {
+              const q = { eq: (_f: string, v: any) => { filtered = filtered.filter((m) => m.sourceId === v); return q; } };
+              filterFn(q);
+            }
+            if (_idx === "by_token") {
+              const q = { eq: (_f: string, v: any) => { filtered = self.sessions.filter((s) => s.token === v); return q; } };
+              filterFn(q);
+            }
+            return { async unique() { return filtered[0] || null; }, async first() { return filtered[0] || null; }, async collect() { return filtered; } };
+          },
+          filter(filterFn: any) {
+            const q = {
+              eq: (fieldAccess: any, val: any) => {
+                return items.filter((item: any) => item.reversalOfId === val);
+              },
+              field: (name: string) => name,
+            };
+            const filtered = filterFn(q);
+            return { async first() { return filtered[0] || null; }, async collect() { return filtered; } };
+          },
+          async collect() { return [...items]; },
+        };
+      },
+
+      async insert(table: string, doc: any) {
+        const _id = `${table}_${Math.random().toString(36).slice(2, 9)}`;
+        const row = { _id, _creationTime: Date.now(), ...doc };
+        if (table === "inventory") this.inventory.push(row);
+        if (table === "stock_movements") this.stock_movements.push(row);
+        if (table === "logs") this.logs.push(row);
+        return _id;
+      },
+
+      async patch(id: string, patch: any) {
+        const inv = this.inventory.find((i: any) => i._id === id);
+        if (inv) Object.assign(inv, patch);
+      },
+    };
+    return { db } as any;
+  }
+
+  const PM = {
+    _id: "user_pm_1" as Id<"users">,
+    role: "project_manager",
+    name: "PM",
+    isActive: true,
+    assignedSiteIds: ["site_B1" as Id<"sites">, "site_A1" as Id<"sites">],
+    assignedProjectIds: ["proj_Beta" as Id<"projects">, "proj_Alpha" as Id<"projects">],
+  };
+
+  const SUPERVISOR = {
+    _id: "user_sup_1" as Id<"users">,
+    role: "site_supervisor",
+    name: "Supervisor",
+    isActive: true,
+    assignedSiteIds: ["site_B1" as Id<"sites">],
+    assignedProjectIds: ["proj_Beta" as Id<"projects">],
+  };
+
+  const SITE_B1 = "site_B1" as Id<"sites">;
+  const SITE_A1 = "site_A1" as Id<"sites">;
+
+  it("transferStock atomically creates two linked rows sharing transferRef and updates both site balances", async () => {
+    const ctx = createMockCtx();
+    const transferRef = "TRF-2026-TEST";
+
+    // 1. Initial stock: 50 bags at Site B1, 10 bags at Site A1
+    await postMovementCore(ctx, {
+      siteId: SITE_B1, itemName: "Cement OPC 53", unit: "bags", movementType: "receipt",
+      quantity: 50, sourceType: "grn", sourceId: "grn_01", actorUser: PM as any, token: "test_token",
+    });
+    await postMovementCore(ctx, {
+      siteId: SITE_A1, itemName: "Cement OPC 53", unit: "bags", movementType: "receipt",
+      quantity: 10, sourceType: "grn", sourceId: "grn_02", actorUser: PM as any, token: "test_token",
+    });
+
+    // 2. Transfer 20 bags from Site B1 to Site A1
+    const outRes = await postMovementCore(ctx, {
+      siteId: SITE_B1, counterpartySiteId: SITE_A1, itemName: "Cement OPC 53", unit: "bags",
+      movementType: "transfer_out", quantity: 20, sourceType: "transfer", sourceId: transferRef,
+      sourceLineIndex: 0, purpose: "Inter-site material balancing", actorUser: PM as any, token: "test_token",
+    });
+
+    const inRes = await postMovementCore(ctx, {
+      siteId: SITE_A1, counterpartySiteId: SITE_B1, itemName: "Cement OPC 53", unit: "bags",
+      movementType: "transfer_in", quantity: 20, sourceType: "transfer", sourceId: transferRef,
+      sourceLineIndex: 1, purpose: "Inter-site material balancing", actorUser: PM as any, token: "test_token",
+    });
+
+    // Source site balance decreased: 50 -> 30
+    expect(outRes.balanceAfter).toBe(30);
+    const sourceInv = ctx.db.inventory.find((i: any) => i.siteId === SITE_B1);
+    expect(sourceInv.quantity).toBe(30);
+
+    // Destination site balance increased: 10 -> 30
+    expect(inRes.balanceAfter).toBe(30);
+    const destInv = ctx.db.inventory.find((i: any) => i.siteId === SITE_A1);
+    expect(destInv.quantity).toBe(30);
+
+    // Both rows share the exact same sourceId
+    expect(ctx.db.stock_movements[2].sourceId).toBe(transferRef);
+    expect(ctx.db.stock_movements[3].sourceId).toBe(transferRef);
+    expect(ctx.db.stock_movements[2].counterpartySiteId).toBe(SITE_A1);
+    expect(ctx.db.stock_movements[3].counterpartySiteId).toBe(SITE_B1);
+  });
+
+  it("returnStock links source GRN and strictly verifies GRN belongs to the same site", async () => {
+    const ctx = createMockCtx();
+
+    // 1. Valid return: GRN grn_site_B1 belongs to Site B1
+    await postMovementCore(ctx, {
+      siteId: SITE_B1, itemName: "Sand (River)", unit: "cum", movementType: "receipt",
+      quantity: 15, sourceType: "grn", sourceId: "grn_site_B1", actorUser: PM as any, token: "test_token",
+    });
+
+    const returnRes = await postMovementCore(ctx, {
+      siteId: SITE_B1, itemName: "Sand (River)", unit: "cum", movementType: "return",
+      quantity: 5, purpose: "Excess silt content rejected by QA", sourceType: "manual",
+      sourceId: "grn_site_B1", actorUser: PM as any, token: "test_token",
+    });
+
+    expect(returnRes.balanceAfter).toBe(10);
+    expect(ctx.db.stock_movements[1].movementType).toBe("return");
+    expect(ctx.db.stock_movements[1].sourceId).toBe("grn_site_B1");
+  });
+
+  it("recordWastage decrements balance and strictly enforces non-empty purpose", async () => {
+    const ctx = createMockCtx();
+
+    await postMovementCore(ctx, {
+      siteId: SITE_B1, itemName: "Tiles 600x600", unit: "nos", movementType: "receipt",
+      quantity: 100, sourceType: "grn", sourceId: "grn_tiles", actorUser: SUPERVISOR as any, token: "test_token",
+    });
+
+    const wasteRes = await postMovementCore(ctx, {
+      siteId: SITE_B1, itemName: "Tiles 600x600", unit: "nos", movementType: "wastage",
+      quantity: 8, purpose: "Corner chipping during third floor transit", sourceType: "manual",
+      actorUser: SUPERVISOR as any, token: "test_token",
+    });
+
+    expect(wasteRes.balanceAfter).toBe(92);
+    expect(ctx.db.inventory[0].quantity).toBe(92);
+
+    // Empty purpose must throw
+    await expect(
+      postMovementCore(ctx, {
+        siteId: SITE_B1, itemName: "Tiles 600x600", unit: "nos", movementType: "wastage",
+        quantity: 2, purpose: "   ", sourceType: "manual", actorUser: SUPERVISOR as any, token: "test_token",
+      })
+    ).rejects.toThrow(/requires a non-empty purpose/);
+  });
+
+  it("adjustStock applies directional add/subtract and strictly rejects site supervisor", async () => {
+    const ctx = createMockCtx();
+
+    // 1. Initial stock 50
+    await postMovementCore(ctx, {
+      siteId: SITE_B1, itemName: "Binding Wire", unit: "kg", movementType: "receipt",
+      quantity: 50, sourceType: "grn", sourceId: "grn_wire", actorUser: PM as any, token: "test_token",
+    });
+
+    // 2. Upward audit count correction (+10) by PM
+    const adjAdd = await postMovementCore(ctx, {
+      siteId: SITE_B1, itemName: "Binding Wire", unit: "kg", movementType: "adjustment",
+      adjustmentDirection: "add", quantity: 10, purpose: "Physical count surplus located in store B",
+      sourceType: "manual", actorUser: PM as any, token: "test_token",
+    });
+    expect(adjAdd.balanceAfter).toBe(60);
+
+    // 3. Downward audit count correction (-15) by PM
+    const adjSub = await postMovementCore(ctx, {
+      siteId: SITE_B1, itemName: "Binding Wire", unit: "kg", movementType: "adjustment",
+      adjustmentDirection: "subtract", quantity: 15, purpose: "Rust damage write-off",
+      sourceType: "manual", actorUser: PM as any, token: "test_token",
+    });
+    expect(adjSub.balanceAfter).toBe(45);
+  });
+});
+
+

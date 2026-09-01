@@ -182,7 +182,12 @@ export async function postMovementCore(
 
   const normalizedUnit = normalizeUnit(resolvedUnit);
 
-  if ((args.sourceType === "grn" || args.sourceType === "backfill") && args.sourceId) {
+  if (
+    (args.sourceType === "grn" ||
+      args.sourceType === "backfill" ||
+      args.sourceType === "transfer") &&
+    args.sourceId
+  ) {
     const existing = await ctx.db
       .query("stock_movements")
       .withIndex("by_sourceId", (q) => q.eq("sourceId", args.sourceId!))
@@ -285,110 +290,6 @@ export async function postMovementCore(
 
   return { movementId, balanceAfter: newBalance, isNegativeStock, isDuplicate: false };
 }
-
-export const postMovement = mutation({
-  args: {
-    siteId: v.id("sites"),
-    itemName: v.string(),
-    category: v.optional(v.string()),
-    unit: v.string(),
-    movementType: v.union(
-      v.literal("receipt"),
-      v.literal("issue"),
-      v.literal("transfer_out"),
-      v.literal("transfer_in"),
-      v.literal("return"),
-      v.literal("wastage"),
-      v.literal("adjustment")
-    ),
-    quantity: v.number(),
-    adjustmentDirection: v.optional(v.union(v.literal("add"), v.literal("subtract"))),
-    sourceType: v.union(v.literal("grn"), v.literal("manual"), v.literal("transfer"), v.literal("backfill")),
-    sourceId: v.optional(v.string()),
-    sourceLineIndex: v.optional(v.number()),
-    projectItemId: v.optional(v.id("project_items")),
-    counterpartySiteId: v.optional(v.id("sites")),
-    purpose: v.optional(v.string()),
-    token: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    return await postMovementCore(ctx, args);
-  },
-});
-
-export const issueStock = mutation({
-  args: {
-    siteId: v.id("sites"),
-    itemName: v.string(),
-    quantity: v.number(),
-    unit: v.optional(v.string()),
-    purpose: v.string(),
-    projectItemId: v.optional(v.id("project_items")),
-    category: v.optional(v.string()),
-    token: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const user = await requirePermission(ctx, "movements:issue", args.token);
-    return await postMovementCore(ctx, {
-      siteId: args.siteId,
-      itemName: args.itemName,
-      unit: args.unit || "nos",
-      category: args.category,
-      movementType: "issue",
-      quantity: args.quantity,
-      purpose: args.purpose,
-      projectItemId: args.projectItemId,
-      sourceType: "manual",
-      actorUser: user,
-      token: args.token,
-    });
-  },
-});
-
-export const reverseMovement = mutation({
-  args: {
-    movementId: v.id("stock_movements"),
-    reason: v.string(),
-    token: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const user = await requirePermission(ctx, "movements:reverse", args.token);
-    const original = await ctx.db.get(args.movementId);
-    if (!original) throw new Error(`Stock movement "${args.movementId}" not found.`);
-    if (original.movementType === "reversal") throw new Error(`Cannot reverse a reversal movement (${original._id}).`);
-
-    const existingReversal = await ctx.db
-      .query("stock_movements")
-      .filter((q) => q.eq(q.field("reversalOfId"), original._id))
-      .first();
-
-    if (existingReversal) {
-      throw new Error(`Movement "${original._id}" has already been reversed by movement "${existingReversal._id}".`);
-    }
-
-    const cleanReason = args.reason.trim();
-    if (!cleanReason) throw new Error("A non-empty reason is required to reverse a stock movement.");
-
-    return await postMovementCore(ctx, {
-      siteId: original.siteId,
-      itemName: original.itemName,
-      category: original.category,
-      unit: original.unit,
-      movementType: "reversal",
-      quantity: original.quantity,
-      reversalOfId: original._id,
-      originalMovementType: original.movementType as MovementType,
-      originalAdjustmentDirection: original.adjustmentDirection as AdjustmentDirection | undefined,
-      purpose: cleanReason,
-      sourceType: "manual",
-      sourceId: String(original._id),
-      projectItemId: original.projectItemId,
-      counterpartySiteId: original.counterpartySiteId,
-      actorUser: user,
-      token: args.token,
-    });
-  },
-});
 
 export const listStockMovements = query({
   args: {

@@ -86,8 +86,12 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
     updateUser: "users:manage",
     changeUserRole: "users:change_role",
   },
-  "movements.ts": {
+  "movement_actions.ts": {
     issueStock: "movements:issue",
+    transferStock: "movements:transfer",
+    returnStock: "movements:return",
+    recordWastage: "movements:wastage",
+    adjustStock: "movements:adjust",
     reverseMovement: "movements:reverse",
   },
 };
