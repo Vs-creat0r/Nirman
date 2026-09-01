@@ -11,7 +11,13 @@ import { mutation, query, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id, Doc } from "./_generated/dataModel";
 import { requirePermission, ActionName } from "./permissions";
-import { resolveCallerScope, buildUserScope, assertDocumentAccess, filterScopedList } from "./scoping";
+import {
+  resolveCallerScope,
+  buildUserScope,
+  assertDocumentAccess,
+  filterScopedList,
+  queryScopedByIndex,
+} from "./scoping";
 
 export type MovementType =
   | "receipt"
@@ -295,16 +301,28 @@ export const listStockMovements = query({
   args: {
     siteId: v.optional(v.id("sites")),
     projectId: v.optional(v.id("projects")),
+    limit: v.optional(v.number()),
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const scope = await resolveCallerScope(ctx, args.token);
-    let allMovements = await ctx.db.query("stock_movements").collect();
-    let scoped = filterScopedList(scope, allMovements);
-    if (args.siteId) scoped = scoped.filter((m) => m.siteId === args.siteId);
-    if (args.projectId) scoped = scoped.filter((m) => m.projectId === args.projectId);
+
+    if (args.siteId) {
+      const site = await ctx.db.get(args.siteId);
+      if (!site) throw new Error(`Site "${args.siteId}" not found.`);
+      assertDocumentAccess(scope, { siteId: args.siteId, projectId: site.projectId }, `site:${args.siteId}`);
+    } else if (args.projectId) {
+      assertDocumentAccess(scope, { projectId: args.projectId }, `project:${args.projectId}`);
+    }
+
+    const scoped = await queryScopedByIndex(ctx, "stock_movements", scope, {
+      siteId: args.siteId,
+      projectId: args.projectId,
+    });
+
+    const maxLimit = Math.min(Math.max(args.limit ?? 100, 1), 500);
     scoped.sort((a, b) => new Date(b._creationTime).getTime() - new Date(a._creationTime).getTime());
-    return scoped;
+    return scoped.slice(0, maxLimit);
   },
 });
 
@@ -316,11 +334,19 @@ export const getSiteInventory = query({
   },
   handler: async (ctx, args) => {
     const scope = await resolveCallerScope(ctx, args.token);
-    let allInventory = await ctx.db.query("inventory").collect();
-    let scoped = filterScopedList(scope, allInventory);
-    if (args.siteId) scoped = scoped.filter((i) => i.siteId === args.siteId);
-    if (args.projectId) scoped = scoped.filter((i) => i.projectId === args.projectId);
-    return scoped;
+
+    if (args.siteId) {
+      const site = await ctx.db.get(args.siteId);
+      if (!site) throw new Error(`Site "${args.siteId}" not found.`);
+      assertDocumentAccess(scope, { siteId: args.siteId, projectId: site.projectId }, `site:${args.siteId}`);
+    } else if (args.projectId) {
+      assertDocumentAccess(scope, { projectId: args.projectId }, `project:${args.projectId}`);
+    }
+
+    return await queryScopedByIndex(ctx, "inventory", scope, {
+      siteId: args.siteId,
+      projectId: args.projectId,
+    });
   },
 });
 

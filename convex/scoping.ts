@@ -171,7 +171,9 @@ export type ScopedTableName =
   | "purchase_order"
   | "delivery_challan"
   | "project_items"
-  | "grn";
+  | "grn"
+  | "inventory"
+  | "stock_movements";
 
 interface TableIndexConfig {
   hasProjectIdStatusIndex?: boolean;
@@ -208,6 +210,14 @@ const SCHEMA_INDEX_CAPABILITIES: Record<ScopedTableName, TableIndexConfig> = {
     hasProjectIdIndex: true,
   },
   grn: {
+    hasSiteIdIndex: true,
+  },
+  inventory: {
+    hasProjectIdIndex: true,
+    hasSiteIdIndex: true,
+  },
+  stock_movements: {
+    hasProjectIdIndex: true,
     hasSiteIdIndex: true,
   },
 };
@@ -426,6 +436,44 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
       const res = await ctx.db.query("grn").collect();
       return res as unknown as Doc<TableName>[];
     }
+
+    case "inventory": {
+      if (siteId) {
+        const res = await ctx.db
+          .query("inventory")
+          .withIndex("by_siteId", (q) => q.eq("siteId", siteId as Id<"sites">))
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      if (projectId) {
+        const res = await ctx.db
+          .query("inventory")
+          .withIndex("by_projectId", (q) => q.eq("projectId", projectId as Id<"projects">))
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      const res = await ctx.db.query("inventory").collect();
+      return res as unknown as Doc<TableName>[];
+    }
+
+    case "stock_movements": {
+      if (siteId) {
+        const res = await ctx.db
+          .query("stock_movements")
+          .withIndex("by_siteId_itemName", (q) => q.eq("siteId", siteId as Id<"sites">))
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      if (projectId) {
+        const res = await ctx.db
+          .query("stock_movements")
+          .withIndex("by_projectId", (q) => q.eq("projectId", projectId as Id<"projects">))
+          .collect();
+        return res as unknown as Doc<TableName>[];
+      }
+      const res = await ctx.db.query("stock_movements").collect();
+      return res as unknown as Doc<TableName>[];
+    }
   }
 }
 
@@ -449,6 +497,8 @@ export async function queryScopedByIndex<TableName extends ScopedTableName>(
   scope: UserScope,
   opts: {
     statusFilter?: string;
+    siteId?: string | Id<"sites">;
+    projectId?: string | Id<"projects">;
   } = {}
 ): Promise<Doc<TableName>[]> {
   const indexCaps = SCHEMA_INDEX_CAPABILITIES[table];
@@ -457,10 +507,16 @@ export async function queryScopedByIndex<TableName extends ScopedTableName>(
   }
 
   const { statusFilter } = opts;
+  const targetSiteId = opts.siteId ? String(opts.siteId) : undefined;
+  const targetProjectId = opts.projectId ? String(opts.projectId) : undefined;
 
   // Admin: single query — no scoping overhead
   if (scope.isAdmin) {
-    return await queryTableByIndex(ctx, table, { status: statusFilter });
+    return await queryTableByIndex(ctx, table, {
+      status: statusFilter,
+      siteId: targetSiteId,
+      projectId: targetProjectId,
+    });
   }
 
   const seen = new Set<string>();
@@ -474,6 +530,24 @@ export async function queryScopedByIndex<TableName extends ScopedTableName>(
         results.push(item);
       }
     }
+  }
+
+  // Specific site requested
+  if (targetSiteId) {
+    if (scope.allowedSiteIds.has(targetSiteId)) {
+      const rows = await queryTableByIndex(ctx, table, { siteId: targetSiteId, status: statusFilter });
+      addUnique(rows);
+    }
+    return results;
+  }
+
+  // Specific project requested
+  if (targetProjectId) {
+    if (scope.allowedProjectIds.has(targetProjectId)) {
+      const rows = await queryTableByIndex(ctx, table, { projectId: targetProjectId, status: statusFilter });
+      addUnique(rows);
+    }
+    return results;
   }
 
   // Site supervisor: query by siteId for each allowed site

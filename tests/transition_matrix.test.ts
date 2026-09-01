@@ -165,6 +165,146 @@ describe("🔴 GATE 1 — Zero Quantity Writes Outside movements.ts", () => {
 
     expect(allViolations).toHaveLength(0);
   });
+
+  it("dynamically proves that for all sites and items, inventory balance strictly equals the sum of movement deltas", async () => {
+    const { postMovementCore, computeMovementDelta } = await import("../convex/movements");
+
+    const inventory: any[] = [];
+    const stock_movements: any[] = [];
+    const logs: any[] = [];
+
+    const mockCtx = {
+      db: {
+        inventory,
+        stock_movements,
+        logs,
+        async get(id: string) {
+          if (id === "site_sim_1") return { _id: "site_sim_1", name: "Sim Site", projectId: "proj_sim" };
+          if (id === "site_sim_2") return { _id: "site_sim_2", name: "Sim Site 2", projectId: "proj_sim" };
+          const m = stock_movements.find((row) => row._id === id);
+          if (m) return m;
+          return null;
+        },
+        query(table: string) {
+          const items = table === "inventory" ? inventory : table === "stock_movements" ? stock_movements : [];
+          return {
+            withIndex(_idx: string, filterFn?: (q: any) => any) {
+              let filtered = [...items];
+              if (_idx === "by_siteId_itemName" && filterFn) {
+                const q = { eq: (f: string, v: any) => ({ eq: (_f2: string, v2: any) => { filtered = filtered.filter((i) => i.siteId === v && i.itemName === v2); return q; } }) };
+                filterFn(q);
+              }
+              if (_idx === "by_sourceId" && filterFn) {
+                const q = { eq: (_f: string, v: any) => { filtered = filtered.filter((m) => m.sourceId === v); return q; } };
+                filterFn(q);
+              }
+              return { async unique() { return filtered[0] || null; }, async first() { return filtered[0] || null; }, async collect() { return filtered; } };
+            },
+            filter(_fn: any) { return { async first() { return items[0] || null; }, async collect() { return [...items]; } }; },
+            async collect() { return [...items]; },
+          };
+        },
+        async insert(table: string, doc: any) {
+          const _id = `${table}_${Math.random().toString(36).slice(2, 9)}`;
+          const row = { _id, _creationTime: Date.now(), ...doc };
+          if (table === "inventory") inventory.push(row);
+          if (table === "stock_movements") stock_movements.push(row);
+          if (table === "logs") logs.push(row);
+          return _id;
+        },
+        async patch(id: string, patch: any) {
+          const inv = inventory.find((i: any) => i._id === id);
+          if (inv) Object.assign(inv, patch);
+        },
+      },
+    } as any;
+
+    const ADMIN_USER = { _id: "admin_u1" as any, role: "admin", isActive: true };
+    const SITE_ID = "site_sim_1" as any;
+    const ITEM = "Reinforcement Bar 12mm";
+
+    // 1. Receipt: +100
+    await postMovementCore(mockCtx, {
+      siteId: SITE_ID, itemName: ITEM, unit: "MT", movementType: "receipt", quantity: 100,
+      sourceType: "grn", sourceId: "grn_sim_1", actorUser: ADMIN_USER as any, token: "token",
+    });
+
+    // 2. Issue: -25
+    const issueRes = await postMovementCore(mockCtx, {
+      siteId: SITE_ID, itemName: ITEM, unit: "MT", movementType: "issue", quantity: 25,
+      purpose: "Footing cage fabrication", sourceType: "manual", actorUser: ADMIN_USER as any, token: "token",
+    });
+
+    // 3. Transfer out: -20
+    await postMovementCore(mockCtx, {
+      siteId: SITE_ID, counterpartySiteId: "site_sim_2" as any, itemName: ITEM, unit: "MT",
+      movementType: "transfer_out", quantity: 20, sourceType: "transfer", sourceId: "TRF-SIM-01",
+      sourceLineIndex: 0, purpose: "Transfer to Site 2", actorUser: ADMIN_USER as any, token: "token",
+    });
+
+    // 4. Wastage: -5
+    await postMovementCore(mockCtx, {
+      siteId: SITE_ID, itemName: ITEM, unit: "MT", movementType: "wastage", quantity: 5,
+      purpose: "Cut piece ends scrap", sourceType: "manual", actorUser: ADMIN_USER as any, token: "token",
+    });
+
+    // 5. Return: -10
+    await postMovementCore(mockCtx, {
+      siteId: SITE_ID, itemName: ITEM, unit: "MT", movementType: "return", quantity: 10,
+      purpose: "Vendor return", sourceType: "manual", sourceId: "grn_sim_1", actorUser: ADMIN_USER as any, token: "token",
+    });
+
+    // 6. Adjustment (add): +15
+    await postMovementCore(mockCtx, {
+      siteId: SITE_ID, itemName: ITEM, unit: "MT", movementType: "adjustment", adjustmentDirection: "add",
+      quantity: 15, purpose: "Audit count gain", sourceType: "manual", actorUser: ADMIN_USER as any, token: "token",
+    });
+
+    // 7. Adjustment (subtract): -5
+    await postMovementCore(mockCtx, {
+      siteId: SITE_ID, itemName: ITEM, unit: "MT", movementType: "adjustment", adjustmentDirection: "subtract",
+      quantity: 5, purpose: "Audit count loss", sourceType: "manual", actorUser: ADMIN_USER as any, token: "token",
+    });
+
+    // 8. Reversal of issue: +25
+    await postMovementCore(mockCtx, {
+      siteId: SITE_ID, itemName: ITEM, unit: "MT", movementType: "reversal", quantity: 25,
+      reversalOfId: issueRes.movementId, originalMovementType: "issue",
+      purpose: "Wrong bar size selected on issue #1", sourceType: "manual",
+      actorUser: ADMIN_USER as any, token: "token",
+    });
+
+    // Reconcile: Sum of all movement deltas must equal current inventory quantity
+    let calculatedSum = 0;
+    for (const mov of stock_movements) {
+      if (mov.siteId === SITE_ID && mov.itemName === ITEM) {
+        let origType = mov.originalMovementType;
+        let origAdjDir = mov.originalAdjustmentDirection;
+        if (mov.movementType === "reversal" && mov.reversalOfId) {
+          const orig = stock_movements.find((m) => m._id === mov.reversalOfId);
+          if (orig) {
+            origType = orig.movementType;
+            origAdjDir = orig.adjustmentDirection;
+          }
+        }
+        const delta = computeMovementDelta(mov.movementType, mov.quantity, {
+          adjustmentDirection: mov.adjustmentDirection,
+          originalMovementType: origType,
+          originalAdjustmentDirection: origAdjDir,
+        });
+        calculatedSum += delta;
+      }
+    }
+
+    const currentInventory = inventory.find((i) => i.siteId === SITE_ID && i.itemName === ITEM);
+    const lastMovement = stock_movements[stock_movements.length - 1];
+
+    // Expected: 100 - 25 - 20 - 5 - 10 + 15 - 5 + 25 = 75
+    expect(calculatedSum).toBe(75);
+    expect(currentInventory.quantity).toBe(75);
+    expect(lastMovement.balanceAfter).toBe(75);
+    expect(currentInventory.quantity).toBe(calculatedSum);
+  });
 });
 
 describe("State Machine Transition Matrix & Guard Validation", () => {

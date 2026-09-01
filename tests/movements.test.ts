@@ -1108,4 +1108,167 @@ describe("S2-05 · Transfer, Return, Wastage, Adjustment", () => {
   });
 });
 
+/**
+ * S2-06 — Scoping, Index Capabilities & Transfer Succession
+ */
+describe("S2-06 · Scoping, Index Capabilities & Transfer Succession", () => {
+  function createMockCtx() {
+    const db = {
+      inventory: [] as any[],
+      stock_movements: [] as any[],
+      logs: [] as any[],
+      sessions: [
+        { _id: "s_pm", userId: "user_pm_1", token: "pm_token", expiresAt: Date.now() + 100000 },
+        { _id: "s_sup", userId: "user_sup_1", token: "sup_token", expiresAt: Date.now() + 100000 },
+      ],
+      sites: [
+        { _id: "site_B1" as Id<"sites">, name: "Site Beta", projectId: "proj_Beta" as Id<"projects"> },
+        { _id: "site_A1" as Id<"sites">, name: "Site Alpha", projectId: "proj_Alpha" as Id<"projects"> },
+      ],
+      users: [
+        {
+          _id: "user_pm_1" as Id<"users">,
+          role: "project_manager",
+          name: "PM",
+          isActive: true,
+          assignedSiteIds: ["site_B1" as Id<"sites">, "site_A1" as Id<"sites">],
+          assignedProjectIds: ["proj_Beta" as Id<"projects">, "proj_Alpha" as Id<"projects">],
+        },
+        {
+          _id: "user_sup_1" as Id<"users">,
+          role: "site_supervisor",
+          name: "Supervisor",
+          isActive: true,
+          assignedSiteIds: ["site_B1" as Id<"sites">],
+          assignedProjectIds: ["proj_Beta" as Id<"projects">],
+        },
+      ],
+
+      async get(id: string) {
+        if (id === "site_B1") return { _id: "site_B1", name: "Site Beta", projectId: "proj_Beta" };
+        if (id === "site_A1") return { _id: "site_A1", name: "Site Alpha", projectId: "proj_Alpha" };
+        return null;
+      },
+
+      query(tableName: string) {
+        const self = this;
+        const tableMap: Record<string, any[]> = {
+          inventory: self.inventory,
+          stock_movements: self.stock_movements,
+          sessions: self.sessions,
+          sites: self.sites,
+          users: self.users,
+        };
+        const items = tableMap[tableName] || [];
+        return {
+          withIndex(_idx: string, filterFn?: (q: any) => any) {
+            let filtered = [...items];
+            if (_idx === "by_siteId_itemName" && filterFn) {
+              const q = { eq: (f: string, v: any) => ({ eq: (_f2: string, v2: any) => { filtered = filtered.filter((i) => i.siteId === v && i.itemName === v2); return q; } }) };
+              filterFn(q);
+            }
+            if (_idx === "by_sourceId" && filterFn) {
+              const q = { eq: (_f: string, v: any) => { filtered = filtered.filter((m) => m.sourceId === v); return q; } };
+              filterFn(q);
+            }
+            if (_idx === "by_siteId" && filterFn) {
+              const q = { eq: (_f: string, v: any) => { filtered = filtered.filter((m) => m.siteId === v); return q; } };
+              filterFn(q);
+            }
+            if (_idx === "by_projectId" && filterFn) {
+              const q = { eq: (_f: string, v: any) => { filtered = filtered.filter((m) => m.projectId === v); return q; } };
+              filterFn(q);
+            }
+            if (_idx === "by_token" && filterFn) {
+              const q = { eq: (_f: string, v: any) => { filtered = self.sessions.filter((s) => s.token === v); return q; } };
+              filterFn(q);
+            }
+            return { async unique() { return filtered[0] || null; }, async first() { return filtered[0] || null; }, async collect() { return filtered; } };
+          },
+          filter(_fn: any) { return { async first() { return items[0] || null; }, async collect() { return [...items]; } }; },
+          async collect() { return [...items]; },
+        };
+      },
+
+      async insert(table: string, doc: any) {
+        const _id = `${table}_${Math.random().toString(36).slice(2, 9)}`;
+        const row = { _id, _creationTime: Date.now(), ...doc };
+        if (table === "inventory") this.inventory.push(row);
+        if (table === "stock_movements") this.stock_movements.push(row);
+        if (table === "logs") this.logs.push(row);
+        return _id;
+      },
+
+      async patch(id: string, patch: any) {
+        const inv = this.inventory.find((i: any) => i._id === id);
+        if (inv) Object.assign(inv, patch);
+      },
+    };
+    return { db } as any;
+  }
+
+  const PM = {
+    _id: "user_pm_1" as Id<"users">,
+    role: "project_manager",
+    name: "PM",
+    isActive: true,
+    assignedSiteIds: ["site_B1" as Id<"sites">, "site_A1" as Id<"sites">],
+    assignedProjectIds: ["proj_Beta" as Id<"projects">, "proj_Alpha" as Id<"projects">],
+  };
+
+  const SITE_B1 = "site_B1" as Id<"sites">;
+  const SITE_A1 = "site_A1" as Id<"sites">;
+
+  it("two successive transfers of the same item post independently without collision", async () => {
+    const ctx = createMockCtx();
+
+    // Initial balance: 100 bags at Site B1, 0 at Site A1
+    await postMovementCore(ctx, {
+      siteId: SITE_B1, itemName: "Cement OPC 53", unit: "bags", movementType: "receipt",
+      quantity: 100, sourceType: "grn", sourceId: "grn_cement_initial", actorUser: PM as any, token: "pm_token",
+    });
+
+    // Transfer 1: 20 bags from Site B1 -> Site A1
+    const trf1Ref = `TRF-1-${Date.now()}`;
+    const t1Out = await postMovementCore(ctx, {
+      siteId: SITE_B1, counterpartySiteId: SITE_A1, itemName: "Cement OPC 53", unit: "bags",
+      movementType: "transfer_out", quantity: 20, sourceType: "transfer", sourceId: trf1Ref,
+      sourceLineIndex: 0, purpose: "Batch 1 transfer", actorUser: PM as any, token: "pm_token",
+    });
+    const t1In = await postMovementCore(ctx, {
+      siteId: SITE_A1, counterpartySiteId: SITE_B1, itemName: "Cement OPC 53", unit: "bags",
+      movementType: "transfer_in", quantity: 20, sourceType: "transfer", sourceId: trf1Ref,
+      sourceLineIndex: 1, purpose: "Batch 1 transfer", actorUser: PM as any, token: "pm_token",
+    });
+
+    expect(t1Out.isDuplicate).toBe(false);
+    expect(t1In.isDuplicate).toBe(false);
+    expect(t1Out.balanceAfter).toBe(80);
+    expect(t1In.balanceAfter).toBe(20);
+
+    // Transfer 2: Another 30 bags of the EXACT same item between the same sites in quick succession
+    const trf2Ref = `TRF-2-${Date.now()}`;
+    const t2Out = await postMovementCore(ctx, {
+      siteId: SITE_B1, counterpartySiteId: SITE_A1, itemName: "Cement OPC 53", unit: "bags",
+      movementType: "transfer_out", quantity: 30, sourceType: "transfer", sourceId: trf2Ref,
+      sourceLineIndex: 0, purpose: "Batch 2 transfer", actorUser: PM as any, token: "pm_token",
+    });
+    const t2In = await postMovementCore(ctx, {
+      siteId: SITE_A1, counterpartySiteId: SITE_B1, itemName: "Cement OPC 53", unit: "bags",
+      movementType: "transfer_in", quantity: 30, sourceType: "transfer", sourceId: trf2Ref,
+      sourceLineIndex: 1, purpose: "Batch 2 transfer", actorUser: PM as any, token: "pm_token",
+    });
+
+    // Must post successfully as new distinct movement rows, not be swallowed
+    expect(t2Out.isDuplicate).toBe(false);
+    expect(t2In.isDuplicate).toBe(false);
+    expect(t2Out.balanceAfter).toBe(50);
+    expect(t2In.balanceAfter).toBe(50);
+
+    // Total 5 ledger rows: 1 receipt + 2 transfer_out + 2 transfer_in
+    expect(ctx.db.stock_movements.length).toBe(5);
+  });
+});
+
+
 
