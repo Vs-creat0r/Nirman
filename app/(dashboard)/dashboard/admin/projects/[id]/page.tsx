@@ -318,13 +318,16 @@ export default function ProjectDetailPage() {
                   <th className="py-3 px-3 text-right">Committed (POs)</th>
                   <th className="py-3 px-3 text-right">Procured (GRNs)</th>
                   <th className="py-3 px-3 text-right">Consumed (Issued)</th>
-                  <th className="py-3 px-3 text-right">Remaining Balance</th>
+                  <th className="py-3 px-3 text-right">Physical In-Stock</th>
+                  <th className="py-3 px-3 text-right">Left to Order</th>
                   <th className="py-3 px-3 text-center">Status</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredItems.map((item: ReconciledItem) => (
+                {filteredItems.map((item: ReconciledItem) => {
+                  const physicalInStock = item.procuredQty - item.consumedQty;
+                  return (
                   <tr key={item._id} className="hover:bg-muted/15 transition-colors">
                     <td className="py-3 px-4">
                       <div className="font-bold text-foreground">{item.itemName}</div>
@@ -361,7 +364,15 @@ export default function ProjectDetailPage() {
                       <span className="text-[10px] text-muted-foreground uppercase font-normal">{item.unit}</span>
                     </td>
 
-                    {/* Remaining */}
+                    {/* Physical In-Stock (Procured - Consumed) */}
+                    <td className="py-3 px-3 text-right font-mono whitespace-nowrap">
+                      <span className={physicalInStock < 0 ? "text-amber-600 font-semibold" : "text-foreground"}>
+                        {physicalInStock}
+                      </span>{" "}
+                      <span className="text-[10px] text-muted-foreground uppercase font-normal">{item.unit}</span>
+                    </td>
+
+                    {/* Left to Order (BOQ Headroom) */}
                     <td className="py-3 px-3 text-right font-mono font-bold whitespace-nowrap">
                       <span className={item.remainingQty < 0 ? "text-destructive" : "text-foreground"}>
                         {item.remainingQty}
@@ -405,7 +416,8 @@ export default function ProjectDetailPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>

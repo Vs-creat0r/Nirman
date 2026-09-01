@@ -114,13 +114,13 @@ export const createMR = mutation({
     const refNo = await generateMRRefNo(ctx);
     const now = new Date().toISOString();
 
-    // Auto-approve if Project Manager or Admin raises the request directly
-    const initialStatus =
-      user.role === "project_manager" || user.role === "admin"
-        ? "ready_for_cc"
-        : args.submitImmediately
-        ? "pending"
-        : "draft";
+    const settings = await ctx.db.query("settings").first();
+    const requireManagerApproval = settings?.requireManagerApprovalForRequests ?? true;
+    const isAutoApproved = user.role === "project_manager" || user.role === "admin" || !requireManagerApproval;
+
+    const initialStatus = isAutoApproved
+      ? (args.submitImmediately || user.role === "project_manager" || user.role === "admin" ? "ready_for_cc" : "draft")
+      : (args.submitImmediately ? "pending" : "draft");
 
     const sanitizedItems = args.items.map((it) => ({
       itemName: it.itemName.trim(),
@@ -154,7 +154,9 @@ export const createMR = mutation({
       referenceId: refNo,
       fromStatus: undefined,
       toStatus: initialStatus,
-      note: initialStatus === "ready_for_cc" ? "Auto-approved (raised by manager/admin)" : undefined,
+      note: initialStatus === "ready_for_cc"
+        ? (requireManagerApproval ? "Auto-approved (raised by manager/admin)" : "Auto-approved (manager approval disabled in settings)")
+        : undefined,
       timestamp: now,
     });
 
@@ -165,13 +167,18 @@ export const createMR = mutation({
 export const submitMR = mutation({
   args: { id: v.id("material_request"), token: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const settings = await ctx.db.query("settings").first();
+    const requireManagerApproval = settings?.requireManagerApprovalForRequests ?? true;
+    const targetStatus = requireManagerApproval ? "pending" : "ready_for_cc";
+
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
       from: "draft",
-      to: "pending",
+      to: targetStatus,
       action: "material_requests:submit",
       token: args.token,
+      note: !requireManagerApproval ? "Auto-approved on submission (manager approval disabled in settings)" : undefined,
     });
   },
 });

@@ -217,6 +217,12 @@ describe("S2-02 · postMovementCore Single Writer Logic & Idempotency", () => {
           async collect() {
             return [...items];
           },
+          async first() {
+            return items[0] || null;
+          },
+          async unique() {
+            return items[0] || null;
+          },
         };
       },
 
@@ -531,6 +537,8 @@ describe("S2-03 · GRN Receipt → Stock Ledger Wiring", () => {
           },
           filter(_fn: any) { return { async first() { return items[0] || null; }, async collect() { return [...items]; } }; },
           async collect() { return [...items]; },
+          async first() { return items[0] || null; },
+          async unique() { return items[0] || null; },
         };
       },
 
@@ -722,6 +730,8 @@ describe("S2-04 · Issue to Consumption", () => {
           },
           filter(_fn: any) { return { async first() { return items[0] || null; }, async collect() { return [...items]; } }; },
           async collect() { return [...items]; },
+          async first() { return items[0] || null; },
+          async unique() { return items[0] || null; },
         };
       },
 
@@ -950,6 +960,8 @@ describe("S2-05 · Transfer, Return, Wastage, Adjustment", () => {
             return { async first() { return filtered[0] || null; }, async collect() { return filtered; } };
           },
           async collect() { return [...items]; },
+          async first() { return items[0] || null; },
+          async unique() { return items[0] || null; },
         };
       },
 
@@ -1187,6 +1199,8 @@ describe("S2-06 · Scoping, Index Capabilities & Transfer Succession", () => {
           },
           filter(_fn: any) { return { async first() { return items[0] || null; }, async collect() { return [...items]; } }; },
           async collect() { return [...items]; },
+          async first() { return items[0] || null; },
+          async unique() { return items[0] || null; },
         };
       },
 
@@ -1395,6 +1409,8 @@ describe("S2-07 · Backfill Movements from Existing GRNs", () => {
           },
           filter(_fn: any) { return { async first() { return items[0] || null; }, async collect() { return [...items]; } }; },
           async collect() { return [...items]; },
+          async first() { return items[0] || null; },
+          async unique() { return items[0] || null; },
         };
       },
 

@@ -202,6 +202,8 @@ describe("🔴 GATE 1 — Zero Quantity Writes Outside movements.ts", () => {
             },
             filter(_fn: any) { return { async first() { return items[0] || null; }, async collect() { return [...items]; } }; },
             async collect() { return [...items]; },
+            async first() { return items[0] || null; },
+            async unique() { return items[0] || null; },
           };
         },
         async insert(table: string, doc: any) {

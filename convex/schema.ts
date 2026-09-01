@@ -320,6 +320,8 @@ export default defineSchema({
     companyContactPerson: v.optional(v.string()),
     companyPhone: v.optional(v.string()),
     companyEmail: v.optional(v.string()),
+    defaultReorderLevel: v.optional(v.number()),
+    allowNegativeStock: v.optional(v.boolean()),
     updatedAt: v.optional(v.string()),
   }),
 

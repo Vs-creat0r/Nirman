@@ -230,9 +230,19 @@ export async function postMovementCore(
     .withIndex("by_siteId_itemName", (q) => q.eq("siteId", args.siteId).eq("itemName", args.itemName))
     .first();
 
+  const settings = await ctx.db.query("settings").first();
+  const allowNegativeStock = settings?.allowNegativeStock ?? true;
+  const defaultReorderLevel = settings?.defaultReorderLevel ?? 10;
+
   const currentBalance = existingInventory?.quantity ?? 0;
   const newBalance = currentBalance + delta;
   const isNegativeStock = newBalance < 0;
+
+  if (isNegativeStock && !allowNegativeStock) {
+    throw new Error(
+      `Negative stock is prohibited by system inventory policy. Movement would reduce "${args.itemName}" balance to ${newBalance} ${normalizedUnit}.`
+    );
+  }
 
   const movementId = await ctx.db.insert("stock_movements", {
     siteId: args.siteId,
@@ -273,6 +283,7 @@ export async function postMovementCore(
       category: resolvedCategory || "other",
       quantity: newBalance,
       unit: normalizedUnit,
+      reorderLevel: defaultReorderLevel,
       siteId: args.siteId,
       projectId,
       lastMovementId: movementId,

@@ -41,6 +41,8 @@ export default function AdminSettingsPage() {
     companyPhone: "",
     companyEmail: "",
     requireManagerApprovalForRequests: true,
+    defaultReorderLevel: 10,
+    allowNegativeStock: true,
   });
   const [companySaveSuccess, setCompanySaveSuccess] = React.useState(false);
   const [companySaving, setCompanySaving] = React.useState(false);
@@ -58,6 +60,8 @@ export default function AdminSettingsPage() {
         companyEmail: companyProfile.companyEmail || "",
         requireManagerApprovalForRequests:
           companyProfile.requireManagerApprovalForRequests ?? true,
+        defaultReorderLevel: companyProfile.defaultReorderLevel ?? 10,
+        allowNegativeStock: companyProfile.allowNegativeStock ?? true,
       });
     }
   }, [companyProfile]);
@@ -77,12 +81,14 @@ export default function AdminSettingsPage() {
         companyPhone: companyForm.companyPhone,
         companyEmail: companyForm.companyEmail,
         requireManagerApprovalForRequests: companyForm.requireManagerApprovalForRequests,
+        defaultReorderLevel: Number(companyForm.defaultReorderLevel) || 10,
+        allowNegativeStock: companyForm.allowNegativeStock,
         token: token || undefined,
       });
       setCompanySaveSuccess(true);
       setTimeout(() => setCompanySaveSuccess(false), 3000);
-    } catch (err: any) {
-      setCompanyError(err.message || "Failed to update company profile.");
+    } catch (err: unknown) {
+      setCompanyError(err instanceof Error ? err.message : "Failed to update company profile.");
     } finally {
       setCompanySaving(false);
     }
@@ -465,8 +471,23 @@ export default function AdminSettingsPage() {
           </CardHeader>
 
           <CardContent className="pt-6 space-y-4">
+            {companyError && (
+              <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                {companyError}
+              </div>
+            )}
+
+            {companySaveSuccess && (
+              <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                System preferences successfully saved!
+              </div>
+            )}
+
+            {/* Approval Chain Setting */}
             <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 max-w-lg">
                 <Label className="text-xs font-bold text-foreground">
                   Require Project Manager Approval for Material Requests
                 </Label>
@@ -484,6 +505,52 @@ export default function AdminSettingsPage() {
                 }}
                 className="h-4 w-4 rounded border-border text-primary focus:ring-ring cursor-pointer"
               />
+            </div>
+
+            {/* Negative Stock Policy */}
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
+              <div className="space-y-0.5 max-w-lg">
+                <Label className="text-xs font-bold text-foreground">
+                  Allow Negative Stock Issuance
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  When enabled, site supervisors can record urgent material issues even when physical intake is pending GRN inspection. When disabled, issuance is strictly blocked when balance is 0.
+                </p>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={companyForm.allowNegativeStock}
+                onChange={(e) => {
+                  const updated = e.target.checked;
+                  setCompanyForm({ ...companyForm, allowNegativeStock: updated });
+                }}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-ring cursor-pointer"
+              />
+            </div>
+
+            {/* Default Reorder Level */}
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
+              <div className="space-y-0.5 max-w-lg">
+                <Label className="text-xs font-bold text-foreground">
+                  Default Inventory Reorder Level
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Baseline threshold for automated low-stock warnings when creating new inventory records without a custom threshold.
+                </p>
+              </div>
+
+              <div className="w-24">
+                <Input
+                  type="number"
+                  min="0"
+                  value={companyForm.defaultReorderLevel}
+                  onChange={(e) => {
+                    setCompanyForm({ ...companyForm, defaultReorderLevel: Number(e.target.value) || 0 });
+                  }}
+                  className="text-xs h-8 text-right font-mono"
+                />
+              </div>
             </div>
 
             <Button

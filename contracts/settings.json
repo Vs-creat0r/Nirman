@@ -55,6 +55,22 @@
       "type": "string",
       "input": "email",
       "required": false
+    },
+    {
+      "field": "defaultReorderLevel",
+      "label": "Default Reorder Level",
+      "type": "number",
+      "input": "number",
+      "required": false,
+      "default": 10
+    },
+    {
+      "field": "allowNegativeStock",
+      "label": "Allow Negative Stock",
+      "type": "boolean",
+      "input": "toggle",
+      "required": false,
+      "default": true
     }
   ],
   "statuses": [],

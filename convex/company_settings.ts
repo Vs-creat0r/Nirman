@@ -8,7 +8,7 @@ import { requirePermission } from "./permissions";
 import { getCurrentUser } from "./rbac";
 
 /**
- * Get Company Profile details for PO printing and document issuance.
+ * Get Company Profile details and System Settings.
  * Available to all authenticated users.
  */
 export const getCompanyProfile = query({
@@ -32,6 +32,8 @@ export const getCompanyProfile = query({
       companyEmail: settingsDoc?.companyEmail || "procurement@nirman.infra",
       requireManagerApprovalForRequests:
         settingsDoc?.requireManagerApprovalForRequests ?? true,
+      defaultReorderLevel: settingsDoc?.defaultReorderLevel ?? 10,
+      allowNegativeStock: settingsDoc?.allowNegativeStock ?? true,
     };
   },
 });
@@ -48,6 +50,8 @@ export const updateCompanyProfile = mutation({
     companyPhone: v.string(),
     companyEmail: v.string(),
     requireManagerApprovalForRequests: v.optional(v.boolean()),
+    defaultReorderLevel: v.optional(v.number()),
+    allowNegativeStock: v.optional(v.boolean()),
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -56,34 +60,42 @@ export const updateCompanyProfile = mutation({
     const settingsDoc = await ctx.db.query("settings").first();
     const now = new Date().toISOString();
 
+    const patchData: Record<string, unknown> = {
+      companyName: args.companyName.trim(),
+      companyGstNo: args.companyGstNo.trim(),
+      companyBillingAddress: args.companyBillingAddress.trim(),
+      companyContactPerson: args.companyContactPerson.trim(),
+      companyPhone: args.companyPhone.trim(),
+      companyEmail: args.companyEmail.trim(),
+      updatedAt: now,
+    };
+
+    if (args.requireManagerApprovalForRequests !== undefined) {
+      patchData.requireManagerApprovalForRequests = args.requireManagerApprovalForRequests;
+    }
+    if (args.defaultReorderLevel !== undefined) {
+      patchData.defaultReorderLevel = args.defaultReorderLevel;
+    }
+    if (args.allowNegativeStock !== undefined) {
+      patchData.allowNegativeStock = args.allowNegativeStock;
+    }
+
     if (settingsDoc) {
-      await ctx.db.patch(settingsDoc._id, {
-        companyName: args.companyName.trim(),
-        companyGstNo: args.companyGstNo.trim(),
-        companyBillingAddress: args.companyBillingAddress.trim(),
-        companyContactPerson: args.companyContactPerson.trim(),
-        companyPhone: args.companyPhone.trim(),
-        companyEmail: args.companyEmail.trim(),
-        requireManagerApprovalForRequests:
-          args.requireManagerApprovalForRequests !== undefined
-            ? args.requireManagerApprovalForRequests
-            : settingsDoc.requireManagerApprovalForRequests,
-        updatedAt: now,
-      });
+      await ctx.db.patch(settingsDoc._id, patchData);
       return settingsDoc._id;
     } else {
-      const id = await ctx.db.insert("settings", {
+      return await ctx.db.insert("settings", {
         companyName: args.companyName.trim(),
         companyGstNo: args.companyGstNo.trim(),
         companyBillingAddress: args.companyBillingAddress.trim(),
         companyContactPerson: args.companyContactPerson.trim(),
         companyPhone: args.companyPhone.trim(),
         companyEmail: args.companyEmail.trim(),
-        requireManagerApprovalForRequests:
-          args.requireManagerApprovalForRequests ?? true,
+        requireManagerApprovalForRequests: args.requireManagerApprovalForRequests ?? true,
+        defaultReorderLevel: args.defaultReorderLevel ?? 10,
+        allowNegativeStock: args.allowNegativeStock ?? true,
         updatedAt: now,
       });
-      return id;
     }
   },
 });

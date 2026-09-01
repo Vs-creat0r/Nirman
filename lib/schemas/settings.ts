@@ -12,6 +12,8 @@ export const settingsSchema = z.object({
   companyContactPerson: z.string().optional(),
   companyPhone: z.string().optional(),
   companyEmail: z.string().optional(),
+  defaultReorderLevel: z.coerce.number().optional(),
+  allowNegativeStock: z.boolean().optional(),
 });
 
 export type SettingsInput = z.infer<typeof settingsSchema>;
