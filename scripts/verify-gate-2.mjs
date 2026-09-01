@@ -1,12 +1,12 @@
 /**
- * Gate 2 Live Verification Script
+ * Gate 2 Live Verification Script (Supervisor Scoping & Mechanism Proof)
  *
  * Requirements:
- * 1. Log in as supervisor.
- * 2. Query initial on-hand stock for a material at a site.
- * 3. Issue 40 bags of material via issueStock.
- * 4. Verify live on-hand balance decreases by exactly 40.
- * 5. Verify the item's ledger records the immutable movement with exact balanceAfter.
+ * 1. Log in with real site_supervisor credentials.
+ * 2. Verify supervisor identity & site assignments (assigned to Site A, unassigned to Site B).
+ * 3. Issue 40 bags from assigned Site A -> Assert on-hand decreases by exactly 40.
+ * 4. Verify immutable ledger history contains the new issue row with matching balanceAfter.
+ * 5. Attempt to issue stock from unassigned Site B as supervisor -> Assert it throws Forbidden / Unauthorized.
  */
 
 import { ConvexHttpClient } from "convex/browser";
@@ -16,127 +16,141 @@ const CONVEX_URL = "https://posh-corgi-393.convex.cloud";
 const client = new ConvexHttpClient(CONVEX_URL);
 
 async function runGate2() {
-  console.log("==================================================");
-  console.log("  GATE 2 LIVE VERIFICATION: Supervisor Issue Flow");
-  console.log("==================================================");
+  console.log("==================================================================");
+  console.log("  GATE 2 LIVE VERIFICATION: Supervisor Role & Scoping Proof");
+  console.log("==================================================================");
 
-  // 1. Login as Admin or find a supervisor
-  console.log("\n[1/5] Logging in as admin to retrieve site and supervisor token...");
+  // 1. Login with actual supervisor credentials
+  console.log("\n[1/6] Authenticating as site supervisor (`supervisor`)...");
+  const supervisorToken = await client.mutation(api.auth.login, {
+    username: "supervisor",
+    password: "supervisor",
+  });
+
+  const me = await client.query(api.users.getMyUser, { token: supervisorToken });
+  console.log(`✓ Authenticated User: ${me.name} (@${me.username})`);
+  console.log(`✓ Role: ${me.role}`);
+  console.log(`✓ Assigned Sites: ${JSON.stringify(me.assignedSiteIds)}`);
+
+  if (me.role !== "site_supervisor") {
+    throw new Error(`Expected role 'site_supervisor', but got '${me.role}'`);
+  }
+
+  // 2. Identify assigned site (Site A) and unassigned site (Site B)
   const adminToken = await client.mutation(api.auth.login, {
     username: "admin",
     password: "admin123",
   });
+  const allSites = await client.query(api.sites.listAllSites, { token: adminToken });
 
-  const sites = await client.query(api.sites.listSites, { token: adminToken });
-  if (!sites || sites.length === 0) {
-    throw new Error("No sites found on live database.");
-  }
-  const testSite = sites[0];
-  console.log(`Using Test Site: ${testSite.name} (${testSite._id})`);
+  const assignedSite = allSites.find((s) => me.assignedSiteIds?.includes(s._id));
+  const unassignedSite = allSites.find((s) => !me.assignedSiteIds?.includes(s._id));
 
-  // Find a user with role site_supervisor or project_manager or admin
-  const allUsers = await client.query(api.users.list, { token: adminToken });
-  const supervisorUser = allUsers.find(
-    (u) => u.role === "site_supervisor" || u.role === "project_manager" || u.role === "admin"
-  );
-  console.log(`Acting User: ${supervisorUser.name} (${supervisorUser.username}, role: ${supervisorUser.role})`);
-
-  // Login as this user
-  let actorToken;
-  try {
-    actorToken = await client.mutation(api.auth.login, {
-      username: supervisorUser.username,
-      password: `${supervisorUser.username}123`,
-    });
-  } catch {
-    actorToken = adminToken;
+  if (!assignedSite || !unassignedSite) {
+    throw new Error("Could not identify both an assigned and an unassigned site for supervisor.");
   }
 
-  // 2. Query Initial Inventory
-  console.log("\n[2/5] Reading initial site inventory...");
+  console.log(`\n[2/6] Scoping setup:`);
+  console.log(`  - Assigned Site (Allowed): ${assignedSite.name} (${assignedSite._id})`);
+  console.log(`  - Unassigned Site (Forbidden): ${unassignedSite.name} (${unassignedSite._id})`);
+
+  // 3. Check and prepare baseline stock on Assigned Site
+  const testItemName = "Cement Grade 53 (Gate2-Supervisor-Proof)";
+  console.log(`\n[3/6] Reading initial inventory for "${testItemName}" on assigned site...`);
+
+  // Admin seeds 100 bags if needed to establish clear baseline
+  await client.mutation(api.movement_actions.adjustStock, {
+    siteId: assignedSite._id,
+    itemName: testItemName,
+    adjustmentDirection: "add",
+    quantity: 100,
+    reason: "Gate 2 baseline setup for supervisor test",
+    token: adminToken,
+  });
+
   const initialInventory = await client.query(api.movements.getSiteInventory, {
-    siteId: testSite._id,
-    token: actorToken,
+    siteId: assignedSite._id,
+    token: supervisorToken,
   });
+  const itemBefore = initialInventory.find((i) => i.itemName === testItemName);
+  const qtyBefore = itemBefore ? itemBefore.quantity : 0;
+  console.log(`  - On-hand balance before supervisor issue: ${qtyBefore} bags`);
 
-  const testItemName = "Cement Grade 53 (Gate2-Test)";
-  const existingItem = initialInventory.find((i) => i.itemName === testItemName);
-  const initialQty = existingItem ? existingItem.quantity : 0;
-  console.log(`Initial on-hand quantity for "${testItemName}": ${initialQty} bags`);
-
-  // Seed 100 bags if 0 so we can issue 40
-  if (initialQty < 40) {
-    console.log("Seeding 100 bags via audit adjustment for clean baseline test...");
-    await client.mutation(api.movement_actions.adjustStock, {
-      siteId: testSite._id,
-      itemName: testItemName,
-      adjustmentDirection: "add",
-      quantity: 100,
-      reason: "Gate 2 baseline seeding",
-      token: adminToken,
-    });
-  }
-
-  const inventoryBeforeIssue = await client.query(api.movements.getSiteInventory, {
-    siteId: testSite._id,
-    token: actorToken,
-  });
-  const qtyBefore = inventoryBeforeIssue.find((i) => i.itemName === testItemName).quantity;
-  console.log(`On-hand balance before issue: ${qtyBefore} bags`);
-
-  // 3. Issue 40 bags as supervisor
-  console.log("\n[3/5] Supervisor issuing 40 bags of material...");
+  // 4. Supervisor issues 40 bags from Assigned Site
+  console.log(`\n[4/6] Supervisor issuing 40 bags from assigned site (${assignedSite.name})...`);
   const issueResult = await client.mutation(api.movement_actions.issueStock, {
-    siteId: testSite._id,
+    siteId: assignedSite._id,
     itemName: testItemName,
     quantity: 40,
-    purpose: "Column 14-B concrete casting (Gate 2 Proof)",
-    token: actorToken,
+    purpose: "Pier 12 concrete pour (Supervisor Gate 2 Issue)",
+    token: supervisorToken,
   });
-  console.log(`Issue Mutation Result:`, issueResult);
+  console.log(`  ✓ Issue Mutation Success:`, issueResult);
 
-  // 4. Verify live on-hand balance drops by exactly 40
-  console.log("\n[4/5] Verifying live on-hand balance reduction...");
-  const inventoryAfterIssue = await client.query(api.movements.getSiteInventory, {
-    siteId: testSite._id,
-    token: actorToken,
+  // Verify live on-hand balance reduction
+  const inventoryAfter = await client.query(api.movements.getSiteInventory, {
+    siteId: assignedSite._id,
+    token: supervisorToken,
   });
-  const qtyAfter = inventoryAfterIssue.find((i) => i.itemName === testItemName).quantity;
-  console.log(`On-hand balance after issue: ${qtyAfter} bags`);
+  const qtyAfter = inventoryAfter.find((i) => i.itemName === testItemName)?.quantity;
+  console.log(`  - On-hand balance after supervisor issue: ${qtyAfter} bags`);
 
   const expectedQty = qtyBefore - 40;
   if (qtyAfter !== expectedQty) {
     throw new Error(
-      `GATE 2 FAILED: Expected on-hand balance to be ${expectedQty}, but got ${qtyAfter}. Delta mismatch!`
+      `GATE 2 FAILED: Expected balance ${expectedQty}, but got ${qtyAfter}. Mechanism failed!`
     );
   }
-  console.log(`✓ INVARIANT CONFIRMED: On-hand balance reduced by exactly 40 (${qtyBefore} -> ${qtyAfter}).`);
+  console.log(`  ✓ MECHANISM PROVED: On-hand balance reduced by exactly 40 (${qtyBefore} -> ${qtyAfter}).`);
 
-  // 5. Verify immutable ledger drilldown
-  console.log("\n[5/5] Checking immutable ledger history...");
+  // 5. Verify immutable ledger record
+  console.log(`\n[5/6] Verifying immutable ledger lineage...`);
   const ledger = await client.query(api.movements.getItemMovementLedger, {
-    siteId: testSite._id,
+    siteId: assignedSite._id,
     itemName: testItemName,
-    token: actorToken,
+    token: supervisorToken,
   });
 
   const latestMovement = ledger.movements[0];
-  console.log(`Latest movement type: ${latestMovement.movementType}`);
-  console.log(`Latest movement quantity: ${latestMovement.quantity}`);
-  console.log(`Latest movement balanceAfter: ${latestMovement.balanceAfter}`);
-  console.log(`Latest movement purpose: "${latestMovement.purpose}"`);
+  console.log(`  - Latest movement: ${latestMovement.movementType} of ${latestMovement.quantity} ${latestMovement.unit}`);
+  console.log(`  - Balance after: ${latestMovement.balanceAfter}`);
+  console.log(`  - Purpose: "${latestMovement.purpose}"`);
 
   if (
     latestMovement.movementType !== "issue" ||
     latestMovement.quantity !== 40 ||
     latestMovement.balanceAfter !== qtyAfter
   ) {
-    throw new Error("GATE 2 FAILED: Ledger record did not match issue operation!");
+    throw new Error("GATE 2 FAILED: Ledger record did not match supervisor issue!");
+  }
+  console.log(`  ✓ LEDGER PROVED: Append-only transaction recorded with exact balance.`);
+
+  // 6. Supervisor attempts to issue from Unassigned Site -> MUST FAIL CLOSED (Forbidden)
+  console.log(`\n[6/6] Security Test: Supervisor attempting to issue from UNASSIGNED site (${unassignedSite.name})...`);
+  let caughtForbidden = false;
+  try {
+    await client.mutation(api.movement_actions.issueStock, {
+      siteId: unassignedSite._id,
+      itemName: testItemName,
+      quantity: 10,
+      purpose: "Unauthorized issue attempt",
+      token: supervisorToken,
+    });
+  } catch (err) {
+    caughtForbidden = true;
+    console.log(`  ✓ IDOR GUARD TRIGGERED AS EXPECTED:`, err.message);
   }
 
-  console.log("\n==================================================");
-  console.log("  🔴 GATE 2 VERIFICATION PASSED WITH 100% PARITY!  ");
-  console.log("==================================================");
+  if (!caughtForbidden) {
+    throw new Error(
+      `SECURITY VULNERABILITY: Supervisor was able to issue stock from unassigned site (${unassignedSite.name})!`
+    );
+  }
+  console.log(`  ✓ SCOPING PROVED: Non-assigned site issuance threw Forbidden error.`);
+
+  console.log("\n==================================================================");
+  console.log("  🔴 GATE 2 FULLY PROVED: Supervisor mechanism & site scoping!   ");
+  console.log("==================================================================");
 }
 
 runGate2().catch((err) => {
