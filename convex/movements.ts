@@ -159,7 +159,28 @@ export async function postMovementCore(
     }
   }
 
-  const normalizedUnit = normalizeUnit(args.unit);
+  let resolvedCategory = args.category;
+  let resolvedUnit = args.unit;
+
+  if (args.projectItemId) {
+    const projectItem = await ctx.db.get(args.projectItemId);
+    if (!projectItem) {
+      throw new Error(`Project item "${args.projectItemId}" not found.`);
+    }
+    if (projectItem.projectId && String(projectItem.projectId) !== String(projectId)) {
+      throw new Error(
+        `Project item "${args.projectItemId}" belongs to project "${projectItem.projectId}", not site's project "${projectId}". Cross-project linking is forbidden.`
+      );
+    }
+    if (projectItem.category) {
+      resolvedCategory = projectItem.category;
+    }
+    if (projectItem.unit) {
+      resolvedUnit = projectItem.unit;
+    }
+  }
+
+  const normalizedUnit = normalizeUnit(resolvedUnit);
 
   if ((args.sourceType === "grn" || args.sourceType === "backfill") && args.sourceId) {
     const existing = await ctx.db
@@ -205,7 +226,7 @@ export async function postMovementCore(
     projectId,
     projectItemId: args.projectItemId,
     itemName: args.itemName,
-    category: args.category || existingInventory?.category || "other",
+    category: resolvedCategory || existingInventory?.category || "other",
     unit: normalizedUnit,
     movementType: args.movementType,
     quantity: args.quantity,
@@ -227,7 +248,7 @@ export async function postMovementCore(
       quantity: newBalance,
       lastMovementId: movementId,
       projectId: existingInventory.projectId || projectId,
-      category: existingInventory.category || args.category || "other",
+      category: existingInventory.category || resolvedCategory || "other",
       unit: normalizedUnit,
       lastUpdated: now,
       updatedBy: user._id,
@@ -236,7 +257,7 @@ export async function postMovementCore(
   } else {
     await ctx.db.insert("inventory", {
       itemName: args.itemName,
-      category: args.category || "other",
+      category: resolvedCategory || "other",
       quantity: newBalance,
       unit: normalizedUnit,
       siteId: args.siteId,
@@ -292,6 +313,35 @@ export const postMovement = mutation({
   },
   handler: async (ctx, args) => {
     return await postMovementCore(ctx, args);
+  },
+});
+
+export const issueStock = mutation({
+  args: {
+    siteId: v.id("sites"),
+    itemName: v.string(),
+    quantity: v.number(),
+    unit: v.optional(v.string()),
+    purpose: v.string(),
+    projectItemId: v.optional(v.id("project_items")),
+    category: v.optional(v.string()),
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await requirePermission(ctx, "movements:issue", args.token);
+    return await postMovementCore(ctx, {
+      siteId: args.siteId,
+      itemName: args.itemName,
+      unit: args.unit || "nos",
+      category: args.category,
+      movementType: "issue",
+      quantity: args.quantity,
+      purpose: args.purpose,
+      projectItemId: args.projectItemId,
+      sourceType: "manual",
+      actorUser: user,
+      token: args.token,
+    });
   },
 });
 

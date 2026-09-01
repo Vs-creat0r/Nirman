@@ -496,6 +496,9 @@ describe("S2-03 · GRN Receipt → Stock Ledger Wiring", () => {
 
       async get(id: string) {
         if (id === "site_B1") return { _id: "site_B1", name: "Site Beta", projectId: "proj_Beta" };
+        if (id === "site_A1") return { _id: "site_A1", name: "Site Alpha", projectId: "proj_Alpha" };
+        if (id === "pi_valid") return { _id: "pi_valid", itemName: "Cement OPC 53", category: "cement", unit: "bags", projectId: "proj_Beta" };
+        if (id === "pi_foreign_project") return { _id: "pi_foreign_project", itemName: "Cement OPC 53", category: "cement", unit: "bags", projectId: "proj_Alpha" };
         return null;
       },
 
@@ -661,6 +664,195 @@ describe("S2-03 · GRN Receipt → Stock Ledger Wiring", () => {
         token: "test_token",
       })
     ).rejects.toThrow(/Forbidden/);
+  });
+});
+
+/**
+ * S2-04 — Issue to Consumption (issueStock)
+ */
+describe("S2-04 · Issue to Consumption", () => {
+  function createMockCtx() {
+    const db = {
+      inventory: [] as any[],
+      stock_movements: [] as any[],
+      logs: [] as any[],
+      sessions: [{ _id: "s1", userId: "user_sup_1", token: "test_token", expiresAt: Date.now() + 100000 }],
+      sites: [{ _id: "site_B1" as Id<"sites">, name: "Site Beta", projectId: "proj_Beta" as Id<"projects"> }],
+      users: [
+        {
+          _id: "user_sup_1" as Id<"users">,
+          role: "site_supervisor",
+          name: "Supervisor",
+          isActive: true,
+          assignedSiteIds: ["site_B1" as Id<"sites">],
+          assignedProjectIds: ["proj_Beta" as Id<"projects">],
+        },
+      ],
+
+      async get(id: string) {
+        if (id === "site_B1") return { _id: "site_B1", name: "Site Beta", projectId: "proj_Beta" };
+        if (id === "site_A1") return { _id: "site_A1", name: "Site Alpha", projectId: "proj_Alpha" };
+        if (id === "pi_valid") return { _id: "pi_valid", itemName: "Cement OPC 53", category: "cement", unit: "bags", projectId: "proj_Beta" };
+        if (id === "pi_foreign_project") return { _id: "pi_foreign_project", itemName: "Cement OPC 53", category: "cement", unit: "bags", projectId: "proj_Alpha" };
+        return null;
+      },
+
+      query(tableName: string) {
+        const self = this;
+        const tableMap: Record<string, any[]> = {
+          inventory: self.inventory,
+          stock_movements: self.stock_movements,
+          sessions: self.sessions,
+          sites: self.sites,
+          users: self.users,
+        };
+        const items = tableMap[tableName] || [];
+        return {
+          withIndex(_idx: string, filterFn: (q: any) => any) {
+            let filtered = [...items];
+            if (_idx === "by_siteId_itemName") {
+              const q = { eq: (f: string, v: any) => ({ eq: (_f2: string, v2: any) => { filtered = filtered.filter((i) => i.siteId === v && i.itemName === v2); return q; } }) };
+              filterFn(q);
+            }
+            if (_idx === "by_token") {
+              const q = { eq: (_f: string, v: any) => { filtered = self.sessions.filter((s) => s.token === v); return q; } };
+              filterFn(q);
+            }
+            return { async unique() { return filtered[0] || null; }, async first() { return filtered[0] || null; }, async collect() { return filtered; } };
+          },
+          filter(_fn: any) { return { async first() { return items[0] || null; }, async collect() { return [...items]; } }; },
+          async collect() { return [...items]; },
+        };
+      },
+
+      async insert(table: string, doc: any) {
+        const _id = `${table}_${Math.random().toString(36).slice(2, 9)}`;
+        const row = { _id, _creationTime: Date.now(), ...doc };
+        if (table === "inventory") this.inventory.push(row);
+        if (table === "stock_movements") this.stock_movements.push(row);
+        if (table === "logs") this.logs.push(row);
+        return _id;
+      },
+
+      async patch(id: string, patch: any) {
+        const inv = this.inventory.find((i: any) => i._id === id);
+        if (inv) Object.assign(inv, patch);
+      },
+    };
+    return { db } as any;
+  }
+
+  const SUPERVISOR = {
+    _id: "user_sup_1" as Id<"users">,
+    role: "site_supervisor",
+    name: "Supervisor",
+    isActive: true,
+    assignedSiteIds: ["site_B1" as Id<"sites">],
+    assignedProjectIds: ["proj_Beta" as Id<"projects">],
+  };
+  const SITE_ID = "site_B1" as Id<"sites">;
+
+  it("reduces on-hand stock and updates running balance when material is issued", async () => {
+    const ctx = createMockCtx();
+
+    // 1. Initial stock: 100 bags received
+    await postMovementCore(ctx, {
+      siteId: SITE_ID,
+      itemName: "Cement OPC 53",
+      unit: "bags",
+      movementType: "receipt",
+      quantity: 100,
+      sourceType: "grn",
+      sourceId: "grn_001",
+      actorUser: SUPERVISOR as any,
+      token: "test_token",
+    });
+    expect(ctx.db.inventory[0].quantity).toBe(100);
+
+    // 2. Supervisor issues 35 bags to consumption
+    const res = await postMovementCore(ctx, {
+      siteId: SITE_ID,
+      itemName: "Cement OPC 53",
+      unit: "bags",
+      movementType: "issue",
+      quantity: 35,
+      purpose: "Ground floor beam casting pour #1",
+      sourceType: "manual",
+      actorUser: SUPERVISOR as any,
+      token: "test_token",
+    });
+
+    expect(res.balanceAfter).toBe(65);
+    expect(res.isNegativeStock).toBe(false);
+    expect(ctx.db.inventory[0].quantity).toBe(65);
+    expect(ctx.db.stock_movements[1].movementType).toBe("issue");
+    expect(ctx.db.stock_movements[1].quantity).toBe(35);
+    expect(ctx.db.stock_movements[1].balanceAfter).toBe(65);
+  });
+
+  it("derives unit and category directly from linked projectItem", async () => {
+    const ctx = createMockCtx();
+
+    const res = await postMovementCore(ctx, {
+      siteId: SITE_ID,
+      itemName: "Cement OPC 53",
+      unit: "arbitrary_unit", // Should be overridden by projectItem's "bags"
+      category: "arbitrary_cat", // Should be overridden by projectItem's "cement"
+      movementType: "issue",
+      quantity: 10,
+      purpose: "PCC works under raft foundation",
+      projectItemId: "pi_valid" as Id<"project_items">,
+      sourceType: "manual",
+      actorUser: SUPERVISOR as any,
+      token: "test_token",
+    });
+
+    expect(ctx.db.stock_movements[0].unit).toBe("bags");
+    expect(ctx.db.stock_movements[0].category).toBe("cement");
+    expect(ctx.db.inventory[0].unit).toBe("bags");
+    expect(ctx.db.inventory[0].category).toBe("cement");
+  });
+
+  it("strictly throws when projectItemId belongs to a foreign project", async () => {
+    const ctx = createMockCtx();
+
+    // pi_foreign_project belongs to proj_Alpha, but site_B1 belongs to proj_Beta
+    await expect(
+      postMovementCore(ctx, {
+        siteId: SITE_ID,
+        itemName: "Cement OPC 53",
+        unit: "bags",
+        movementType: "issue",
+        quantity: 10,
+        purpose: "Attempting to cross-link project item",
+        projectItemId: "pi_foreign_project" as Id<"project_items">,
+        sourceType: "manual",
+        actorUser: SUPERVISOR as any,
+        token: "test_token",
+      })
+    ).rejects.toThrow(/Cross-project linking is forbidden/);
+  });
+
+  it("flags isNegativeStock: true when issued quantity exceeds on-hand stock without throwing", async () => {
+    const ctx = createMockCtx();
+
+    // 0 on hand; supervisor issues 12 bags
+    const res = await postMovementCore(ctx, {
+      siteId: SITE_ID,
+      itemName: "Steel Rebar 16mm",
+      unit: "MT",
+      movementType: "issue",
+      quantity: 12,
+      purpose: "Urgent slab reinforcement pour",
+      sourceType: "manual",
+      actorUser: SUPERVISOR as any,
+      token: "test_token",
+    });
+
+    expect(res.balanceAfter).toBe(-12);
+    expect(res.isNegativeStock).toBe(true);
+    expect(ctx.db.inventory[0].quantity).toBe(-12);
+    expect(ctx.db.stock_movements[0].isNegativeStock).toBe(true);
   });
 });
 
