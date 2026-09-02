@@ -93,6 +93,14 @@ async function runFullLiveLifecycle() {
   });
   console.log(`  ✓ Material Request: ${mrRes.refNo} (Status: ${mrRes.status})`);
 
+  // Verify MR available actions
+  const mrActions = await client.query(api.lifecycle.availableActions, {
+    table: "material_request",
+    documentId: mrRes.id,
+    token: adminToken,
+  });
+  console.log(`  ✓ Material Request availableActions returned status "${mrActions.status}" with ${mrActions.actions.length} action(s)`);
+
   // 4. Create CC with 2 Vendor Quotes -> Submit -> Approve
   console.log("\n[4/8] Creating Cost Comparison with 2 Competitive Quotes & Approving...");
   const ccRes = await client.mutation(api.cost_comparisons.createCC, {
@@ -133,6 +141,14 @@ async function runFullLiveLifecycle() {
     token: adminToken,
   });
 
+  // Verify CC available actions in submitted state
+  const ccActions = await client.query(api.lifecycle.availableActions, {
+    table: "cost_comparison",
+    documentId: ccRes.id,
+    token: adminToken,
+  });
+  console.log(`  ✓ Cost Comparison availableActions: [${ccActions.actions.map((a) => a.name).join(", ")}] (all evaluated server-authoritatively)`);
+
   await client.mutation(api.cost_comparisons.approveCC, {
     id: ccRes.id,
     selectedVendorId: vendor1Id,
@@ -152,6 +168,14 @@ async function runFullLiveLifecycle() {
     await client.mutation(api.purchase_order_approvals.approvePO, { id: poRes.id, token: adminToken });
   }
   console.log(`  ✓ Purchase Order ready & approved (PO: ${poRes.refNo}, ID: ${poRes.id})`);
+
+  // Verify PO available actions
+  const poActions = await client.query(api.lifecycle.availableActions, {
+    table: "purchase_order",
+    documentId: poRes.id,
+    token: adminToken,
+  });
+  console.log(`  ✓ Purchase Order availableActions: [${poActions.actions.map((a) => a.name).join(", ")}]`);
 
   // Check BOQ counters after PO approval: committedQty should be 100
   let boqDetails = await client.query(api.project_items.getProjectBOQDetails, {
@@ -181,6 +205,14 @@ async function runFullLiveLifecycle() {
     token: adminToken,
   });
   console.log(`  ✓ Delivery Challan dispatched (DC: ${dcRes.refNo}, ID: ${dcRes.id})`);
+
+  // Verify DC available actions in delivery_processing
+  const dcActions = await client.query(api.lifecycle.availableActions, {
+    table: "delivery_challan",
+    documentId: dcRes.id,
+    token: adminToken,
+  });
+  console.log(`  ✓ Delivery Challan availableActions: [${dcActions.actions.map((a) => a.name).join(", ")}]`);
 
   // 7. Upload real photo to Convex Storage and confirm delivery
   console.log("\n[7/8] Uploading proof photo & confirming delivery receipt via GRN...");
