@@ -136,7 +136,6 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
   const { token } = useSession();
   const resubmitPOMutation = useMutation(api.purchase_order_approvals.resubmitPO);
   const deletePOMutation = useMutation(api.purchase_order_closure.deletePO);
-  const createProjectItemMutation = useMutation(api.project_items.createProjectItem);
 
   const projectItems = useQuery(
     api.project_items.listProjectItems,
@@ -320,37 +319,22 @@ export function EditPOModal({ isOpen, onClose, po }: EditPOModalProps) {
     setError(null);
 
     try {
-      // If queried and there are custom new items without projectItemId, auto-register them in project_items
-      const resolvedLineItems = await Promise.all(
-        lineItems.map(async (it) => {
-          let projectItemId = it.projectItemId;
-          if (isQueried && !projectItemId && it.itemName.trim() && po?.projectId) {
-            try {
-              projectItemId = await createProjectItemMutation({
-                projectId: po.projectId,
-                itemName: it.itemName.trim(),
-                category: it.category || "materials",
-                unit: it.unit.trim(),
-                estimatedRate: Number(it.rate) || undefined,
-                token: token || undefined,
-              });
-            } catch (regErr) {
-              console.warn("Could not auto-register project item:", regErr);
-            }
-          }
-
-          return {
-            itemName: it.itemName.trim(),
-            quantity: Number(it.quantity) || 0,
-            unit: it.unit.trim(),
-            rate: Number(it.rate) || 0,
-            hsnSacCode: it.hsnSacCode?.trim() || undefined,
-            projectItemId,
-            isUnquotedAddition: it.isUnquotedAddition || undefined,
-            additionReason: it.additionReason?.trim() || undefined,
-          };
-        })
-      );
+      // Preserve existing projectItemId if present; otherwise mark cleanly as off-BOQ addition
+      const resolvedLineItems = lineItems.map((it) => {
+        const isAddition = Boolean(it.isUnquotedAddition || !it.projectItemId);
+        return {
+          itemName: it.itemName.trim(),
+          quantity: Number(it.quantity) || 0,
+          unit: it.unit.trim(),
+          rate: Number(it.rate) || 0,
+          hsnSacCode: it.hsnSacCode?.trim() || undefined,
+          projectItemId: it.projectItemId || undefined,
+          isUnquotedAddition: isAddition ? true : undefined,
+          additionReason: isAddition
+            ? (it.additionReason?.trim() || "Item added or revised during PO review")
+            : undefined,
+        };
+      });
 
       await resubmitPOMutation({
         id: po._id,
