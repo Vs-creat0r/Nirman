@@ -36,14 +36,11 @@ export const approvePO = mutation({
 
     const scope = await resolveCallerScope(ctx, args.token);
     assertDocumentAccess(scope, po, po.refNo);
-
     const now = new Date().toISOString();
     const res = await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
-      from: "submitted",
-      to: "approved",
-      action: "purchase_orders:approve",
+      transitionName: "approve",
       token: args.token,
       note: args.note || "Purchase Order authorized and confirmed.",
       patch: {
@@ -56,19 +53,6 @@ export const approvePO = mutation({
     // Update committedQty on project_items [FIX-B1]
     const mr = po.materialRequestId ? await ctx.db.get(po.materialRequestId) : null;
     await adjustCommittedQty(ctx, po.lineItems, 1, mr?.items);
-
-    // Update parent Material Request to pending_po (awaiting vendor delivery/DC)
-    if (po.materialRequestId && mr) {
-      await transition(ctx, {
-        table: "material_request",
-        documentId: mr._id,
-        from: ["review_po", "ready_for_po", "draft"],
-        to: "pending_po",
-        action: "material_requests:advance_on_po_approval",
-        token: args.token,
-        note: `Purchase Order ${po.refNo} approved by ${user.name}. Awaiting vendor delivery challan.`,
-      });
-    }
 
     return res;
   },
@@ -101,12 +85,10 @@ export const rejectPO = mutation({
     const scope = await resolveCallerScope(ctx, args.token);
     assertDocumentAccess(scope, po, po.refNo);
 
-    const res = await transition(ctx, {
+    return await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
-      from: "submitted",
-      to: "rejected",
-      action: "purchase_orders:reject",
+      transitionName: "reject",
       token: args.token,
       note: args.note.trim(),
       patch: {
@@ -115,24 +97,6 @@ export const rejectPO = mutation({
         reviewNote: args.note.trim(),
       },
     });
-
-    // Reset parent MR status back to ready_for_po so procurement can re-raise PO
-    if (po.materialRequestId) {
-      const mr = await ctx.db.get(po.materialRequestId);
-      if (mr && mr.status === "review_po") {
-        await transition(ctx, {
-          table: "material_request",
-          documentId: mr._id,
-          from: "review_po",
-          to: "ready_for_po",
-          action: "material_requests:reset_on_po_reject",
-          token: args.token,
-          note: `Purchase Order ${po.refNo} was rejected by ${user.name}. Material Request returned to ready_for_po for revision. Reason: ${args.note.trim()}`,
-        });
-      }
-    }
-
-    return res;
   },
 });
 
@@ -166,9 +130,7 @@ export const queryPO = mutation({
     return await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
-      from: "submitted",
-      to: "queried",
-      action: "purchase_orders:query",
+      transitionName: "query",
       token: args.token,
       note: args.note.trim(),
       patch: {
@@ -181,7 +143,9 @@ export const queryPO = mutation({
 });
 
 /**
- * Procurement Officer updates & resubmits a queried Purchase Order.
+ * Procurement Officer updates and resubmits a queried/draft Purchase Order [FIX-C2].
+ *
+ * Supports BOQ adjustments, off-BOQ scope additions, and auto-approval bypass.
  */
 export const resubmitPO = mutation({
   args: {
@@ -189,12 +153,12 @@ export const resubmitPO = mutation({
     lineItems: v.array(
       v.object({
         itemName: v.string(),
+        description: v.optional(v.string()),
         quantity: v.number(),
         unit: v.string(),
         rate: v.number(),
-        hsnSacCode: v.optional(v.string()),
         projectItemId: v.optional(v.id("project_items")),
-        isUnquotedAddition: v.optional(v.boolean()),
+        isOffBoqAddition: v.optional(v.boolean()),
         additionReason: v.optional(v.string()),
       })
     ),
@@ -203,34 +167,17 @@ export const resubmitPO = mutation({
     placeOfSupplyStateCode: v.optional(v.string()),
     siteContactPerson: v.optional(v.string()),
     siteContactPhone: v.optional(v.string()),
-    unloadingScope: v.optional(
-      v.union(v.literal("buyer_scope"), v.literal("vendor_scope"))
-    ),
-    freightTerms: v.optional(
-      v.union(
-        v.literal("inclusive_in_rate"),
-        v.literal("extra_at_actuals"),
-        v.literal("fixed_freight"),
-        v.literal("to_pay_by_site")
-      )
-    ),
+    unloadingScope: v.optional(v.string()),
+    freightTerms: v.optional(v.string()),
     procurementNotes: v.optional(v.string()),
-    paymentTerms: v.union(
-      v.literal("advance"),
-      v.literal("on_delivery"),
-      v.literal("7_days"),
-      v.literal("15_days"),
-      v.literal("30_days"),
-      v.literal("45_days")
-    ),
+    paymentTerms: v.string(),
     expectedDelivery: v.optional(v.string()),
     validUntil: v.optional(v.string()),
     termsAndConditions: v.optional(v.string()),
-    submitImmediately: v.optional(v.boolean()),
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requirePermission(
+    const user = await requirePermission(
       ctx,
       "purchase_orders:resubmit",
       args.token
@@ -242,51 +189,64 @@ export const resubmitPO = mutation({
     const scope = await resolveCallerScope(ctx, args.token);
     assertDocumentAccess(scope, po, po.refNo);
 
-    // Validate unquoted additions have reason [FIX-B1]
+    const isDraft = po.status === "draft";
+    const settings = await ctx.db.query("settings").first();
+    const requireApproval = settings?.requireManagerApprovalForOrders ?? true;
+    const targetStatus = requireApproval ? "submitted" : "approved";
+
+    // Validate off-BOQ additions
     for (const item of args.lineItems) {
-      if (item.isUnquotedAddition && !item.additionReason?.trim()) {
+      if (item.isOffBoqAddition && !item.additionReason?.trim()) {
         throw new Error(
-          `An addition reason is required for unquoted addition item "${item.itemName}".`
+          `A justification note is mandatory for off-BOQ line item "${item.itemName}".`
         );
       }
     }
 
-    const calculatedItems = args.lineItems.map((item) => {
-      const qty = Number(item.quantity) || 0;
-      const rate = Number(item.rate) || 0;
+    let subtotal = 0;
+    let totalQty = 0;
+    const calculatedItems = args.lineItems.map((it) => {
+      const qty = Number(it.quantity);
+      const rate = Number(it.rate);
+      if (isNaN(qty) || qty <= 0) {
+        throw new Error(`Quantity for item "${it.itemName || "Item"}" must be greater than zero.`);
+      }
+      if (isNaN(rate) || rate < 0) {
+        throw new Error(`Rate for item "${it.itemName || "Item"}" must be non-negative.`);
+      }
+      const amount = Math.round(qty * rate * 100) / 100;
+      subtotal += amount;
+      totalQty += qty;
+
       return {
-        itemName: item.itemName,
+        itemName: it.itemName.trim(),
+        description: it.description?.trim() || undefined,
         quantity: qty,
-        unit: item.unit,
+        unit: it.unit,
         rate: rate,
-        amount: Math.round(qty * rate * 100) / 100,
-        hsnSacCode: item.hsnSacCode || undefined,
-        projectItemId: item.projectItemId || undefined,
-        isUnquotedAddition: item.isUnquotedAddition || undefined,
-        additionReason: item.additionReason?.trim() || undefined,
+        amount: amount,
+        projectItemId: it.projectItemId || undefined,
+        isOffBoqAddition: it.isOffBoqAddition || undefined,
+        additionReason: it.additionReason?.trim() || undefined,
       };
     });
 
-    const subtotal = Math.round(
-      calculatedItems.reduce((acc, cur) => acc + cur.amount, 0) * 100
-    ) / 100;
-    const totalQty = calculatedItems.reduce((acc, cur) => acc + cur.quantity, 0);
-    const taxRate =
-      args.taxRate !== undefined && !isNaN(Number(args.taxRate))
-        ? Math.max(0, Math.min(100, Number(args.taxRate)))
-        : 18;
+    subtotal = Math.round(subtotal * 100) / 100;
+    const taxRate = Number(args.taxRate);
+    if (isNaN(taxRate) || taxRate < 0 || taxRate > 100) {
+      throw new Error("Tax rate must be between 0% and 100%.");
+    }
     const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
-    const freight = Math.max(0, Number(args.freight) || 0);
+    const freight = args.freight !== undefined ? Number(args.freight) : 0;
+    if (isNaN(freight) || freight < 0) {
+      throw new Error("Freight amount must be non-negative.");
+    }
     const totalAmount = Math.round((subtotal + taxAmount + freight) * 100) / 100;
 
-    const isDraft = po.status === "draft";
-    const targetStatus = isDraft && !args.submitImmediately ? "draft" : "submitted";
-
-    // Format scope additions & justifications into audit log note
-    const additionItems = calculatedItems.filter((it) => it.isUnquotedAddition);
-    let transitionNote: string | undefined = undefined;
-    if (additionItems.length > 0) {
-      const additionSummary = additionItems
+    const offBoqItems = calculatedItems.filter((it) => it.isOffBoqAddition);
+    let transitionNote: string | undefined;
+    if (offBoqItems.length > 0) {
+      const additionSummary = offBoqItems
         .map(
           (it) =>
             `Added "${it.itemName}" (${it.quantity} ${it.unit} @ ₹${it.rate}): ${it.additionReason || "No justification provided"}`
@@ -299,12 +259,11 @@ export const resubmitPO = mutation({
       transitionNote = args.procurementNotes.trim();
     }
 
-    const res = await transition(ctx, {
+    return await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
-      from: isDraft ? "draft" : "queried",
+      transitionName: isDraft ? "submit" : "resubmit",
       to: targetStatus,
-      action: "purchase_orders:resubmit",
       token: args.token,
       note: transitionNote,
       patch: {
@@ -317,8 +276,8 @@ export const resubmitPO = mutation({
         placeOfSupplyStateCode: args.placeOfSupplyStateCode?.trim() || undefined,
         siteContactPerson: args.siteContactPerson?.trim() || undefined,
         siteContactPhone: args.siteContactPhone?.trim() || undefined,
-        unloadingScope: args.unloadingScope || "buyer_scope",
-        freightTerms: args.freightTerms || "inclusive_in_rate",
+        unloadingScope: args.unloadingScope || undefined,
+        freightTerms: args.freightTerms || undefined,
         procurementNotes: args.procurementNotes?.trim() || undefined,
         pendingQty: totalQty,
         paymentTerms: args.paymentTerms,
@@ -327,27 +286,5 @@ export const resubmitPO = mutation({
         termsAndConditions: args.termsAndConditions || undefined,
       },
     });
-
-    // If submitted, advance parent MR status to review_po and record audit note
-    if (targetStatus === "submitted" && po.materialRequestId) {
-      const mr = await ctx.db.get(po.materialRequestId);
-      if (mr && (mr.status === "ready_for_po" || mr.status === "draft" || mr.status === "review_po")) {
-        const mrLogNote = transitionNote
-          ? `Purchase Order ${po.refNo} submitted with ${transitionNote}`
-          : `Purchase Order ${po.refNo} submitted for manager approval`;
-
-        await transition(ctx, {
-          table: "material_request",
-          documentId: mr._id,
-          from: ["ready_for_po", "draft", "review_po"],
-          to: "review_po",
-          action: "material_requests:review_on_po",
-          token: args.token,
-          note: `Purchase Order ${po.refNo} resubmitted for manager approval`,
-        });
-      }
-    }
-
-    return res;
   },
 });
