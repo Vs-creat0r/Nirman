@@ -105,12 +105,10 @@ export const cancelPO = mutation({
       }
     }
 
-    const res = await transition(ctx, {
+    return await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
-      from: ["submitted", "approved"],
-      to: targetStatus,
-      action: "purchase_orders:cancel",
+      transitionName: isShortClose ? "close" : "cancel",
       token: args.token,
       note: args.reason.trim(),
       patch: {
@@ -118,39 +116,6 @@ export const cancelPO = mutation({
         closureType,
       },
     });
-
-    // Update parent Material Request status
-    if (mr) {
-      if (!isShortClose) {
-        // Full cancel: reset MR back to ready_for_po if in review_po / pending_po
-        if (mr.status === "review_po" || mr.status === "pending_po") {
-          await transition(ctx, {
-            table: "material_request",
-            documentId: mr._id,
-            from: ["review_po", "pending_po"],
-            to: "ready_for_po",
-            action: "material_requests:reset_on_po_reject",
-            token: args.token,
-            note: `Purchase Order ${po.refNo} was cancelled. Material Request returned to ready_for_po for re-issuance. Reason: ${args.reason.trim()}`,
-          });
-        }
-      } else {
-        // Short close: goods were received, transition MR to delivered closeout
-        if (mr.status !== "delivered") {
-          await transition(ctx, {
-            table: "material_request",
-            documentId: mr._id,
-            from: ["pending_po", "delivery_processing", "ordered", "partially_fulfilled"],
-            to: "delivered",
-            action: "material_requests:close_on_short_close",
-            token: args.token,
-            note: `Purchase Order ${po.refNo} was short-closed (${args.reason.trim()}). Material Request closed at delivered quantities.`,
-          });
-        }
-      }
-    }
-
-    return res;
   },
 });
 
