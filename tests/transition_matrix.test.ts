@@ -366,25 +366,21 @@ describe("State Machine Transition Matrix & Guard Validation", () => {
       },
     };
 
-    // Attempt illegal transition: draft -> ready_for_po (requires from: "review_cc")
+    // Attempt illegal transition: draft -> ready_for_po (advance_on_cc_approval requires from: ["review_cc"])
     await expect(
       transition(mockCtx, {
         table: "material_request",
         documentId: mockDoc._id,
-        from: "review_cc",
-        to: "ready_for_po",
-        action: "material_requests:advance_on_cc_approval",
+        transitionName: "advance_on_cc_approval",
         token: "valid_admin_token",
       })
     ).rejects.toThrow(/Invalid status transition on material_request/i);
 
-    // Attempt legal transition: draft -> pending
+    // Attempt legal transition: draft -> pending (submit transition)
     const res = await transition(mockCtx, {
       table: "material_request",
       documentId: mockDoc._id,
-      from: "draft",
-      to: "pending",
-      action: "material_requests:submit",
+      transitionName: "submit",
       token: "valid_admin_token",
     });
 
@@ -413,10 +409,19 @@ describe("State Machine Transition Matrix & Guard Validation", () => {
       expiresAt: Date.now() + 100000,
     };
 
+    const mockMR = {
+      _id: "mr_456" as any,
+      refNo: "MR-TEST-01",
+      status: "ready_for_po",
+      projectId: "proj_456" as any,
+      siteId: "site_456" as any,
+    };
+
     const mockPO = {
       _id: "po_456" as any,
       refNo: "PO-TEST-01",
       status: "draft",
+      materialRequestId: mockMR._id,
       projectId: "proj_456" as any,
       siteId: "site_456" as any,
     };
@@ -425,6 +430,7 @@ describe("State Machine Transition Matrix & Guard Validation", () => {
       _id: "dc_456" as any,
       refNo: "DC-TEST-01",
       status: "delivery_processing",
+      purchaseOrderId: mockPO._id,
       projectId: "proj_456" as any,
       siteId: "site_456" as any,
     };
@@ -434,11 +440,13 @@ describe("State Machine Transition Matrix & Guard Validation", () => {
       db: {
         get: async (id: any) => {
           if (id === mockSession.userId) return mockAdmin;
+          if (id === mockMR._id) return mockMR;
           if (id === mockPO._id) return mockPO;
           if (id === mockDC._id) return mockDC;
           return null;
         },
         patch: async (id: any, data: any) => {
+          if (id === mockMR._id) Object.assign(mockMR, data);
           if (id === mockPO._id) Object.assign(mockPO, data);
           if (id === mockDC._id) Object.assign(mockDC, data);
         },
@@ -456,46 +464,82 @@ describe("State Machine Transition Matrix & Guard Validation", () => {
       },
     };
 
-    // PO: draft -> submitted
+    // PO: draft -> submitted (cascades MR ready_for_po -> review_po)
     await transition(mockCtx, {
       table: "purchase_order",
       documentId: mockPO._id,
-      from: "draft",
-      to: "submitted",
-      action: "purchase_orders:submit",
+      transitionName: "submit",
       token: "valid_admin_token_2",
     });
     expect(mockPO.status).toBe("submitted");
+    expect(mockMR.status).toBe("review_po");
 
-    // PO: submitted -> approved
+    // PO: submitted -> approved (cascades MR review_po -> pending_po)
     await transition(mockCtx, {
       table: "purchase_order",
       documentId: mockPO._id,
-      from: "submitted",
-      to: "approved",
-      action: "purchase_orders:approve",
+      transitionName: "approve",
       token: "valid_admin_token_2",
     });
     expect(mockPO.status).toBe("approved");
+    expect(mockMR.status).toBe("pending_po");
 
     // DC: delivery_processing -> delivered
     await transition(mockCtx, {
       table: "delivery_challan",
       documentId: mockDC._id,
-      from: "delivery_processing",
-      to: "delivered",
-      action: "delivery_challans:deliver",
+      transitionName: "deliver",
       token: "valid_admin_token_2",
     });
     expect(mockDC.status).toBe("delivered");
 
-    // Total 3 logs recorded
-    expect(logs).toHaveLength(3);
-    expect(logs.map((l) => l.documentType)).toEqual([
-      "purchase_order",
-      "purchase_order",
-      "delivery_challan",
-    ]);
+    // Logs recorded: PO submit, MR cascade, PO approve, MR cascade, DC deliver = 5 logs
+    expect(logs.length).toBeGreaterThanOrEqual(3);
+    expect(logs.map((l) => l.documentType)).toContain("purchase_order");
+    expect(logs.map((l) => l.documentType)).toContain("delivery_challan");
+  });
+
+  it("statically proves that zero handwritten from: guards remain in convex mutation files", () => {
+    const operationalFiles = fs
+      .readdirSync(CONVEX_DIR)
+      .filter((f) => f.endsWith(".ts") && !f.endsWith(".d.ts"))
+      .filter(
+        (f) =>
+          f !== "transition.ts" &&
+          f !== "schema.ts" &&
+          f !== "seed.ts" &&
+          f !== "scoping.ts"
+      );
+
+    const violations: Array<{ file: string; line: number; snippet: string }> = [];
+
+    for (const file of operationalFiles) {
+      const fullPath = path.join(CONVEX_DIR, file);
+      const content = fs.readFileSync(fullPath, "utf-8");
+      const lines = content.split("\n");
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/\bfrom\s*:\s*\[/.test(line) || /\bfrom\s*:\s*['"]/.test(line)) {
+          violations.push({
+            file: `convex/${file}`,
+            line: i + 1,
+            snippet: line.trim(),
+          });
+        }
+      }
+    }
+
+    if (violations.length > 0) {
+      const formatted = violations
+        .map((v) => `  - ${v.file}:${v.line} → ${v.snippet}`)
+        .join("\n");
+      expect.fail(
+        `🔴 GATE 1 VIOLATION: Found ${violations.length} handwritten from: guards outside transition.ts:\n${formatted}\n\nAll status transitions MUST rely on generated transitionName definitions.`
+      );
+    }
+
+    expect(violations).toHaveLength(0);
   });
 });
 

@@ -464,6 +464,17 @@ export type GeneratedLifecycleActionName = keyof typeof GENERATED_LIFECYCLE_PERM
 `;
 
 // Barrel exports
+const registryImports = lifecycleContracts
+  .map((c) => {
+    const screaming = c.name.toUpperCase();
+    return `import {
+  ${screaming}_INITIAL_STATE,
+  ${screaming}_STATES,
+  ${screaming}_TRANSITIONS,
+} from "./${c.name}";`;
+  })
+  .join("\n");
+
 const registryEntries = lifecycleContracts
   .map((c) => {
     const screaming = c.name.toUpperCase();
@@ -476,6 +487,8 @@ const registryEntries = lifecycleContracts
   .join("\n");
 
 const convexLifecycleIndexTs = `${BANNER}
+${registryImports}
+
 ${lifecycleContracts.map((c) => `export * from "./${c.name}";`).join("\n")}
 export * from "./permissions.generated";
 

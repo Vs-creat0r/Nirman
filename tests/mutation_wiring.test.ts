@@ -123,13 +123,18 @@ describe("Mutation Source Wiring", () => {
               : fileContent.slice(exportIndex);
 
           // Assert requirePermission or transition is called with the expected action
+          const [namespace, transitionName] = expectedAction.split(":");
           const hasDirectPermission =
             mutationSlice.includes(`"${expectedAction}"`) ||
-            mutationSlice.includes(`'${expectedAction}'`);
+            mutationSlice.includes(`'${expectedAction}'`) ||
+            (transitionName && (
+              mutationSlice.includes(`transitionName: "${transitionName}"`) ||
+              mutationSlice.includes(`transitionName: '${transitionName}'`)
+            ));
 
           expect(
             hasDirectPermission,
-            `Mutation ${mutationName} in ${filename} must reference action key "${expectedAction}"`
+            `Mutation ${mutationName} in ${filename} must reference action key "${expectedAction}" or transitionName "${transitionName}"`
           ).toBe(true);
         });
       }

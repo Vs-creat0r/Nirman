@@ -114,7 +114,7 @@ export async function transition<T extends TableNames>(
     const ns = getActionNamespace(table);
     resolvedAction = `${ns}:${transitionName}` as ActionName;
     resolvedFrom = tDef.from as readonly string[];
-    resolvedTo = tDef.to;
+    resolvedTo = params.to || tDef.to;
     if (tDef.cascades) {
       declaredCascades = tDef.cascades;
     }
@@ -135,7 +135,7 @@ export async function transition<T extends TableNames>(
   const user = await requirePermission(ctx, resolvedAction, token);
 
   // 3. Fetch document
-  const doc: any = await ctx.db.get(documentId);
+  const doc = (await ctx.db.get(documentId)) as (Record<string, unknown> & { _id: Id<T>; status: string; refNo?: string }) | null;
   if (!doc) {
     throw new Error(`Document ${documentId} not found in table "${table}".`);
   }
@@ -175,7 +175,7 @@ export async function transition<T extends TableNames>(
     updatedAt: now,
   };
 
-  await ctx.db.patch(documentId, updateData as any);
+  await ctx.db.patch(documentId, updateData as Record<string, unknown>);
 
   // 7. Append immutable row to logs table
   const refNo = doc.refNo || (documentId as string);
@@ -203,7 +203,7 @@ export async function transition<T extends TableNames>(
         );
       }
 
-      const parentDoc: any = await ctx.db.get(parentId as any);
+      const parentDoc = (await ctx.db.get(parentId as Id<TableNames>)) as (Record<string, unknown> & { _id: string; status: string; refNo?: string }) | null;
       if (!parentDoc) {
         throw new Error(
           `Cascade target document ${parentId} in table "${cascade.table}" not found.`
@@ -220,11 +220,11 @@ export async function transition<T extends TableNames>(
       }
 
       if (parentCurrentStatus !== cascade.to) {
-        await ctx.db.patch(parentId as any, {
+        await ctx.db.patch(parentId as Id<TableNames>, {
           status: cascade.to,
           updatedBy: user._id,
           updatedAt: now,
-        });
+        } as Record<string, unknown>);
 
         const cascadeActionNs = getActionNamespace(cascade.table);
         const cascadeActionKey = `${cascadeActionNs}:advance_on_${table}_${transitionName}` as ActionName;
@@ -232,7 +232,7 @@ export async function transition<T extends TableNames>(
         await ctx.db.insert("logs", {
           actorId: user._id,
           actorRole: user.role as UserRole,
-          action: (resolvedAction.startsWith(cascadeActionNs) ? resolvedAction : cascadeActionKey) as any,
+          action: (resolvedAction.startsWith(cascadeActionNs) ? resolvedAction : cascadeActionKey) as ActionName,
           documentType: cascade.table as TransitionDocumentType,
           documentId: parentId,
           referenceId: parentDoc.refNo || parentId,
