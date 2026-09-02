@@ -314,6 +314,134 @@
     "rejected",
     "approved"
   ],
+  "lifecycle": {
+    "initial": "draft",
+    "states": {
+      "draft": {
+        "kind": "editable",
+        "owner": "creator",
+        "terminal": false,
+        "badge": {
+          "label": "Draft",
+          "variant": "secondary"
+        }
+      },
+      "submitted": {
+        "kind": "locked",
+        "owner": "none",
+        "terminal": false,
+        "badge": {
+          "label": "Submitted",
+          "variant": "default"
+        }
+      },
+      "queried": {
+        "kind": "editable",
+        "owner": "creator",
+        "terminal": false,
+        "badge": {
+          "label": "Queried",
+          "variant": "destructive"
+        }
+      },
+      "approved": {
+        "kind": "closed",
+        "owner": "none",
+        "terminal": true,
+        "badge": {
+          "label": "Approved",
+          "variant": "default"
+        }
+      },
+      "rejected": {
+        "kind": "closed",
+        "owner": "none",
+        "terminal": true,
+        "badge": {
+          "label": "Rejected",
+          "variant": "destructive"
+        }
+      }
+    },
+    "transitions": [
+      {
+        "name": "submit",
+        "label": "Submit for Review",
+        "from": [
+          "draft",
+          "queried"
+        ],
+        "to": "submitted",
+        "roles": [
+          "procurement_officer",
+          "project_manager",
+          "admin"
+        ],
+        "actor": "creator",
+        "guards": [
+          "hasAtLeastTwoQuotes"
+        ]
+      },
+      {
+        "name": "approve",
+        "label": "Approve Quotes",
+        "from": [
+          "submitted"
+        ],
+        "to": "approved",
+        "roles": [
+          "project_manager",
+          "admin"
+        ],
+        "actor": "approver",
+        "guards": [
+          "hasSelectedVendor"
+        ]
+      },
+      {
+        "name": "reject",
+        "label": "Reject Quotes",
+        "from": [
+          "submitted"
+        ],
+        "to": "rejected",
+        "roles": [
+          "project_manager",
+          "admin"
+        ],
+        "actor": "approver",
+        "requiresNote": true
+      },
+      {
+        "name": "query",
+        "label": "Query Quotes",
+        "from": [
+          "submitted"
+        ],
+        "to": "queried",
+        "roles": [
+          "project_manager",
+          "admin"
+        ],
+        "actor": "approver",
+        "requiresNote": true
+      },
+      {
+        "name": "resubmit",
+        "label": "Resubmit for Review",
+        "from": [
+          "queried"
+        ],
+        "to": "submitted",
+        "roles": [
+          "procurement_officer",
+          "project_manager",
+          "admin"
+        ],
+        "actor": "creator"
+      }
+    ]
+  },
   "relations": {
     "materialRequestId": "material_request",
     "rfqId": "rfq",

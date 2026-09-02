@@ -184,6 +184,102 @@
     "delivered",
     "cancelled"
   ],
+  "lifecycle": {
+    "initial": "draft",
+    "states": {
+      "draft": {
+        "kind": "editable",
+        "owner": "creator",
+        "terminal": false,
+        "badge": {
+          "label": "Draft",
+          "variant": "secondary"
+        }
+      },
+      "delivery_processing": {
+        "kind": "in_transit",
+        "owner": "none",
+        "terminal": false,
+        "badge": {
+          "label": "In Transit",
+          "variant": "default"
+        }
+      },
+      "delivered": {
+        "kind": "closed",
+        "owner": "none",
+        "terminal": true,
+        "badge": {
+          "label": "Delivered",
+          "variant": "default"
+        }
+      },
+      "cancelled": {
+        "kind": "closed",
+        "owner": "none",
+        "terminal": true,
+        "badge": {
+          "label": "Cancelled",
+          "variant": "destructive"
+        }
+      }
+    },
+    "transitions": [
+      {
+        "name": "dispatch",
+        "label": "Dispatch Shipment",
+        "from": [
+          "draft"
+        ],
+        "to": "delivery_processing",
+        "roles": [
+          "procurement_officer",
+          "project_manager",
+          "admin"
+        ],
+        "actor": "creator",
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "pending_po",
+              "ready_for_po"
+            ],
+            "to": "delivery_processing"
+          }
+        ]
+      },
+      {
+        "name": "deliver",
+        "label": "Confirm Delivery",
+        "from": [
+          "delivery_processing"
+        ],
+        "to": "delivered",
+        "roles": [
+          "site_supervisor",
+          "procurement_officer",
+          "admin"
+        ],
+        "actor": "approver"
+      },
+      {
+        "name": "cancel",
+        "label": "Cancel Delivery Challan",
+        "from": [
+          "draft",
+          "delivery_processing"
+        ],
+        "to": "cancelled",
+        "roles": [
+          "procurement_officer",
+          "project_manager",
+          "admin"
+        ],
+        "requiresNote": true
+      }
+    ]
+  },
   "relations": {
     "purchaseOrderId": "purchase_order",
     "vendorId": "vendors",

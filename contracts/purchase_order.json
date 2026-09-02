@@ -441,6 +441,257 @@
     "cancelled",
     "closed"
   ],
+  "lifecycle": {
+    "initial": "draft",
+    "states": {
+      "draft": {
+        "kind": "editable",
+        "owner": "creator",
+        "terminal": false,
+        "badge": {
+          "label": "Draft",
+          "variant": "secondary"
+        }
+      },
+      "submitted": {
+        "kind": "locked",
+        "owner": "none",
+        "terminal": false,
+        "badge": {
+          "label": "Submitted",
+          "variant": "default"
+        }
+      },
+      "queried": {
+        "kind": "editable",
+        "owner": "creator",
+        "terminal": false,
+        "badge": {
+          "label": "Queried",
+          "variant": "destructive"
+        }
+      },
+      "approved": {
+        "kind": "locked",
+        "owner": "none",
+        "terminal": false,
+        "badge": {
+          "label": "Approved",
+          "variant": "default"
+        }
+      },
+      "rejected": {
+        "kind": "closed",
+        "owner": "none",
+        "terminal": true,
+        "badge": {
+          "label": "Rejected",
+          "variant": "destructive"
+        }
+      },
+      "cancelled": {
+        "kind": "closed",
+        "owner": "none",
+        "terminal": true,
+        "badge": {
+          "label": "Cancelled",
+          "variant": "destructive"
+        }
+      },
+      "closed": {
+        "kind": "closed",
+        "owner": "none",
+        "terminal": true,
+        "badge": {
+          "label": "Closed",
+          "variant": "secondary"
+        }
+      }
+    },
+    "transitions": [
+      {
+        "name": "submit",
+        "label": "Submit for Approval",
+        "from": [
+          "draft",
+          "queried"
+        ],
+        "to": "submitted",
+        "roles": [
+          "procurement_officer",
+          "project_manager",
+          "admin"
+        ],
+        "actor": "creator",
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "ready_for_po",
+              "review_po"
+            ],
+            "to": "review_po"
+          }
+        ]
+      },
+      {
+        "name": "approve",
+        "label": "Approve Purchase Order",
+        "from": [
+          "submitted"
+        ],
+        "to": "approved",
+        "roles": [
+          "project_manager",
+          "admin"
+        ],
+        "actor": "approver",
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "review_po",
+              "ready_for_po"
+            ],
+            "to": "pending_po"
+          }
+        ]
+      },
+      {
+        "name": "reject",
+        "label": "Reject Purchase Order",
+        "from": [
+          "submitted"
+        ],
+        "to": "rejected",
+        "roles": [
+          "project_manager",
+          "admin"
+        ],
+        "actor": "approver",
+        "requiresNote": true,
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "review_po"
+            ],
+            "to": "ready_for_po"
+          }
+        ]
+      },
+      {
+        "name": "query",
+        "label": "Query Purchase Order",
+        "from": [
+          "submitted"
+        ],
+        "to": "queried",
+        "roles": [
+          "project_manager",
+          "admin"
+        ],
+        "actor": "approver",
+        "requiresNote": true
+      },
+      {
+        "name": "resubmit",
+        "label": "Resubmit Purchase Order",
+        "from": [
+          "queried"
+        ],
+        "to": "submitted",
+        "roles": [
+          "procurement_officer",
+          "project_manager",
+          "admin"
+        ],
+        "actor": "creator",
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "ready_for_po",
+              "review_po"
+            ],
+            "to": "review_po"
+          }
+        ]
+      },
+      {
+        "name": "cancel",
+        "label": "Cancel Purchase Order",
+        "from": [
+          "submitted",
+          "approved"
+        ],
+        "to": "cancelled",
+        "roles": [
+          "project_manager",
+          "admin"
+        ],
+        "actor": "approver",
+        "requiresNote": true,
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "review_po",
+              "pending_po"
+            ],
+            "to": "ready_for_po"
+          }
+        ]
+      },
+      {
+        "name": "close",
+        "label": "Close Purchase Order",
+        "from": [
+          "approved"
+        ],
+        "to": "closed",
+        "roles": [
+          "project_manager",
+          "admin"
+        ],
+        "requiresNote": true,
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "pending_po",
+              "delivery_processing"
+            ],
+            "to": "delivered"
+          }
+        ]
+      },
+      {
+        "name": "close_on_receipt",
+        "label": "Close upon Full Receipt",
+        "from": [
+          "approved",
+          "submitted"
+        ],
+        "to": "closed",
+        "roles": [
+          "site_supervisor",
+          "procurement_officer",
+          "admin"
+        ],
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "delivery_processing",
+              "pending_po"
+            ],
+            "to": "delivered"
+          }
+        ]
+      }
+    ]
+  },
   "relations": {
     "costComparisonId": "cost_comparison",
     "materialRequestId": "material_request",
