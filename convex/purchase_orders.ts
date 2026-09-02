@@ -227,13 +227,11 @@ export const createPOFromCC = mutation({
     // If approved -> MR to pending_po.
     // If submitted -> MR to review_po.
     if (cc.materialRequestId && mr && initialStatus !== "draft") {
-      const mrToStatus = initialStatus === "approved" ? "pending_po" : "review_po";
+      const transitionName = initialStatus === "approved" ? "advance_on_po_approval" : "review_on_po";
       await transition(ctx, {
         table: "material_request",
         documentId: mr._id,
-        from: ["ready_for_po", "approved_for_rfq", "rfq_in_progress", "review_cc", "draft"],
-        to: mrToStatus,
-        action: initialStatus === "approved" ? "material_requests:advance_on_po_approval" : "material_requests:review_on_po",
+        transitionName,
         token: args.token,
         note: `Purchase Order ${refNo} generated (${initialStatus}) with ${vendorName}`,
       });
@@ -265,32 +263,13 @@ export const submitPO = mutation({
     const po = await ctx.db.get(args.id);
     if (!po) throw new Error("Purchase Order not found.");
 
-    const res = await transition(ctx, {
+    return await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
-      from: "draft",
-      to: "submitted",
-      action: "purchase_orders:submit",
+      transitionName: "submit",
       token: args.token,
+      note: `Purchase Order ${po.refNo} submitted for manager approval`,
     });
-
-    // Update parent MR to review_po
-    if (po.materialRequestId) {
-      const mr = await ctx.db.get(po.materialRequestId);
-      if (mr && (mr.status === "ready_for_po" || mr.status === "draft")) {
-        await transition(ctx, {
-          table: "material_request",
-          documentId: mr._id,
-          from: ["ready_for_po", "draft"],
-          to: "review_po",
-          action: "material_requests:review_on_po",
-          token: args.token,
-          note: `Purchase Order ${po.refNo} submitted for manager approval`,
-        });
-      }
-    }
-
-    return res;
   },
 });
 
