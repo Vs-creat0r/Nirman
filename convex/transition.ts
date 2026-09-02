@@ -17,7 +17,7 @@ import { MutationCtx } from "./_generated/server";
 import { Id, TableNames } from "./_generated/dataModel";
 import { requirePermission, ActionName, UserRole } from "./permissions";
 import { resolveCallerScope, assertDocumentAccess } from "./scoping";
-import { LIFECYCLE_REGISTRY, LifecycleTable } from "./lifecycle";
+import { LIFECYCLE_REGISTRY, LifecycleTable, TransitionDef } from "./lifecycle/index";
 
 export type TransitionDocumentType =
   | "material_request"
@@ -102,8 +102,8 @@ export async function transition<T extends TableNames>(
       throw new Error(`Lifecycle machine is not registered for table "${table}".`);
     }
 
-    const tDef = tableConfig.transitions.find(
-      (t: { name: string }) => t.name === transitionName
+    const tDef = (tableConfig.transitions as readonly TransitionDef[]).find(
+      (t) => t.name === transitionName
     );
     if (!tDef) {
       throw new Error(
@@ -150,7 +150,7 @@ export async function transition<T extends TableNames>(
   ];
   if (scopedTables.includes(table)) {
     const scope = await resolveCallerScope(ctx, token);
-    assertDocumentAccess(scope, doc, doc.refNo || (documentId as string));
+    assertDocumentAccess(scope, doc as any, doc.refNo || (documentId as string));
   }
 
   // 5. Verify status guard
@@ -175,7 +175,7 @@ export async function transition<T extends TableNames>(
     updatedAt: now,
   };
 
-  await ctx.db.patch(documentId, updateData as Record<string, unknown>);
+  await ctx.db.patch(documentId, updateData as any);
 
   // 7. Append immutable row to logs table
   const refNo = doc.refNo || (documentId as string);

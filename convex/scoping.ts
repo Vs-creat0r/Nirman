@@ -19,6 +19,10 @@
 import { QueryCtx, MutationCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { getCurrentUser } from "./rbac";
+import type { MaterialRequestStatus } from "../lib/schemas/material_request";
+import type { CostComparisonStatus } from "../lib/schemas/cost_comparison";
+import type { PurchaseOrderStatus } from "../lib/schemas/purchase_order";
+import type { DeliveryChallanStatus } from "../lib/schemas/delivery_challan";
 
 export interface UserScope {
   user: Doc<"users">;
@@ -267,7 +271,7 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
           const res = await ctx.db
             .query("material_request")
             .withIndex("by_siteId_status", (q) =>
-              q.eq("siteId", siteId as Id<"sites">).eq("status", status as any)
+              q.eq("siteId", siteId as Id<"sites">).eq("status", status as MaterialRequestStatus)
             )
             .collect();
           return res as unknown as Doc<TableName>[];
@@ -293,7 +297,7 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
       if (status) {
         const res = await ctx.db
           .query("material_request")
-          .withIndex("by_status", (q) => q.eq("status", status as any))
+          .withIndex("by_status", (q) => q.eq("status", status as MaterialRequestStatus))
           .collect();
         return res as unknown as Doc<TableName>[];
       }
@@ -307,7 +311,7 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
           const res = await ctx.db
             .query("cost_comparison")
             .withIndex("by_projectId_status", (q) =>
-              q.eq("projectId", projectId as Id<"projects">).eq("status", status as any)
+              q.eq("projectId", projectId as Id<"projects">).eq("status", status as CostComparisonStatus)
             )
             .collect();
           return res as unknown as Doc<TableName>[];
@@ -323,7 +327,7 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
       if (status) {
         const res = await ctx.db
           .query("cost_comparison")
-          .withIndex("by_status", (q) => q.eq("status", status as any))
+          .withIndex("by_status", (q) => q.eq("status", status as CostComparisonStatus))
           .collect();
         return res as unknown as Doc<TableName>[];
       }
@@ -337,7 +341,7 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
           const res = await ctx.db
             .query("purchase_order")
             .withIndex("by_projectId_status", (q) =>
-              q.eq("projectId", projectId as Id<"projects">).eq("status", status as any)
+              q.eq("projectId", projectId as Id<"projects">).eq("status", status as PurchaseOrderStatus)
             )
             .collect();
           return res as unknown as Doc<TableName>[];
@@ -355,7 +359,7 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
           const res = await ctx.db
             .query("purchase_order")
             .withIndex("by_siteId_status", (q) =>
-              q.eq("siteId", siteId as Id<"sites">).eq("status", status as any)
+              q.eq("siteId", siteId as Id<"sites">).eq("status", status as PurchaseOrderStatus)
             )
             .collect();
           return res as unknown as Doc<TableName>[];
@@ -371,7 +375,7 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
       if (status) {
         const res = await ctx.db
           .query("purchase_order")
-          .withIndex("by_status", (q) => q.eq("status", status as any))
+          .withIndex("by_status", (q) => q.eq("status", status as PurchaseOrderStatus))
           .collect();
         return res as unknown as Doc<TableName>[];
       }
@@ -385,7 +389,7 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
           const res = await ctx.db
             .query("delivery_challan")
             .withIndex("by_siteId_status", (q) =>
-              q.eq("siteId", siteId as Id<"sites">).eq("status", status as any)
+              q.eq("siteId", siteId as Id<"sites">).eq("status", status as DeliveryChallanStatus)
             )
             .collect();
           return res as unknown as Doc<TableName>[];
@@ -401,7 +405,7 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
       if (status) {
         const res = await ctx.db
           .query("delivery_challan")
-          .withIndex("by_status", (q) => q.eq("status", status as any))
+          .withIndex("by_status", (q) => q.eq("status", status as DeliveryChallanStatus))
           .collect();
         return res as unknown as Doc<TableName>[];
       }

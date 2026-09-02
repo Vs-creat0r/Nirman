@@ -191,7 +191,7 @@ export const resubmitPO = mutation({
 
     const isDraft = po.status === "draft";
     const settings = await ctx.db.query("settings").first();
-    const requireApproval = settings?.requireManagerApprovalForOrders ?? true;
+    const requireApproval = settings?.requireManagerApprovalForRequests ?? true;
     const targetStatus = requireApproval ? "submitted" : "approved";
 
     // Validate off-BOQ additions
