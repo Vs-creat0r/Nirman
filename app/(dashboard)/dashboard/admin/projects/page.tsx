@@ -68,9 +68,10 @@ export default function ProjectsSitesManagementPage() {
   const [siteError, setSiteError] = React.useState<string | null>(null);
   const [isSubmittingSite, setIsSubmittingSite] = React.useState(false);
 
-  // Queries
-  const allProjects = useQuery(api.projects.listAllProjects, token ? { token } : "skip");
-  const allSites = useQuery(api.sites.listAllSites, token ? { token } : "skip");
+  // Queries (guarded for admin role to prevent unauthorized hook execution)
+  const isAdmin = role === "admin";
+  const allProjects = useQuery(api.projects.listAllProjects, token && isAdmin ? { token } : "skip");
+  const allSites = useQuery(api.sites.listAllSites, token && isAdmin ? { token } : "skip");
 
   // Mutations
   const createProject = useMutation(api.projects.createProject);

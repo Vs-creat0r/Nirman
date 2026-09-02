@@ -55,6 +55,17 @@ export function ProjectSelector() {
 
   const isManagementRole = role === "admin" || role === "project_manager";
 
+  const targetHref = React.useMemo(() => {
+    if (role === "admin") {
+      return "/dashboard/admin/projects";
+    }
+    if (role === "project_manager") {
+      if (selectedProject) return `/dashboard/admin/projects/${selectedProject._id}`;
+      if (projects && projects.length > 0) return `/dashboard/admin/projects/${projects[0]._id}`;
+    }
+    return null;
+  }, [role, selectedProject, projects]);
+
   return (
     <div className="relative w-full flex items-center gap-1.5 px-1 py-1.5">
       {/* Selector Button */}
@@ -70,11 +81,11 @@ export function ProjectSelector() {
       </button>
 
       {/* Settings / Projects Management Hub Link */}
-      {isManagementRole && (
+      {targetHref && (
         <Link
-          href="/dashboard/admin/projects"
+          href={targetHref}
           className="h-9 w-9 flex items-center justify-center rounded-md border border-border bg-surface hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm flex-shrink-0"
-          title="Projects & BOQ Management"
+          title={role === "admin" ? "Projects & Sites Management" : "Project BOQ & Ledger"}
         >
           <Settings className="h-4 w-4" />
         </Link>
@@ -147,16 +158,18 @@ export function ProjectSelector() {
               </div>
             )}
 
-            {/* Quick Link to Project Hub for PM/Admin */}
-            {isManagementRole && (
+            {/* Quick Link to Project Hub */}
+            {targetHref && (
               <div className="mt-1 pt-1 border-t border-border">
                 <Link
-                  href="/dashboard/admin/projects"
+                  href={targetHref}
                   onClick={() => setIsOpen(false)}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs font-semibold text-primary rounded hover:bg-muted transition-colors select-none"
                 >
                   <FolderKanban className="h-3.5 w-3.5 flex-shrink-0" />
-                  <span className="truncate">Manage Projects & BOQ →</span>
+                  <span className="truncate">
+                    {role === "admin" ? "Manage Projects & Sites →" : "Open BOQ & Ledger →"}
+                  </span>
                 </Link>
               </div>
             )}
