@@ -40,13 +40,20 @@ export default function EditQueriedCostComparisonPage() {
   const resubmitCCMutation = useMutation(api.cost_comparisons.resubmitCC);
   const deleteCCMutation = useMutation(api.cost_comparisons.deleteCC);
 
+  const availableActionsData = useQuery(
+    api.lifecycle.availableActions,
+    id && token ? { table: "cost_comparison", documentId: id, token } : "skip"
+  );
+
+  const canSubmit = availableActionsData?.actions.find((a) => a.name === "submit");
+  const canResubmit = availableActionsData?.actions.find((a) => a.name === "resubmit");
+  const isResubmission = Boolean(canResubmit);
+
   const [quotes, setQuotes] = React.useState<CCVendorQuoteData[]>([]);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isDiscarding, setIsDiscarding] = React.useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-
-  const isDraft = cc?.status === "draft";
 
   const handleDiscardDraft = async () => {
     setError(null);
@@ -88,7 +95,7 @@ export default function EditQueriedCostComparisonPage() {
     }
   }, [cc]);
 
-  if (cc === undefined) {
+  if (cc === undefined || availableActionsData === undefined) {
     return (
       <div className="p-16 flex flex-col items-center justify-center gap-3 text-xs text-muted-foreground">
         <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -216,12 +223,12 @@ export default function EditQueriedCostComparisonPage() {
             Cancel & Back
           </Link>
           <h1 className="text-xl font-bold text-foreground">
-            {isDraft ? `Edit Cost Comparison — ${cc.refNo}` : `Edit & Resubmit ${cc.refNo}`}
+            {isResubmission ? `Edit & Resubmit ${cc.refNo}` : `Edit Cost Comparison — ${cc.refNo}`}
           </h1>
           <p className="text-xs text-muted-foreground">
-            {isDraft
-              ? "Review and adjust participating vendor quotations before submitting for approval."
-              : "Revise vendor quotations and commercial terms as requested by the Project Manager."}
+            {isResubmission
+              ? "Revise vendor quotations and commercial terms as requested by the Project Manager."
+              : "Review and adjust participating vendor quotations before submitting for approval."}
           </p>
         </div>
       </div>
@@ -286,7 +293,7 @@ export default function EditQueriedCostComparisonPage() {
         <Card className="border-border bg-surface shadow-xs">
           <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-start">
-              {isDraft && (
+              {canSubmit && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -324,16 +331,21 @@ export default function EditQueriedCostComparisonPage() {
               <Button
                 type="button"
                 size="sm"
-                disabled={isSubmitting || isDiscarding}
+                disabled={
+                  isSubmitting ||
+                  isDiscarding ||
+                  (isResubmission ? !canResubmit?.enabled : !canSubmit?.enabled)
+                }
+                title={isResubmission ? canResubmit?.reason : canSubmit?.reason}
                 onClick={handleSubmit}
                 className="gap-1.5 text-xs font-semibold"
               >
                 <Send className="h-3.5 w-3.5" />
                 {isSubmitting
                   ? "Submitting…"
-                  : isDraft
-                  ? "Submit for Manager Review"
-                  : "Resubmit for Manager Review"}
+                  : isResubmission
+                  ? canResubmit?.label || "Resubmit for Manager Review"
+                  : canSubmit?.label || "Submit for Manager Review"}
               </Button>
             </div>
           </CardContent>

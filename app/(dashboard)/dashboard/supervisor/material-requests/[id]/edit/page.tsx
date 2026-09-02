@@ -30,12 +30,19 @@ export default function EditQueriedMaterialRequestPage() {
   const resubmitMRMutation = useMutation(api.material_requests.resubmitMR);
   const deleteMRMutation = useMutation(api.material_requests.deleteMR);
 
+  const availableActionsData = useQuery(
+    api.lifecycle.availableActions,
+    id && token ? { table: "material_request", documentId: id, token } : "skip"
+  );
+
+  const canSubmit = availableActionsData?.actions.find((a) => a.name === "submit");
+  const canResubmit = availableActionsData?.actions.find((a) => a.name === "resubmit");
+  const isResubmission = Boolean(canResubmit);
+
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isDiscarding, setIsDiscarding] = React.useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-
-  const isDraft = mr?.status === "draft";
 
   const handleDiscardDraft = async () => {
     setError(null);
@@ -50,7 +57,7 @@ export default function EditQueriedMaterialRequestPage() {
     }
   };
 
-  if (mr === undefined) {
+  if (mr === undefined || availableActionsData === undefined) {
     return (
       <div className="p-16 flex flex-col items-center justify-center gap-3 text-xs text-muted-foreground">
         <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -130,14 +137,14 @@ export default function EditQueriedMaterialRequestPage() {
             Cancel & Back
           </Link>
           <h1 className="text-xl font-bold text-foreground">
-            {isDraft
-              ? `Edit Material Request — ${mr.refNo}`
-              : `Edit & Resubmit ${mr.refNo}`}
+            {isResubmission
+              ? `Edit & Resubmit ${mr.refNo}`
+              : `Edit Material Request — ${mr.refNo}`}
           </h1>
           <p className="text-xs text-muted-foreground">
-            {isDraft
-              ? "Update requested items and project delivery details."
-              : "Address feedback and resubmit for Project Manager approval."}
+            {isResubmission
+              ? "Address feedback and resubmit for Project Manager approval."
+              : "Update requested items and project delivery details."}
           </p>
         </div>
       </div>
@@ -168,10 +175,10 @@ export default function EditQueriedMaterialRequestPage() {
         contract={materialRequestContract as unknown as DocumentContract}
         optionsMap={optionsMap}
         onSubmit={handleSubmit}
-        submitLabel={isDraft ? "Submit for Approval" : "Resubmit for Approval"}
+        submitLabel={isResubmission ? "Resubmit for Approval" : "Submit for Approval"}
         isSubmitting={isSubmitting || isDiscarding}
         footerActions={
-          isDraft ? (
+          canSubmit ? (
             <button
               type="button"
               disabled={isSubmitting || isDiscarding}

@@ -52,6 +52,16 @@ export default function ProcurementPODetailPage() {
   const submitPOMutation = useMutation(api.purchase_orders.submitPO);
   const cancelPOMutation = useMutation(api.purchase_order_closure.cancelPO);
 
+  const availableActionsData = useQuery(
+    api.lifecycle.availableActions,
+    id && token ? { table: "purchase_order", documentId: id, token } : "skip"
+  );
+
+  const canSubmit = availableActionsData?.actions.find((a) => a.name === "submit");
+  const canResubmit = availableActionsData?.actions.find((a) => a.name === "resubmit");
+  const canCancel = availableActionsData?.actions.find((a) => a.name === "cancel");
+  const canClose = availableActionsData?.actions.find((a) => a.name === "close");
+
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [isDispatchModalOpen, setIsDispatchModalOpen] = React.useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = React.useState(false);
@@ -60,7 +70,7 @@ export default function ProcurementPODetailPage() {
   const [isActionLoading, setIsActionLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  if (po === undefined) {
+  if (po === undefined || availableActionsData === undefined) {
     return (
       <div className="p-16 flex flex-col items-center justify-center gap-3 text-xs text-muted-foreground">
         <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -87,14 +97,7 @@ export default function ProcurementPODetailPage() {
     );
   }
 
-  const isDraft = po.status === "draft";
-  const isSubmitted = po.status === "submitted";
-  const isQueried = po.status === "queried";
   const isApproved = po.status === "approved";
-  const isRejected = po.status === "rejected";
-  const isCancelled = po.status === "cancelled";
-  const isClosed = po.status === "closed";
-
   const isManagerOrAdmin =
     user?.role === "project_manager" || user?.role === "admin";
 
@@ -146,7 +149,7 @@ export default function ProcurementPODetailPage() {
 
         <div className="flex items-center gap-2">
           {/* Action Button for Draft status */}
-          {isDraft && (
+          {canSubmit && (
             <>
               <Button
                 size="sm"
@@ -160,55 +163,44 @@ export default function ProcurementPODetailPage() {
               <Button
                 size="sm"
                 onClick={handleSubmitDraft}
-                disabled={isActionLoading}
+                disabled={!canSubmit.enabled || isActionLoading}
+                title={canSubmit.reason}
                 className="gap-1.5 text-xs font-semibold"
               >
                 <Send className="h-3.5 w-3.5" />
-                {isActionLoading ? "Submitting…" : "Submit for Manager Approval"}
+                {isActionLoading ? "Submitting…" : canSubmit.label}
               </Button>
             </>
           )}
 
           {/* Action Button for Queried status */}
-          {isQueried && (
+          {canResubmit && (
             <Button
               size="sm"
               onClick={() => setIsEditModalOpen(true)}
+              disabled={!canResubmit.enabled}
+              title={canResubmit.reason}
               className="gap-1.5 text-xs font-semibold bg-warning hover:bg-warning/90 text-warning-foreground"
             >
               <Edit2 className="h-3.5 w-3.5" />
-              Edit & Resubmit PO
+              {canResubmit.label}
             </Button>
           )}
 
           {/* If Approved, show Dispatch DC Action */}
           {isApproved && (
-            <>
-              <Button
-                size="sm"
-                onClick={() => setIsDispatchModalOpen(true)}
-                className="gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                <Truck className="h-3.5 w-3.5" />
-                Dispatch Items / Create DC &rarr;
-              </Button>
-
-              {isManagerOrAdmin && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsCancelModalOpen(true)}
-                  className="gap-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10"
-                >
-                  <Ban className="h-3.5 w-3.5" />
-                  Cancel PO
-                </Button>
-              )}
-            </>
+            <Button
+              size="sm"
+              onClick={() => setIsDispatchModalOpen(true)}
+              className="gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              <Truck className="h-3.5 w-3.5" />
+              Dispatch Items / Create DC &rarr;
+            </Button>
           )}
 
-          {/* If Submitted and manager/admin, show Cancel option */}
-          {isSubmitted && isManagerOrAdmin && (
+          {/* Cancel PO action if authorized by server */}
+          {canCancel && canCancel.enabled && (
             <Button
               size="sm"
               variant="outline"
@@ -216,18 +208,18 @@ export default function ProcurementPODetailPage() {
               className="gap-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10"
             >
               <Ban className="h-3.5 w-3.5" />
-              Cancel PO
+              {canCancel.label}
             </Button>
           )}
 
-          {isCancelled && (
+          {po.status === "cancelled" && (
             <span className="text-xs font-bold text-destructive bg-destructive/10 px-3 py-1.5 rounded-md border border-destructive/20 flex items-center gap-1.5">
               <Ban className="h-3.5 w-3.5" />
               Purchase Order Cancelled
             </span>
           )}
 
-          {isClosed && (
+          {po.status === "closed" && (
             <span className="text-xs font-bold text-success bg-success/10 px-3 py-1.5 rounded-md border border-success/20 flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Purchase Order Fulfilled & Closed

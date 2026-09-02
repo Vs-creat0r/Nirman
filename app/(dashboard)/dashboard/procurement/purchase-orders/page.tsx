@@ -22,6 +22,51 @@ import {
 import { Input } from "@/components/ui/input";
 import { GeneratePOModal } from "@/components/document/generate-po-modal";
 
+import {
+  PURCHASE_ORDER_OPEN_STATES,
+  PURCHASE_ORDER_CLOSED_STATES,
+} from "@/lib/lifecycle/purchase_order";
+
+function PORowAction({ po, token }: { po: any; token?: string | null }) {
+  const actionsData = useQuery(
+    api.lifecycle.availableActions,
+    po?._id && token ? { table: "purchase_order", documentId: po._id, token } : "skip"
+  );
+  const canSubmit = actionsData?.actions.find((a) => a.name === "submit");
+  const canResubmit = actionsData?.actions.find((a) => a.name === "resubmit");
+
+  if (canSubmit) {
+    return (
+      <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
+        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium">
+          <Pencil className="h-3 w-3" />
+          Edit Draft
+        </Button>
+      </Link>
+    );
+  }
+
+  if (canResubmit) {
+    return (
+      <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
+        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-amber-600 dark:text-amber-400 border-amber-500/30">
+          <Pencil className="h-3 w-3" />
+          Edit & Resubmit
+        </Button>
+      </Link>
+    );
+  }
+
+  return (
+    <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
+      <Button variant="ghost" size="sm" className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground">
+        View
+        <ArrowRight className="h-3 w-3" />
+      </Button>
+    </Link>
+  );
+}
+
 export default function ProcurementPurchaseOrdersPage() {
   const router = useRouter();
   const { token } = useSession();
@@ -244,27 +289,7 @@ export default function ProcurementPurchaseOrdersPage() {
                     </td>
                     <td className="py-3 px-3.5 text-right">
                       <div className="flex items-center justify-end">
-                        {po.status === "draft" ? (
-                          <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
-                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium">
-                              <Pencil className="h-3 w-3" />
-                              Edit Draft
-                            </Button>
-                          </Link>
-                        ) : po.status === "queried" ? (
-                          <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
-                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-amber-600 dark:text-amber-400 border-amber-500/30">
-                              <Pencil className="h-3 w-3" />
-                              Edit & Resubmit
-                            </Button>
-                          </Link>
-                        ) : (
-                          <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
-                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
-                              View
-                            </Button>
-                          </Link>
-                        )}
+                        <PORowAction po={po} token={token} />
                       </div>
                     </td>
                   </tr>

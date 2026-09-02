@@ -41,7 +41,15 @@ export default function ProcurementCCDetailPage() {
   const [isActionLoading, setIsActionLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  if (cc === undefined) {
+  const availableActionsData = useQuery(
+    api.lifecycle.availableActions,
+    id && token ? { table: "cost_comparison", documentId: id, token } : "skip"
+  );
+
+  const canSubmit = availableActionsData?.actions.find((a) => a.name === "submit");
+  const canResubmit = availableActionsData?.actions.find((a) => a.name === "resubmit");
+
+  if (cc === undefined || availableActionsData === undefined) {
     return (
       <div className="p-16 flex flex-col items-center justify-center gap-3 text-xs text-muted-foreground">
         <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -68,8 +76,6 @@ export default function ProcurementCCDetailPage() {
     );
   }
 
-  const isDraft = cc.status === "draft";
-  const isQueried = cc.status === "queried";
   const isApproved = cc.status === "approved";
 
   const winningQuote = cc.vendorQuotes.find(
@@ -102,7 +108,7 @@ export default function ProcurementCCDetailPage() {
 
         <div className="flex items-center gap-2">
           {/* Draft: Edit and Submit actions */}
-          {isDraft && (
+          {canSubmit && (
             <>
               <Link href={`/dashboard/procurement/cost-comparisons/${id}/edit`}>
                 <Button
@@ -117,11 +123,12 @@ export default function ProcurementCCDetailPage() {
               <Button
                 size="sm"
                 onClick={handleSubmitDraft}
-                disabled={isActionLoading}
+                disabled={!canSubmit.enabled || isActionLoading}
+                title={canSubmit.reason}
                 className="gap-1.5 text-xs font-semibold"
               >
                 <Send className="h-3.5 w-3.5" />
-                {isActionLoading ? "Submitting…" : "Submit for Manager Review"}
+                {isActionLoading ? "Submitting…" : canSubmit.label}
               </Button>
             </>
           )}
@@ -151,14 +158,16 @@ export default function ProcurementCCDetailPage() {
           )}
 
           {/* Action Button for Queried status */}
-          {isQueried && (
+          {canResubmit && (
             <Link href={`/dashboard/procurement/cost-comparisons/${id}/edit`}>
               <Button
                 size="sm"
+                disabled={!canResubmit.enabled}
+                title={canResubmit.reason}
                 className="gap-1.5 text-xs font-semibold bg-warning hover:bg-warning/90 text-warning-foreground"
               >
                 <Edit className="h-3.5 w-3.5" />
-                Edit & Resubmit Quotes
+                {canResubmit.label}
               </Button>
             </Link>
           )}

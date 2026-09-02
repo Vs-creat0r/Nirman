@@ -16,6 +16,39 @@ import {
   Truck, Plus, Search, CheckCircle2, Clock, Phone, Building2,
   Package, Calendar, AlertTriangle, FileText, Eye, X, ExternalLink
 } from "lucide-react";
+import {
+  DELIVERY_CHALLAN_OPEN_STATES,
+  DELIVERY_CHALLAN_CLOSED_STATES,
+} from "@/lib/lifecycle/delivery_challan";
+
+function DCActionsCell({
+  dc,
+  token,
+  onReceive,
+}: {
+  dc: any;
+  token?: string | null;
+  onReceive: () => void;
+}) {
+  const actionsData = useQuery(
+    api.lifecycle.availableActions,
+    dc?._id && token ? { table: "delivery_challan", documentId: dc._id, token } : "skip"
+  );
+  const canDeliver = actionsData?.actions.find((a) => a.name === "deliver");
+
+  if (!canDeliver || !canDeliver.enabled) return null;
+
+  return (
+    <Button
+      size="sm"
+      onClick={onReceive}
+      className="h-7 px-2.5 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+    >
+      <CheckCircle2 className="h-3.5 w-3.5" />
+      {canDeliver.label}
+    </Button>
+  );
+}
 
 export default function DeliveriesPage() {
   const { role, user } = useRole();
@@ -40,12 +73,12 @@ export default function DeliveriesPage() {
     if (!deliveries) return [];
     return (deliveries as any[]).filter((dc: any) => {
       // Tab filter
-      if (activeTab === "in_transit" && dc.status !== "delivery_processing") return false;
-      if (activeTab === "delivered" && dc.status !== "delivered") return false;
+      if (activeTab === "in_transit" && !DELIVERY_CHALLAN_OPEN_STATES.includes(dc.status)) return false;
+      if (activeTab === "delivered" && !DELIVERY_CHALLAN_CLOSED_STATES.includes(dc.status)) return false;
 
-      // Search filter
+      // Search
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
+        const q = searchQuery.toLowerCase();
         const matchRef = dc.refNo?.toLowerCase().includes(q);
         const matchPo = dc.poRefNo?.toLowerCase().includes(q);
         const matchVehicle = dc.vehicleNo?.toLowerCase().includes(q);
@@ -62,8 +95,8 @@ export default function DeliveriesPage() {
   }, [deliveries, activeTab, searchQuery]);
 
   // Counts
-  const inTransitCount = (deliveries as any[])?.filter((d: any) => d.status === "delivery_processing").length ?? 0;
-  const deliveredCount = (deliveries as any[])?.filter((d: any) => d.status === "delivered").length ?? 0;
+  const inTransitCount = (deliveries as any[])?.filter((d: any) => DELIVERY_CHALLAN_OPEN_STATES.includes(d.status)).length ?? 0;
+  const deliveredCount = (deliveries as any[])?.filter((d: any) => DELIVERY_CHALLAN_CLOSED_STATES.includes(d.status)).length ?? 0;
   const totalCount = (deliveries as any[])?.length ?? 0;
 
   return (
@@ -308,16 +341,11 @@ export default function DeliveriesPage() {
 
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {dc.status === "delivery_processing" && (
-                          <Button
-                            size="sm"
-                            onClick={() => setSelectedDCForReceive(dc)}
-                            className="h-7 px-2.5 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Confirm Receipt
-                          </Button>
-                        )}
+                        <DCActionsCell
+                          dc={dc}
+                          token={token}
+                          onReceive={() => setSelectedDCForReceive(dc)}
+                        />
                         <Button
                           size="sm"
                           variant="ghost"

@@ -17,6 +17,14 @@ export const PURCHASE_ORDER_STATES = {
   closed: { kind: "closed", owner: "none", terminal: true, badge: { label: "Closed", variant: "secondary" } },
 } as const;
 
+export const PURCHASE_ORDER_OPEN_STATES: readonly PurchaseOrderState[] = ["draft", "submitted", "queried", "approved"] as const;
+
+export const PURCHASE_ORDER_CLOSED_STATES: readonly PurchaseOrderState[] = ["rejected", "cancelled", "closed"] as const;
+
+export const PURCHASE_ORDER_EDITABLE_STATES: readonly PurchaseOrderState[] = ["draft", "queried"] as const;
+
+export const PURCHASE_ORDER_LOCKED_STATES: readonly PurchaseOrderState[] = ["submitted", "approved"] as const;
+
 export const PURCHASE_ORDER_TRANSITIONS = [
   {
     name: "submit",

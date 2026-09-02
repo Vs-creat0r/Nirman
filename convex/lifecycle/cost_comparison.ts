@@ -15,6 +15,14 @@ export const COST_COMPARISON_STATES = {
   rejected: { kind: "closed", owner: "none", terminal: true, badge: { label: "Rejected", variant: "destructive" } },
 } as const;
 
+export const COST_COMPARISON_OPEN_STATES: readonly CostComparisonState[] = ["draft", "submitted", "queried"] as const;
+
+export const COST_COMPARISON_CLOSED_STATES: readonly CostComparisonState[] = ["approved", "rejected"] as const;
+
+export const COST_COMPARISON_EDITABLE_STATES: readonly CostComparisonState[] = ["draft", "queried"] as const;
+
+export const COST_COMPARISON_LOCKED_STATES: readonly CostComparisonState[] = ["submitted"] as const;
+
 export const COST_COMPARISON_TRANSITIONS = [
   {
     name: "submit",

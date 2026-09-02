@@ -362,6 +362,22 @@ const convexLifecycleFiles = lifecycleContracts.map((c) => {
     })
     .join("\n");
 
+  const openStates = Object.entries(lc.states)
+    .filter(([_, def]) => !def.terminal)
+    .map(([sName]) => `"${sName}"`);
+
+  const closedStates = Object.entries(lc.states)
+    .filter(([_, def]) => def.terminal)
+    .map(([sName]) => `"${sName}"`);
+
+  const editableStates = Object.entries(lc.states)
+    .filter(([_, def]) => def.kind === "editable")
+    .map(([sName]) => `"${sName}"`);
+
+  const lockedStates = Object.entries(lc.states)
+    .filter(([_, def]) => def.kind === "locked")
+    .map(([sName]) => `"${sName}"`);
+
   const content = `${BANNER}
 import type { CascadeRule, TransitionDef } from "./types";
 
@@ -372,6 +388,14 @@ export const ${screaming}_INITIAL_STATE: ${pascal}State = "${lc.initial}";
 export const ${screaming}_STATES = {
 ${statesEntries}
 } as const;
+
+export const ${screaming}_OPEN_STATES: readonly ${pascal}State[] = [${openStates.join(", ")}] as const;
+
+export const ${screaming}_CLOSED_STATES: readonly ${pascal}State[] = [${closedStates.join(", ")}] as const;
+
+export const ${screaming}_EDITABLE_STATES: readonly ${pascal}State[] = [${editableStates.join(", ")}] as const;
+
+export const ${screaming}_LOCKED_STATES: readonly ${pascal}State[] = [${lockedStates.join(", ")}] as const;
 
 export const ${screaming}_TRANSITIONS = [
 ${transitionsEntries}

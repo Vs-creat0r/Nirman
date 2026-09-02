@@ -22,6 +22,50 @@ import {
 import { Input } from "@/components/ui/input";
 import { Id } from "@/convex/_generated/dataModel";
 
+import {
+  COST_COMPARISON_OPEN_STATES,
+  COST_COMPARISON_CLOSED_STATES,
+} from "@/lib/lifecycle/cost_comparison";
+
+function CCRowAction({ cc, token }: { cc: any; token?: string | null }) {
+  const actionsData = useQuery(
+    api.lifecycle.availableActions,
+    cc?._id && token ? { table: "cost_comparison", documentId: cc._id, token } : "skip"
+  );
+  const canSubmit = actionsData?.actions.find((a) => a.name === "submit");
+  const canResubmit = actionsData?.actions.find((a) => a.name === "resubmit");
+
+  if (canSubmit) {
+    return (
+      <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}/edit`}>
+        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium">
+          <Pencil className="h-3 w-3" />
+          Edit Draft
+        </Button>
+      </Link>
+    );
+  }
+
+  if (canResubmit) {
+    return (
+      <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}/edit`}>
+        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-amber-600 dark:text-amber-400 border-amber-500/30">
+          <Pencil className="h-3 w-3" />
+          Edit & Resubmit
+        </Button>
+      </Link>
+    );
+  }
+
+  return (
+    <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}`}>
+      <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
+        View
+      </Button>
+    </Link>
+  );
+}
+
 export default function ProcurementCostComparisonsPage() {
   const { token } = useSession();
 
@@ -35,15 +79,15 @@ export default function ProcurementCostComparisonsPage() {
     token ? { token } : "skip"
   );
 
-  // Safeguard: Ensure no MR that already has a non-rejected CC appears in the "Ready for CC" prompt banner
+  // Safeguard: Ensure no MR that already has an open CC appears in the "Ready for CC" prompt banner
   const pendingMRs = React.useMemo(() => {
     if (!rawPendingMRs) return [];
     if (!ccs) return rawPendingMRs;
     const existingCCMrIds = new Set(
-      ccs.filter((cc) => cc.status !== "rejected").map((cc) => String(cc.materialRequestId))
+      ccs.filter((cc) => !COST_COMPARISON_CLOSED_STATES.includes(cc.status)).map((cc) => String(cc.materialRequestId))
     );
     const existingCCMrRefNos = new Set(
-      ccs.filter((cc) => cc.status !== "rejected").map((cc) => cc.materialRequestRefNo)
+      ccs.filter((cc) => !COST_COMPARISON_CLOSED_STATES.includes(cc.status)).map((cc) => cc.materialRequestRefNo)
     );
     return rawPendingMRs.filter(
       (mr) => !existingCCMrIds.has(String(mr._id)) && !existingCCMrRefNos.has(mr.refNo)
@@ -255,27 +299,7 @@ export default function ProcurementCostComparisonsPage() {
                     </td>
                     <td className="py-3 px-3.5 text-right">
                       <div className="flex items-center justify-end">
-                        {cc.status === "draft" ? (
-                          <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}/edit`}>
-                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium">
-                              <Pencil className="h-3 w-3" />
-                              Edit Draft
-                            </Button>
-                          </Link>
-                        ) : cc.status === "queried" ? (
-                          <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}/edit`}>
-                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-amber-600 dark:text-amber-400 border-amber-500/30">
-                              <Pencil className="h-3 w-3" />
-                              Edit & Resubmit
-                            </Button>
-                          </Link>
-                        ) : (
-                          <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}`}>
-                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
-                              View
-                            </Button>
-                          </Link>
-                        )}
+                        <CCRowAction cc={cc} token={token} />
                       </div>
                     </td>
                   </tr>

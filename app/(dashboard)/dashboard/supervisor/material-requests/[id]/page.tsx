@@ -39,7 +39,15 @@ export default function MaterialRequestDetailPage() {
   const [isActionLoading, setIsActionLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  if (mr === undefined) {
+  const availableActionsData = useQuery(
+    api.lifecycle.availableActions,
+    id && token ? { table: "material_request", documentId: id, token } : "skip"
+  );
+
+  const canSubmit = availableActionsData?.actions.find((a) => a.name === "submit");
+  const canResubmit = availableActionsData?.actions.find((a) => a.name === "resubmit");
+
+  if (mr === undefined || availableActionsData === undefined) {
     return (
       <div className="p-16 flex flex-col items-center justify-center gap-3 text-xs text-muted-foreground">
         <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -78,9 +86,6 @@ export default function MaterialRequestDetailPage() {
     }
   };
 
-  const isDraft = mr.status === "draft";
-  const isQueried = mr.status === "queried";
-
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Top Nav Back Link */}
@@ -93,43 +98,47 @@ export default function MaterialRequestDetailPage() {
           Back to Material Requests
         </Link>
 
-        {/* Action Button for Draft status */}
-        {isDraft && (
-          <>
+        {/* Server-governed action buttons */}
+        <div className="flex items-center gap-2">
+          {canSubmit && (
+            <>
+              <Link href={`/dashboard/supervisor/material-requests/${id}/edit`}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs font-semibold"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit Draft
+                </Button>
+              </Link>
+              <Button
+                size="sm"
+                onClick={handleSubmitDraft}
+                disabled={!canSubmit.enabled || isActionLoading}
+                title={canSubmit.reason}
+                className="gap-1.5 text-xs font-semibold"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {isActionLoading ? "Submitting…" : canSubmit.label}
+              </Button>
+            </>
+          )}
+
+          {canResubmit && (
             <Link href={`/dashboard/supervisor/material-requests/${id}/edit`}>
               <Button
                 size="sm"
-                variant="outline"
-                className="gap-1.5 text-xs font-semibold"
+                disabled={!canResubmit.enabled}
+                title={canResubmit.reason}
+                className="gap-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white"
               >
-                <Pencil className="h-3.5 w-3.5" />
-                Edit Draft
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {canResubmit.label}
               </Button>
             </Link>
-            <Button
-              size="sm"
-              onClick={handleSubmitDraft}
-              disabled={isActionLoading}
-              className="gap-1.5 text-xs font-semibold"
-            >
-              <Send className="h-3.5 w-3.5" />
-              {isActionLoading ? "Submitting…" : "Submit for Approval"}
-            </Button>
-          </>
-        )}
-
-        {/* Action Button for Queried status */}
-        {isQueried && (
-          <Link href={`/dashboard/supervisor/material-requests/${id}/edit`}>
-            <Button
-              size="sm"
-              className="gap-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white"
-            >
-              <AlertTriangle className="h-3.5 w-3.5" />
-              Edit & Resubmit
-            </Button>
-          </Link>
-        )}
+          )}
+        </div>
       </div>
 
       {error && (

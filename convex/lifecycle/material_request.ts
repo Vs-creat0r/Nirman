@@ -21,6 +21,14 @@ export const MATERIAL_REQUEST_STATES = {
   delivered: { kind: "closed", owner: "none", terminal: true, badge: { label: "Delivered", variant: "default" } },
 } as const;
 
+export const MATERIAL_REQUEST_OPEN_STATES: readonly MaterialRequestState[] = ["draft", "pending", "queried", "ready_for_cc", "review_cc", "ready_for_po", "review_po", "pending_po", "delivery_processing"] as const;
+
+export const MATERIAL_REQUEST_CLOSED_STATES: readonly MaterialRequestState[] = ["rejected", "delivered"] as const;
+
+export const MATERIAL_REQUEST_EDITABLE_STATES: readonly MaterialRequestState[] = ["draft", "queried"] as const;
+
+export const MATERIAL_REQUEST_LOCKED_STATES: readonly MaterialRequestState[] = ["pending", "ready_for_cc", "review_cc", "ready_for_po", "review_po", "pending_po"] as const;
+
 export const MATERIAL_REQUEST_TRANSITIONS = [
   {
     name: "submit",

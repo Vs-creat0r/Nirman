@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { DocumentTable } from "@/components/shared/document-table";
 import { StatusBadge } from "@/components/document/status-badge";
 
+import { MATERIAL_REQUEST_LOCKED_STATES, MATERIAL_REQUEST_EDITABLE_STATES } from "@/lib/lifecycle/material_request";
+import { DELIVERY_CHALLAN_OPEN_STATES } from "@/lib/lifecycle/delivery_challan";
+
 export default function SupervisorDashboard() {
   const { user } = useRole();
   const { token } = useSession();
@@ -27,9 +30,9 @@ export default function SupervisorDashboard() {
     token ? { token } : "skip"
   );
 
-  const pendingCount = materialRequests?.filter((r) => r.status === "pending").length ?? 0;
+  const pendingCount = materialRequests?.filter((r) => MATERIAL_REQUEST_LOCKED_STATES.includes(r.status)).length ?? 0;
   const queriedCount = materialRequests?.filter((r) => r.status === "queried").length ?? 0;
-  const inTransitDeliveries = deliveries?.filter((d) => d.status === "delivery_processing") ?? [];
+  const inTransitDeliveries = deliveries?.filter((d) => DELIVERY_CHALLAN_OPEN_STATES.includes(d.status)) ?? [];
   const inTransitCount = inTransitDeliveries.length;
 
   return (
