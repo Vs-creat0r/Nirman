@@ -40,6 +40,9 @@ export const COST_COMPARISON_TRANSITIONS = [
     roles: ["procurement_officer", "project_manager", "admin"] as const,
     actor: "creator",
     guards: ["hasAtLeastTwoQuotes"] as const,
+    cascades: [
+      { table: "material_request", from: ["ready_for_cc", "review_cc"] as const, to: "review_cc" }
+    ] as const,
   },
   {
     name: "approve",
@@ -49,6 +52,9 @@ export const COST_COMPARISON_TRANSITIONS = [
     roles: ["project_manager", "admin"] as const,
     actor: "approver",
     guards: ["hasSelectedVendor"] as const,
+    cascades: [
+      { table: "material_request", from: ["review_cc"] as const, to: "ready_for_po" }
+    ] as const,
   },
   {
     name: "reject",
@@ -57,6 +63,9 @@ export const COST_COMPARISON_TRANSITIONS = [
     to: "rejected",
     roles: ["project_manager", "admin"] as const,
     actor: "approver",
+    cascades: [
+      { table: "material_request", from: ["review_cc"] as const, to: "ready_for_cc" }
+    ] as const,
     requiresNote: true,
   },
   {
@@ -75,6 +84,9 @@ export const COST_COMPARISON_TRANSITIONS = [
     to: "submitted",
     roles: ["procurement_officer", "project_manager", "admin"] as const,
     actor: "creator",
+    cascades: [
+      { table: "material_request", from: ["ready_for_cc", "review_cc"] as const, to: "review_cc" }
+    ] as const,
   },
 ] as const satisfies readonly TransitionDef<CostComparisonState>[];
 

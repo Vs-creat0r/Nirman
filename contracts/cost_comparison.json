@@ -380,6 +380,16 @@
         "actor": "creator",
         "guards": [
           "hasAtLeastTwoQuotes"
+        ],
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "ready_for_cc",
+              "review_cc"
+            ],
+            "to": "review_cc"
+          }
         ]
       },
       {
@@ -396,6 +406,15 @@
         "actor": "approver",
         "guards": [
           "hasSelectedVendor"
+        ],
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "review_cc"
+            ],
+            "to": "ready_for_po"
+          }
         ]
       },
       {
@@ -410,7 +429,16 @@
           "admin"
         ],
         "actor": "approver",
-        "requiresNote": true
+        "requiresNote": true,
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "review_cc"
+            ],
+            "to": "ready_for_cc"
+          }
+        ]
       },
       {
         "name": "query",
@@ -438,7 +466,17 @@
           "project_manager",
           "admin"
         ],
-        "actor": "creator"
+        "actor": "creator",
+        "cascades": [
+          {
+            "table": "material_request",
+            "from": [
+              "ready_for_cc",
+              "review_cc"
+            ],
+            "to": "review_cc"
+          }
+        ]
       }
     ]
   },

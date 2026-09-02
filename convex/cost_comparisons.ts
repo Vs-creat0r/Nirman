@@ -229,9 +229,7 @@ export const createCC = mutation({
       await transition(ctx, {
         table: "material_request",
         documentId: mr._id,
-        from: ["ready_for_cc", "draft"],
-        to: "review_cc",
-        action: "material_requests:review_on_cc",
+        transitionName: "review_on_cc",
         token: args.token,
         note: `Cost Comparison ${refNo} submitted for review`,
       });
@@ -254,7 +252,7 @@ export const submitCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requirePermission(
+    await requirePermission(
       ctx,
       "cost_comparisons:submit",
       args.token
@@ -263,30 +261,13 @@ export const submitCC = mutation({
     const cc = await ctx.db.get(args.id);
     if (!cc) throw new Error("Cost comparison not found.");
 
-    const res = await transition(ctx, {
+    return await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
-      from: "draft",
-      to: "submitted",
-      action: "cost_comparisons:submit",
+      transitionName: "submit",
       token: args.token,
+      note: `Cost Comparison ${cc.refNo} submitted for review`,
     });
-
-    // Transition parent MR to review_cc
-    const mr = await ctx.db.get(cc.materialRequestId);
-    if (mr && (mr.status === "ready_for_cc" || mr.status === "draft")) {
-      await transition(ctx, {
-        table: "material_request",
-        documentId: mr._id,
-        from: ["ready_for_cc", "draft"],
-        to: "review_cc",
-        action: "material_requests:review_on_cc",
-        token: args.token,
-        note: `Cost Comparison ${cc.refNo} submitted for review`,
-      });
-    }
-
-    return res;
   },
 });
 
@@ -331,12 +312,10 @@ export const approveCC = mutation({
     const vendor = await ctx.db.get(args.selectedVendorId);
     const vendorName = vendor?.name || "Selected Vendor";
 
-    const res = await transition(ctx, {
+    return await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
-      from: "submitted",
-      to: "approved",
-      action: "cost_comparisons:approve",
+      transitionName: "approve",
       token: args.token,
       note: args.note || `Approved quote by ${vendorName} (₹${selectedQuote.total.toLocaleString("en-IN")})`,
       patch: {
@@ -347,22 +326,6 @@ export const approveCC = mutation({
         reviewNote: args.note || undefined,
       },
     });
-
-    // Advance parent MR to ready_for_po
-    const mr = await ctx.db.get(cc.materialRequestId);
-    if (mr) {
-      await transition(ctx, {
-        table: "material_request",
-        documentId: mr._id,
-        from: "review_cc",
-        to: "ready_for_po",
-        action: "material_requests:advance_on_cc_approval",
-        token: args.token,
-        note: `Cost Comparison ${cc.refNo} approved with winning vendor ${vendorName}. Ready for Purchase Order.`,
-      });
-    }
-
-    return res;
   },
 });
 
@@ -390,12 +353,10 @@ export const rejectCC = mutation({
     const cc = await ctx.db.get(args.id);
     if (!cc) throw new Error("Cost comparison not found.");
 
-    const res = await transition(ctx, {
+    return await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
-      from: "submitted",
-      to: "rejected",
-      action: "cost_comparisons:reject",
+      transitionName: "reject",
       token: args.token,
       note: args.note.trim(),
       patch: {
@@ -404,24 +365,6 @@ export const rejectCC = mutation({
         reviewNote: args.note.trim(),
       },
     });
-
-    // Reset parent MR status back to ready_for_cc so procurement can re-raise quotes
-    if (cc.materialRequestId) {
-      const mr = await ctx.db.get(cc.materialRequestId);
-      if (mr && mr.status === "review_cc") {
-        await transition(ctx, {
-          table: "material_request",
-          documentId: mr._id,
-          from: "review_cc",
-          to: "ready_for_cc",
-          action: "material_requests:reset_on_cc_reject",
-          token: args.token,
-          note: `Cost comparison ${cc.refNo} was rejected by ${user.name}. Material Request returned to ready_for_cc for revision. Reason: ${args.note.trim()}`,
-        });
-      }
-    }
-
-    return res;
   },
 });
 
@@ -449,9 +392,7 @@ export const queryCC = mutation({
     return await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
-      from: "submitted",
-      to: "queried",
-      action: "cost_comparisons:query",
+      transitionName: "query",
       token: args.token,
       note: args.note.trim(),
       patch: {
@@ -492,7 +433,7 @@ export const resubmitCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requirePermission(
+    await requirePermission(
       ctx,
       "cost_comparisons:resubmit",
       args.token
@@ -507,32 +448,16 @@ export const resubmitCC = mutation({
     const mr = cc.materialRequestId ? await ctx.db.get(cc.materialRequestId) : null;
     const processedQuotes = processVendorQuotes(args.vendorQuotes, mr?.items);
 
-    const res = await transition(ctx, {
+    return await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
-      from: ["draft", "queried"],
-      to: "submitted",
-      action: "cost_comparisons:resubmit",
+      transitionName: "resubmit",
       token: args.token,
+      note: `Cost Comparison ${cc.refNo} submitted for manager review`,
       patch: {
         vendorQuotes: processedQuotes,
       },
     });
-
-    // Transition parent MR to review_cc
-    if (mr && (mr.status === "ready_for_cc" || mr.status === "review_cc")) {
-      await transition(ctx, {
-        table: "material_request",
-        documentId: mr._id,
-        from: ["ready_for_cc", "review_cc"],
-        to: "review_cc",
-        action: "material_requests:review_on_cc",
-        token: args.token,
-        note: `Cost Comparison ${cc.refNo} submitted for manager review`,
-      });
-    }
-
-    return res;
   },
 });
 
