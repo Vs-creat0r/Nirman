@@ -197,9 +197,7 @@ export const createDC = mutation({
         await transition(ctx, {
           table: "material_request",
           documentId: mr._id,
-          from: ["pending_po", "ready_for_po"],
-          to: "delivery_processing",
-          action: "material_requests:advance_on_dc",
+          transitionName: "advance_on_dc",
           token: args.token,
           note: `Shipment dispatched under DC ${refNo}. Out for site delivery.`,
         });
@@ -585,9 +583,7 @@ export const cancelDC = mutation({
     return await transition(ctx, {
       table: "delivery_challan",
       documentId: args.id,
-      from: ["draft", "delivery_processing"],
-      to: "cancelled",
-      action: "delivery_challans:cancel",
+      transitionName: "cancel",
       token: args.token,
       note: args.note,
     });
