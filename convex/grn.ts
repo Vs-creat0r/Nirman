@@ -157,9 +157,7 @@ export const confirmDeliveryAndGenerateGRN = mutation({
     await transition(ctx, {
       table: "delivery_challan",
       documentId: dc._id,
-      from: "delivery_processing",
-      to: "delivered",
-      action: "delivery_challans:deliver",
+      transitionName: "deliver",
       token: args.token,
       note: `Delivery confirmed on site by ${user.name}. GRN ${grnRefNo} auto-generated.`,
     });
@@ -256,31 +254,25 @@ export const confirmDeliveryAndGenerateGRN = mutation({
 
     // 10. If all ordered items are fully received, close the procurement loop! [FIX-I4]
     if (isPOFullyDelivered) {
-      if (po.materialRequestId && mr && mr.status !== "delivered") {
-        await transition(ctx, {
-          table: "material_request",
-          documentId: mr._id,
-          from: ["delivery_processing", "pending_po"],
-          to: "delivered",
-          action: "material_requests:close_on_receipt",
-          token: args.token,
-          note: `Procurement complete. All ${totalCumulativeReceivedQty}/${totalOrderedQty} items received on site across ${allPO_GRNs.length} GRN(s) (final GRN ${grnRefNo}).`,
-        });
-      }
-
-      // Close the PO via transition helper
+      // Close the PO via transition helper (which cascades MR to delivered)
       if (po.status !== "closed") {
         await transition(ctx, {
           table: "purchase_order",
           documentId: po._id,
-          from: ["approved", "submitted"],
-          to: "closed",
-          action: "purchase_orders:close_on_receipt",
+          transitionName: "close_on_receipt",
           token: args.token,
           note: `Purchase Order ${po.refNo} fully fulfilled (${totalCumulativeReceivedQty}/${totalOrderedQty} items received across ${allPO_GRNs.length} delivery batches).`,
           patch: {
             closureType: "fully_received",
           },
+        });
+      } else if (po.materialRequestId && mr && mr.status !== "delivered") {
+        await transition(ctx, {
+          table: "material_request",
+          documentId: mr._id,
+          transitionName: "close_on_receipt",
+          token: args.token,
+          note: `Procurement complete. All ${totalCumulativeReceivedQty}/${totalOrderedQty} items received on site across ${allPO_GRNs.length} GRN(s) (final GRN ${grnRefNo}).`,
         });
       }
     } else {
@@ -289,9 +281,7 @@ export const confirmDeliveryAndGenerateGRN = mutation({
         await transition(ctx, {
           table: "material_request",
           documentId: mr._id,
-          from: ["pending_po", "ordered", "partially_fulfilled", "delivery_processing"],
-          to: "delivery_processing",
-          action: "material_requests:process_delivery",
+          transitionName: "process_delivery",
           token: args.token,
           note: `Partial delivery received on site under PO ${po.refNo} (GRN ${grnRefNo}).`,
         });
