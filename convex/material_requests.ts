@@ -174,9 +174,8 @@ export const submitMR = mutation({
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
-      from: "draft",
+      transitionName: "submit",
       to: targetStatus,
-      action: "material_requests:submit",
       token: args.token,
       note: !requireManagerApproval ? "Auto-approved on submission (manager approval disabled in settings)" : undefined,
     });
@@ -189,9 +188,7 @@ export const approveMR = mutation({
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
-      from: "pending",
-      to: "ready_for_cc",
-      action: "material_requests:approve",
+      transitionName: "approve",
       token: args.token,
       note: args.note || "Approved",
     });
@@ -205,9 +202,7 @@ export const rejectMR = mutation({
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
-      from: "pending",
-      to: "rejected",
-      action: "material_requests:reject",
+      transitionName: "reject",
       token: args.token,
       note: args.note.trim(),
     });
@@ -221,9 +216,7 @@ export const queryMR = mutation({
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
-      from: "pending",
-      to: "queried",
-      action: "material_requests:query",
+      transitionName: "query",
       token: args.token,
       note: args.note.trim(),
     });
@@ -301,9 +294,7 @@ export const resubmitMR = mutation({
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
-      from: ["draft", "queried"],
-      to: "pending",
-      action: "material_requests:resubmit",
+      transitionName: "resubmit",
       token: args.token,
       patch: patchData,
     });
