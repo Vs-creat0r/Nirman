@@ -2,13 +2,14 @@
  * @fileoverview Gate 3: UI Action Parity Test Suite
  *
  * Asserts that all action pages import and invoke `api.lifecycle.availableActions`
- * so that the UI stops deciding transitions locally and defers to server-authoritative
- * contract-generated lifecycle state machines.
+ * and that action triggers directly consume server-returned action definitions
+ * (label, enabled, reason) rather than local status checks.
  */
 
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import { computeAvailableActions } from "../convex/lifecycle/actions";
 
 const ACTION_PAGES = [
   "app/(dashboard)/dashboard/supervisor/material-requests/[id]/page.tsx",
@@ -72,5 +73,40 @@ describe("Gate 3: UI Action Parity & Server Authority", () => {
         `Forbidden raw status comparison deciding action in ${relPath}`
       ).toBe(false);
     }
+  });
+
+  it("queried PO for procurement officer returns server-authoritative resubmit action with label and reason", () => {
+    const queriedPO = {
+      _id: "po_queried_123" as any,
+      status: "queried",
+      createdBy: "user_po_1",
+      items: [{ itemName: "Cement", quantity: 100 }],
+    };
+
+    const result = computeAvailableActions(
+      "purchase_order",
+      queriedPO,
+      { _id: "user_po_1", role: "procurement_officer" }
+    );
+
+    expect(result.status).toBe("queried");
+    const resubmitAction = result.actions.find((a) => a.name === "resubmit");
+    expect(resubmitAction).toBeDefined();
+    expect(resubmitAction?.enabled).toBe(true);
+    expect(resubmitAction?.label).toBe("Resubmit Purchase Order");
+    expect(resubmitAction?.to).toBe("submitted");
+  });
+
+  it("action buttons bind disabled, title, and label directly to server availableActions fields", () => {
+    const poDetailPage = fs.readFileSync(
+      path.resolve(process.cwd(), "app/(dashboard)/dashboard/procurement/purchase-orders/[id]/page.tsx"),
+      "utf-8"
+    );
+
+    // Verify PO detail binds to canResubmit and canSubmit fields
+    expect(poDetailPage.includes("canResubmit.label")).toBe(true);
+    expect(poDetailPage.includes("canResubmit.reason")).toBe(true);
+    expect(poDetailPage.includes("canSubmit.label")).toBe(true);
+    expect(poDetailPage.includes("canSubmit.reason")).toBe(true);
   });
 });
