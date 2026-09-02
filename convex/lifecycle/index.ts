@@ -1,6 +1,7 @@
 // GENERATED FILE — do not edit.
 // Source: contracts/*.json  ·  Regenerate: node scripts/generate-from-contracts.mjs
 
+export * from "./types";
 import {
   COST_COMPARISON_INITIAL_STATE,
   COST_COMPARISON_STATES,

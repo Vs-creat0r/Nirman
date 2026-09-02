@@ -225,6 +225,12 @@ function getActionNamespace(contractName) {
   return contractName + "s";
 }
 
+const KNOWN_GUARDS = new Set([
+  "hasAtLeastOneItem",
+  "hasAtLeastTwoQuotes",
+  "hasSelectedVendor",
+]);
+
 const lifecycleContracts = contracts.filter((c) => c.lifecycle);
 
 for (const c of lifecycleContracts) {
@@ -282,6 +288,17 @@ for (const c of lifecycleContracts) {
       for (const role of t.roles) {
         if (!validRoles.has(role)) {
           errors.push(`${c.name}.lifecycle.transitions.${t.name}: role "${role}" is not a valid user role`);
+        }
+      }
+    }
+    if (t.guards) {
+      if (!Array.isArray(t.guards)) {
+        errors.push(`${c.name}.lifecycle.transitions.${t.name}: guards must be an array`);
+      } else {
+        for (const guard of t.guards) {
+          if (!KNOWN_GUARDS.has(guard)) {
+            errors.push(`${c.name}.lifecycle.transitions.${t.name}: unknown guard "${guard}". Registered guards: ${Array.from(KNOWN_GUARDS).join(", ")}`);
+          }
         }
       }
     }
@@ -346,23 +363,7 @@ const convexLifecycleFiles = lifecycleContracts.map((c) => {
     .join("\n");
 
   const content = `${BANNER}
-export interface CascadeRule {
-  readonly table: string;
-  readonly from: readonly string[];
-  readonly to: string;
-}
-
-export interface TransitionDef<TState extends string = string, TRole extends string = string> {
-  readonly name: string;
-  readonly label?: string;
-  readonly from: readonly TState[];
-  readonly to: TState;
-  readonly roles: readonly TRole[];
-  readonly actor?: string;
-  readonly guards?: readonly string[];
-  readonly cascades?: readonly CascadeRule[];
-  readonly requiresNote?: boolean;
-}
+import type { CascadeRule, TransitionDef } from "./types";
 
 export type ${pascal}State = ${c.statuses.map((s) => `"${s}"`).join(" | ")};
 
@@ -454,7 +455,7 @@ for (const c of lifecycleContracts) {
 }
 
 const permissionsGeneratedTs = `${BANNER}
-import type { UserRole } from "@/convex/permissions";
+import type { UserRole } from "../permissions";
 
 export const GENERATED_LIFECYCLE_PERMISSIONS = {
 ${lifecyclePermissionEntries.join("\n")}
@@ -487,6 +488,7 @@ const registryEntries = lifecycleContracts
   .join("\n");
 
 const convexLifecycleIndexTs = `${BANNER}
+export * from "./types";
 ${registryImports}
 
 ${lifecycleContracts.map((c) => `export * from "./${c.name}";`).join("\n")}

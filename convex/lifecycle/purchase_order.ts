@@ -1,23 +1,7 @@
 // GENERATED FILE — do not edit.
 // Source: contracts/*.json  ·  Regenerate: node scripts/generate-from-contracts.mjs
 
-export interface CascadeRule {
-  readonly table: string;
-  readonly from: readonly string[];
-  readonly to: string;
-}
-
-export interface TransitionDef<TState extends string = string, TRole extends string = string> {
-  readonly name: string;
-  readonly label?: string;
-  readonly from: readonly TState[];
-  readonly to: TState;
-  readonly roles: readonly TRole[];
-  readonly actor?: string;
-  readonly guards?: readonly string[];
-  readonly cascades?: readonly CascadeRule[];
-  readonly requiresNote?: boolean;
-}
+import type { CascadeRule, TransitionDef } from "./types";
 
 export type PurchaseOrderState = "draft" | "submitted" | "queried" | "rejected" | "approved" | "cancelled" | "closed";
 
