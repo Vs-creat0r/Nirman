@@ -6,6 +6,12 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { resolveCallerScope, filterScopedList } from "./scoping";
+import {
+  COST_COMPARISON_CLOSED_STATES,
+  PURCHASE_ORDER_CLOSED_STATES,
+  CostComparisonState,
+  PurchaseOrderState,
+} from "./lifecycle/index";
 
 /**
  * Get live metrics and pipeline status for the Procurement Officer dashboard.
@@ -33,7 +39,7 @@ export const getProcurementDashboardMetrics = query({
 
     const ccsByMR = new Set(
       allCCs
-        .filter((cc) => cc.status !== "rejected")
+        .filter((cc) => !COST_COMPARISON_CLOSED_STATES.includes(cc.status as CostComparisonState))
         .map((cc) => String(cc.materialRequestId))
         .filter(Boolean)
     );
@@ -71,7 +77,9 @@ export const getProcurementDashboardMetrics = query({
 
     // 4. Approved CCs ready for PO generation (approved CCs without active PO)
     const activePO_CCIds = new Set(
-      allPOs.filter((po) => po.status !== "rejected").map((po) => po.costComparisonId)
+      allPOs
+        .filter((po) => !PURCHASE_ORDER_CLOSED_STATES.includes(po.status as PurchaseOrderState))
+        .map((po) => po.costComparisonId)
     );
     const ccsAwaitingPO = approvedCCs.filter((cc) => !activePO_CCIds.has(cc._id));
 
