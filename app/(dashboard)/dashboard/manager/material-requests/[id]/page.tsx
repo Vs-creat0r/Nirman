@@ -64,8 +64,8 @@ export default function ManagerMRDetailPage() {
   return (
     <DocumentView
       docType="material_request"
-      doc={mr}
-      userRole={user?.role || "project_manager"}
+      doc={mr as any}
+      userRole="project_manager"
       backHref="/dashboard/manager/material-requests"
       backLabel="Back to Approval Queue"
       onAction={handleAction}

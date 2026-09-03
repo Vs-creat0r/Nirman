@@ -56,8 +56,8 @@ export default function SupervisorMRDetailPage() {
   return (
     <DocumentView
       docType="material_request"
-      doc={mr}
-      userRole={user?.role || "site_supervisor"}
+      doc={mr as any}
+      userRole="site_supervisor"
       backHref="/dashboard/supervisor/material-requests"
       backLabel="Back to Material Requests"
       editHref={`/dashboard/supervisor/material-requests/${id}/edit`}

@@ -56,7 +56,7 @@ export function CCComparisonView({
           Vendor Quotations ({quotes.length} Participating Vendors)
         </h3>
         <span className="text-[11px] text-muted-foreground">
-          Lowest: <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">₹{minTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+          Lowest: <span className="font-mono font-bold text-[--success]">₹{minTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
         </span>
       </div>
 
@@ -73,7 +73,7 @@ export function CCComparisonView({
                 isSelected
                   ? "border-primary ring-2 ring-primary/20 bg-primary/[0.02]"
                   : isLowest
-                  ? "border-emerald-500/50 bg-emerald-500/[0.02]"
+                  ? "border-[--success]/50 bg-[--success]/[0.02]"
                   : "border-border"
               }`}
             >
@@ -105,7 +105,7 @@ export function CCComparisonView({
                       </Badge>
                     )}
                     {isLowest && !isSelected && (
-                      <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                      <span className="text-[10px] font-bold bg-[--success]/15 text-[--success] px-2 py-0.5 rounded-full border border-[--success]/30 flex items-center gap-1">
                         <Award className="h-3 w-3" />
                         Lowest
                       </span>
@@ -192,7 +192,7 @@ export function CCComparisonView({
                   )}
                   <div className="flex justify-between items-center pt-2 border-t border-border text-sm font-bold text-foreground">
                     <span>Total Amount:</span>
-                    <span className={isLowest ? "text-emerald-600 dark:text-emerald-400 font-bold" : ""}>
+                    <span className={isLowest ? "text-[--success] font-bold" : ""}>
                       ₹{quote.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </span>
                   </div>

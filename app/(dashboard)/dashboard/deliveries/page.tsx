@@ -95,9 +95,9 @@ export default function DeliveriesPage() {
   }, [deliveries, activeTab, searchQuery]);
 
   // Counts
-  const inTransitCount = (deliveries as any[])?.filter((d: any) => DELIVERY_CHALLAN_OPEN_STATES.includes(d.status)).length ?? 0;
-  const deliveredCount = (deliveries as any[])?.filter((d: any) => DELIVERY_CHALLAN_CLOSED_STATES.includes(d.status)).length ?? 0;
-  const totalCount = (deliveries as any[])?.length ?? 0;
+  const inTransitCount = deliveries?.filter((d) => (DELIVERY_CHALLAN_OPEN_STATES as readonly string[]).includes(d.status)).length ?? 0;
+  const deliveredCount = deliveries?.filter((d) => (DELIVERY_CHALLAN_CLOSED_STATES as readonly string[]).includes(d.status)).length ?? 0;
+  const totalCount = deliveries?.length ?? 0;
 
   return (
     <div className="space-y-6">

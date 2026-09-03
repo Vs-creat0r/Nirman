@@ -111,15 +111,14 @@ describe("Gate 3: UI Action Parity & Server Authority", () => {
   });
 
   it("action buttons bind disabled, title, and label directly to server availableActions fields", () => {
-    const poDetailPage = fs.readFileSync(
-      path.resolve(process.cwd(), "app/(dashboard)/dashboard/procurement/purchase-orders/[id]/page.tsx"),
+    const docViewContent = fs.readFileSync(
+      path.resolve(process.cwd(), "components/document/document-view.tsx"),
       "utf-8"
     );
 
-    // Verify PO detail binds to canResubmit and canSubmit fields
-    expect(poDetailPage.includes("canResubmit.label")).toBe(true);
-    expect(poDetailPage.includes("canResubmit.reason")).toBe(true);
-    expect(poDetailPage.includes("canSubmit.label")).toBe(true);
-    expect(poDetailPage.includes("canSubmit.reason")).toBe(true);
+    // Verify DocumentView binds directly to action.label, action.reason, and !action.enabled
+    expect(docViewContent.includes("action.label")).toBe(true);
+    expect(docViewContent.includes("action.reason")).toBe(true);
+    expect(docViewContent.includes("!action.enabled")).toBe(true);
   });
 });

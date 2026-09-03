@@ -9,6 +9,8 @@ import { DocumentLineageBar } from "@/components/document/document-lineage-bar";
 import { StatusBadge } from "@/components/document/status-badge";
 import { DocumentItemsTable } from "@/components/document/document-items-table";
 import { DocumentAuditTrail } from "@/components/document/document-audit-trail";
+import { DocumentFinancialSummary } from "@/components/document/document-financial-summary";
+import { CCComparisonView, type EnrichedVendorQuote } from "@/components/document/cc-comparison-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -79,6 +81,8 @@ export interface DocumentViewDoc {
   requiredBy?: string;
   vendorName?: string;
   vendorId?: string;
+  selectedVendorId?: string;
+  vendorQuotes?: EnrichedVendorQuote[] | unknown[];
   notes?: string;
   procurementNotes?: string;
   paymentTerms?: string;
@@ -87,8 +91,14 @@ export interface DocumentViewDoc {
   placeOfSupplyStateCode?: string;
   freight?: number;
   taxRate?: number;
+  subtotal?: number;
+  taxAmount?: number;
   totalAmount?: number;
   estimatedTotal?: number;
+  termsAndConditions?: string;
+  reviewerName?: string | null;
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
   items?: LineItem[];
   lineItems?: LineItem[];
   logs?: AuditLogEntry[];
@@ -111,6 +121,8 @@ export interface DocumentViewProps {
   backLabel: string;
   editHref?: string;
   onAction?: (actionName: string, note?: string) => Promise<void>;
+  onSelectVendor?: (vendorId: string) => void;
+  isSelecting?: boolean;
   userRole?: string;
   optionsMap?: OptionsMap;
   renderCustomField?: (field: FieldDef, doc: DocumentViewDoc) => React.ReactNode;
@@ -131,6 +143,8 @@ export function DocumentView({
   backLabel,
   editHref,
   onAction,
+  onSelectVendor,
+  isSelecting = false,
   userRole = "procurement",
   renderCustomField,
   headerExtras,
@@ -380,12 +394,25 @@ export function DocumentView({
             </div>
           </div>
 
+          {/* Vendor Quotes Comparison for Cost Comparisons */}
+          {doc.vendorQuotes && (doc.vendorQuotes as any[]).length > 0 && (
+            <CCComparisonView
+              quotes={doc.vendorQuotes as EnrichedVendorQuote[]}
+              selectedVendorId={doc.selectedVendorId as string | undefined}
+              onSelectVendor={onSelectVendor}
+              isSelecting={isSelecting}
+            />
+          )}
+
           {fields &&
             fields.map((field) => (
               renderCustomField ? <div key={field.field}>{renderCustomField(field, doc)}</div> : null
             ))}
 
           <DocumentItemsTable items={lineItems} />
+
+          {/* Financial Totals & Terms */}
+          <DocumentFinancialSummary doc={doc} />
 
           {(doc.notes || doc.procurementNotes) && (
             <div className="space-y-1.5">

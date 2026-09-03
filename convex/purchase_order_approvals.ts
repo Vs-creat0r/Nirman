@@ -174,6 +174,7 @@ export const resubmitPO = mutation({
     expectedDelivery: v.optional(v.string()),
     validUntil: v.optional(v.string()),
     termsAndConditions: v.optional(v.string()),
+    submitImmediately: v.optional(v.boolean()),
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
