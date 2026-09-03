@@ -278,7 +278,7 @@ export default function ProjectsSitesManagementPage() {
             disabled={!allProjects || allProjects.length === 0}
             className="text-xs h-8 gap-1.5 font-semibold"
           >
-            <MapPin className="h-3.5 w-3.5 text-blue-500" />
+            <MapPin className="h-3.5 w-3.5 text-primary" />
             New Site
           </Button>
         </div>
@@ -296,7 +296,7 @@ export default function ProjectsSitesManagementPage() {
         </div>
 
         <div className="p-3.5 bg-card border border-border rounded-xl space-y-1">
-          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+          <span className="text-[11px] font-semibold text-[--success] uppercase tracking-wider">
             Active Projects
           </span>
           <div className="text-2xl font-bold text-foreground">
@@ -305,7 +305,7 @@ export default function ProjectsSitesManagementPage() {
         </div>
 
         <div className="p-3.5 bg-card border border-border rounded-xl space-y-1">
-          <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+          <span className="text-[11px] font-semibold text-[--info] uppercase tracking-wider">
             Total Sites
           </span>
           <div className="text-2xl font-bold text-foreground">
@@ -412,7 +412,7 @@ export default function ProjectsSitesManagementPage() {
                       </td>
 
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold text-[11px]">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[--info]/10 text-[--info] font-semibold text-[11px]">
                           <MapPin className="h-3 w-3" />
                           {p.activeSiteCount} active / {p.siteCount} total
                         </span>
@@ -460,7 +460,7 @@ export default function ProjectsSitesManagementPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => openCreateSiteDialog(p._id)}
-                            className="h-7 text-[11px] gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                            className="h-7 text-[11px] gap-1 text-primary hover:text-primary/90 hover:bg-muted"
                           >
                             <Plus className="h-3 w-3" /> Add Site
                           </Button>
@@ -542,7 +542,7 @@ export default function ProjectsSitesManagementPage() {
                     <tr key={s._id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3 font-medium">
                         <div className="flex items-center gap-2">
-                          <div className="h-7 w-7 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                          <div className="h-7 w-7 rounded bg-[--info]/10 text-[--info] flex items-center justify-center shrink-0">
                             <MapPin className="h-3.5 w-3.5" />
                           </div>
                           <div>
@@ -796,7 +796,7 @@ export default function ProjectsSitesManagementPage() {
                 id="siteIsActive"
                 checked={siteIsActive}
                 onChange={(e) => setSiteIsActive(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
               />
               <label htmlFor="siteIsActive" className="text-xs font-medium text-foreground cursor-pointer select-none">
                 Site is active and receiving material dispatches

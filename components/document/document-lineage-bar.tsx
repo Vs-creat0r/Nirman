@@ -117,7 +117,7 @@ export function DocumentLineageBar({
       <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/50 text-[11px] text-muted-foreground font-semibold">
         <span>Document Pipeline Lineage & Traceability</span>
         <span className="text-[10px] font-normal italic">
-          Click any step to inspect related document
+          Click a step to inspect related document
         </span>
       </div>
 

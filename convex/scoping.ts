@@ -19,10 +19,10 @@
 import { QueryCtx, MutationCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { getCurrentUser } from "./rbac";
-import type { MaterialRequestStatus } from "../lib/schemas/material_request";
-import type { CostComparisonStatus } from "../lib/schemas/cost_comparison";
-import type { PurchaseOrderStatus } from "../lib/schemas/purchase_order";
-import type { DeliveryChallanStatus } from "../lib/schemas/delivery_challan";
+import type { MaterialRequestStatus } from "@/lib/schemas/material_request";
+import type { CostComparisonStatus } from "@/lib/schemas/cost_comparison";
+import type { PurchaseOrderStatus } from "@/lib/schemas/purchase_order";
+import type { DeliveryChallanStatus } from "@/lib/schemas/delivery_challan";
 
 export interface UserScope {
   user: Doc<"users">;

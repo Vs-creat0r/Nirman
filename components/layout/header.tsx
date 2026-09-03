@@ -2,9 +2,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { Menu, Bell, Sparkles, LogOut } from "lucide-react";
-import { Button } from "../ui/button";
-import { useRole } from "../../hooks/use-role";
-import { useSession } from "../providers/auth-provider";
+import { Button } from "@/components/ui/button";
+import { useRole } from "@/hooks/use-role";
+import { useSession } from "@/components/providers/auth-provider";
 
 interface HeaderProps {
   onMenuToggle?: () => void;

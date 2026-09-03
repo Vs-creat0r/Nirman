@@ -1,9 +1,9 @@
 "use client";
 import * as React from "react";
-import { useRole } from "../../../../hooks/use-role";
+import { useRole } from "@/hooks/use-role";
 import { Users, Shield, AlertCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../../components/ui/card";
-import { Badge } from "../../../../components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default function AdminDashboard() {
   const { user } = useRole();

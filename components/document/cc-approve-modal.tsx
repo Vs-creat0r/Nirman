@@ -127,12 +127,12 @@ export function CCApproveModal({
           {selectedQuote && (
             <div>
               {isSelectedLowest ? (
-                <div className="p-2.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center gap-2 text-[11px] font-semibold">
+                <div className="p-2.5 rounded-md bg-[--success]/10 border border-[--success]/30 text-[--success] flex items-center gap-2 text-[11px] font-semibold">
                   <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
                   Lowest quoted price selected (₹{selectedQuote.total.toLocaleString("en-IN")})
                 </div>
               ) : (
-                <div className="p-2.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 space-y-1 text-[11px]">
+                <div className="p-2.5 rounded-md bg-[--warning]/10 border border-[--warning]/30 text-[--warning] space-y-1 text-[11px]">
                   <div className="flex items-center gap-1.5 font-bold">
                     <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                     Higher-priced quote selected
@@ -204,7 +204,7 @@ export function CCApproveModal({
             size="sm"
             onClick={handleConfirm}
             disabled={isLoading}
-            className="text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="text-xs font-semibold bg-[--success] hover:bg-[--success]/90 text-white"
           >
             {isLoading ? "Approving…" : "Approve & Lock Vendor"}
           </Button>

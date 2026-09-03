@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, FileSignature, CheckCircle, Truck, Package, Shield } from "lucide-react";
-import { Button } from "../components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export default function MarketingPage() {
   return (

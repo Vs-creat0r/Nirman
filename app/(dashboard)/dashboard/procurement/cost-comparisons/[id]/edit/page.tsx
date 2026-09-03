@@ -235,10 +235,10 @@ export default function EditQueriedCostComparisonPage() {
 
       {/* Reviewer Query Note */}
       {cc.reviewNote && (
-        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+        <div className="p-4 rounded-lg bg-[--warning]/10 border border-[--warning]/30 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-[--warning] flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <h3 className="text-xs font-bold text-amber-500">
+            <h3 className="text-xs font-bold text-[--warning]">
               Manager Feedback / Query Note
             </h3>
             <p className="text-xs text-foreground">
@@ -254,11 +254,11 @@ export default function EditQueriedCostComparisonPage() {
         </div>
       )}
 
-      {/* Quote Panels */}
+      {/* Dynamic Vendor Quote Panels */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-foreground">
-            Vendor Quotations ({quotes.length})
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground select-none">
+            Participating Quotations ({quotes.length})
           </h2>
 
           <Button
@@ -266,14 +266,14 @@ export default function EditQueriedCostComparisonPage() {
             variant="outline"
             size="sm"
             onClick={handleAddVendorQuote}
-            className="gap-1.5 text-xs font-semibold"
+            className="h-8 text-xs font-semibold gap-1.5"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Another Vendor Quote
+            Add Vendor Quotation
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {quotes.map((quote, idx) => (
             <CCVendorQuotePanel
               key={idx}
@@ -289,10 +289,10 @@ export default function EditQueriedCostComparisonPage() {
           ))}
         </div>
 
-        {/* Submit / Action Card */}
-        <Card className="border-border bg-surface shadow-xs">
+        {/* Floating/Bottom Action Bar */}
+        <Card className="border-border bg-surface shadow-sm sticky bottom-4 z-20">
           <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
               {canSubmit && (
                 <Button
                   type="button"
@@ -300,7 +300,7 @@ export default function EditQueriedCostComparisonPage() {
                   size="sm"
                   disabled={isSubmitting || isDiscarding}
                   onClick={() => setShowDiscardConfirm(true)}
-                  className="text-destructive hover:bg-destructive/10 text-xs gap-1.5 px-3"
+                  className="text-destructive hover:text-destructive/80 hover:bg-destructive/10 text-xs font-medium gap-1"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Discard draft
@@ -309,7 +309,7 @@ export default function EditQueriedCostComparisonPage() {
 
               <div className="text-xs space-y-0.5">
                 <span className="text-muted-foreground">Revised Lowest Total:</span>
-                <div className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                <div className="font-mono text-[--success] font-bold text-sm">
                   ₹{minTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                 </div>
               </div>

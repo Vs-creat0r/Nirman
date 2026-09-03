@@ -292,8 +292,8 @@ export function ConfirmDeliveryModal({
                 Physical Quantity Verification
               </Label>
               {hasDiscrepancies && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" /> Quantity Discrepancy
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[--warning]/10 text-[--warning] flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Quantity Variance Detected
                 </span>
               )}
             </div>
@@ -314,7 +314,7 @@ export function ConfirmDeliveryModal({
                     return (
                       <tr
                         key={idx}
-                        className={isDiff ? "bg-amber-500/5" : "hover:bg-muted/20"}
+                        className={isDiff ? "bg-[--warning]/5" : "hover:bg-muted/20"}
                       >
                         <td className="px-3 py-2 font-medium text-foreground">
                           {item.itemName}
@@ -336,7 +336,7 @@ export function ConfirmDeliveryModal({
                               item.receivedQty > item.expectedQty
                                 ? "border-destructive text-destructive font-bold"
                                 : isDiff
-                                ? "border-amber-500 text-amber-600 dark:text-amber-400 font-bold"
+                                ? "border-[--warning] text-[--warning] font-bold"
                                 : "border-input text-foreground"
                             }`}
                             required

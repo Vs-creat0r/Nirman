@@ -235,10 +235,10 @@ export default function ProcurementVendorsPage() {
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Active Vendors
             </CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <CheckCircle2 className="h-4 w-4 text-[--success]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-mono text-emerald-500">{activeVendorsCount}</div>
+            <div className="text-2xl font-bold font-mono text-[--success]">{activeVendorsCount}</div>
             <p className="text-[10px] text-muted-foreground mt-1">Available for RFQ quotes</p>
           </CardContent>
         </Card>
@@ -261,7 +261,7 @@ export default function ProcurementVendorsPage() {
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Lifetime Spend
             </CardTitle>
-            <IndianRupee className="h-4 w-4 text-emerald-500" />
+            <IndianRupee className="h-4 w-4 text-[--success]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono text-foreground">
@@ -320,7 +320,7 @@ export default function ProcurementVendorsPage() {
             onClick={() => setStatusFilter("active")}
             className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
               statusFilter === "active"
-                ? "bg-surface text-emerald-500 font-bold shadow-xs"
+                ? "bg-surface text-[--success] font-bold shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -426,7 +426,7 @@ export default function ProcurementVendorsPage() {
                     </td>
                     <td className="py-3 px-3">
                       {vendor.isActive ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/30">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[--success]/10 text-[--success] border border-[--success]/30">
                           <CheckCircle2 className="h-2.5 w-2.5" />
                           Active
                         </span>
@@ -465,7 +465,7 @@ export default function ProcurementVendorsPage() {
                           className={`h-7 text-xs px-2 ${
                             vendor.isActive
                               ? "text-destructive hover:text-destructive hover:bg-destructive/10"
-                              : "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+                              : "text-[--success] hover:text-[--success]/80 hover:bg-[--success]/10"
                           }`}
                         >
                           {vendor.isActive ? "Deactivate" : "Activate"}
@@ -514,7 +514,7 @@ export default function ProcurementVendorsPage() {
                     <h4 className="text-base font-bold text-foreground">{vendorDetails.name}</h4>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Category: <span className="font-semibold text-foreground">{vendorDetails.category || "General"}</span> &bull; Status:{" "}
-                      <span className={vendorDetails.isActive ? "text-emerald-500 font-semibold" : "text-muted-foreground font-semibold"}>
+                      <span className={vendorDetails.isActive ? "text-[--success] font-semibold" : "text-muted-foreground font-semibold"}>
                         {vendorDetails.isActive ? "Active" : "Inactive"}
                       </span>
                     </p>

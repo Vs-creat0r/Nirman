@@ -3,10 +3,10 @@ import * as React from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { Briefcase, Settings, ChevronDown, Check, FolderKanban } from "lucide-react";
-import { api } from "../../convex/_generated/api";
-import { useSession } from "../providers/auth-provider";
-import { useRole } from "../../hooks/use-role";
-import { cn } from "../../lib/cn";
+import { api } from "@/convex/_generated/api";
+import { useSession } from "@/components/providers/auth-provider";
+import { useRole } from "@/hooks/use-role";
+import { cn } from "@/lib/cn";
 
 export function ProjectSelector() {
   const { token } = useSession();

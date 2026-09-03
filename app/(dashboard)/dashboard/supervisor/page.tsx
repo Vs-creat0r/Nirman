@@ -61,12 +61,12 @@ export default function SupervisorDashboard() {
 
       {/* Summary stats */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className={inTransitCount > 0 ? "border-indigo-500/40 bg-indigo-500/5" : ""}>
+        <Card className={inTransitCount > 0 ? "border-[--info]/40 bg-[--info]/5" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
               Out for Delivery
             </CardTitle>
-            <Truck className={`h-4 w-4 ${inTransitCount > 0 ? "text-indigo-500 animate-pulse" : "text-muted-foreground"}`} />
+            <Truck className={`h-4 w-4 ${inTransitCount > 0 ? "text-[--info] animate-pulse" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
@@ -78,12 +78,12 @@ export default function SupervisorDashboard() {
           </CardContent>
         </Card>
 
-        <Card className={queriedCount > 0 ? "border-amber-500/40 bg-amber-500/5" : ""}>
+        <Card className={queriedCount > 0 ? "border-[--warning]/40 bg-[--warning]/5" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
               Action Required
             </CardTitle>
-            <AlertTriangle className={`h-4 w-4 ${queriedCount > 0 ? "text-amber-500 animate-pulse" : "text-muted-foreground"}`} />
+            <AlertTriangle className={`h-4 w-4 ${queriedCount > 0 ? "text-[--warning] animate-pulse" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
@@ -111,12 +111,12 @@ export default function SupervisorDashboard() {
 
       {/* Out for Delivery Alert Section if there are active shipments */}
       {inTransitCount > 0 && (
-        <div className="p-4 border border-indigo-500/30 rounded-xl bg-indigo-500/5 space-y-3">
+        <div className="p-4 border border-[--info]/30 rounded-xl bg-[--info]/5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-ping" />
+              <span className="flex h-2 w-2 rounded-full bg-[--info] animate-ping" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <Truck className="h-4 w-4 text-indigo-500" /> Incoming Shipments ({inTransitCount})
+                <Truck className="h-4 w-4 text-[--info]" /> Incoming Shipments ({inTransitCount})
               </h3>
             </div>
             <Link

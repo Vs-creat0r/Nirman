@@ -253,7 +253,7 @@ export default function AdminSettingsPage() {
               )}
 
               {companySaveSuccess && (
-                <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center gap-2">
+                <div className="p-3 rounded-md bg-[--success]/10 border border-[--success]/20 text-[--success] text-xs font-semibold flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
                   Company profile successfully updated!
                 </div>
@@ -415,8 +415,8 @@ export default function AdminSettingsPage() {
                           {tpl.name}
                         </CardTitle>
                         {tpl.isDefault && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30">
-                            <Star className="h-2.5 w-2.5 fill-amber-500" />
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[--warning]/10 text-[--warning] border border-[--warning]/30">
+                            <Star className="h-2.5 w-2.5 fill-[--warning]" />
                             Default
                           </span>
                         )}
@@ -479,7 +479,7 @@ export default function AdminSettingsPage() {
             )}
 
             {companySaveSuccess && (
-              <div className="p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center gap-2">
+              <div className="p-3 rounded-md bg-[--success]/10 border border-[--success]/20 text-[--success] text-xs font-semibold flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
                 System preferences successfully saved!
               </div>

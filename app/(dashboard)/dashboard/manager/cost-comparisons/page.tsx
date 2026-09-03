@@ -52,7 +52,7 @@ export default function ManagerCostComparisonsPage() {
               Cost Comparisons Approval Queue
             </h1>
             {pendingCount > 0 && (
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[--warning]/15 text-[--warning] border border-[--warning]/30">
                 {pendingCount} Pending Review
               </span>
             )}
@@ -164,12 +164,12 @@ export default function ManagerCostComparisonsPage() {
                   </td>
                   <td className="py-3 px-3 font-medium">
                     {cc.selectedVendorName ? (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                      <span className="text-[--success] font-semibold flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3" />
                         {cc.selectedVendorName}
                       </span>
                     ) : (
-                      <span className="text-amber-500 text-[11px] font-semibold flex items-center gap-1">
+                      <span className="text-[--warning] text-[11px] font-semibold flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         Selection Required
                       </span>

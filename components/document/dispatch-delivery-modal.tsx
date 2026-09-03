@@ -86,7 +86,7 @@ export function DispatchDeliveryModal({
 
   // Selected PO object
   const currentPO = React.useMemo(() => {
-    return (approvedPOs as any[])?.find((p: any) => p._id === selectedPOId);
+    return approvedPOs?.find((p: any) => p._id === selectedPOId);
   }, [approvedPOs, selectedPOId]);
 
   // When PO changes, snapshot its remaining dispatchable line items

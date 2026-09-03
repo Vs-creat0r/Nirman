@@ -93,13 +93,13 @@ export default function UsersPage() {
   const getRoleIcon = (userRole: string) => {
     switch (userRole) {
       case "site_supervisor":
-        return <HardHat className="h-4 w-4 text-blue-500" />;
+        return <HardHat className="h-4 w-4 text-[--info]" />;
       case "project_manager":
         return <Briefcase className="h-4 w-4 text-purple-500" />;
       case "procurement_officer":
-        return <ShoppingBag className="h-4 w-4 text-amber-500" />;
+        return <ShoppingBag className="h-4 w-4 text-[--warning]" />;
       case "admin":
-        return <ShieldCheck className="h-4 w-4 text-emerald-500" />;
+        return <ShieldCheck className="h-4 w-4 text-[--success]" />;
       default:
         return <Users className="h-4 w-4 text-muted-foreground" />;
     }
@@ -246,17 +246,19 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-foreground select-none">
-              User & Access Control
+              User & Access Governance
             </h1>
-            <Badge variant="success">RBAC & Scoping</Badge>
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+              RBAC & Scoping
+            </span>
           </div>
           <p className="text-xs text-muted-foreground select-none mt-1">
-            Manage user identities, security roles, and project/site assignment boundaries.
+            Role definitions, project scoping boundaries (S1-04), and identity authorization.
           </p>
         </div>
       </div>
@@ -265,10 +267,10 @@ export default function UsersPage() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div className="p-3 bg-card border border-border rounded-xl space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-blue-500 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-[--info] uppercase tracking-wider">
               Site Supervisor
             </span>
-            <HardHat className="h-4 w-4 text-blue-500" />
+            <HardHat className="h-4 w-4 text-[--info]" />
           </div>
           <p className="text-xs font-semibold text-foreground">Raises MRs & Signs GRNs</p>
           <p className="text-[10px] text-muted-foreground font-mono">Scoped to assigned sites</p>
@@ -287,10 +289,10 @@ export default function UsersPage() {
 
         <div className="p-3 bg-card border border-border rounded-xl space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-[--warning] uppercase tracking-wider">
               Procurement Officer
             </span>
-            <ShoppingBag className="h-4 w-4 text-amber-500" />
+            <ShoppingBag className="h-4 w-4 text-[--warning]" />
           </div>
           <p className="text-xs font-semibold text-foreground">Creates CC, PO & DC</p>
           <p className="text-[10px] text-muted-foreground font-mono">Commercial execution</p>
@@ -298,10 +300,10 @@ export default function UsersPage() {
 
         <div className="p-3 bg-card border border-border rounded-xl space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-[--success] uppercase tracking-wider">
               System Admin
             </span>
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+            <ShieldCheck className="h-4 w-4 text-[--success]" />
           </div>
           <p className="text-xs font-semibold text-foreground">Master Control & Config</p>
           <p className="text-[10px] text-muted-foreground font-mono">Global Unrestricted Access</p>
@@ -387,7 +389,7 @@ export default function UsersPage() {
 
                       <td className="px-4 py-3">
                         {isAdmin ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[--success]">
                             <ShieldCheck className="h-3.5 w-3.5" /> Global Access (All Sites)
                           </span>
                         ) : projectCount > 0 || siteCount > 0 ? (
@@ -395,7 +397,7 @@ export default function UsersPage() {
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold text-[11px]">
                               <Building2 className="h-3 w-3" /> {projectCount} project(s)
                             </span>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold text-[11px]">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[--info]/10 text-[--info] font-semibold text-[11px]">
                               <MapPin className="h-3 w-3" /> {siteCount} site(s)
                             </span>
                           </div>
@@ -408,8 +410,8 @@ export default function UsersPage() {
 
                       <td className="px-4 py-3">
                         {u.isActive !== false ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[--success]">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[--success]" />
                             Active
                           </span>
                         ) : (
@@ -427,7 +429,7 @@ export default function UsersPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => openScopingDialog(u)}
-                              className="h-7 text-[11px] gap-1 text-blue-600 hover:text-blue-700"
+                              className="h-7 text-[11px] gap-1 text-[--info] hover:text-[--info]/80"
                               title="Assign Projects and Sites"
                             >
                               <Sliders className="h-3 w-3" /> Scoping
@@ -446,7 +448,7 @@ export default function UsersPage() {
                               size="sm"
                               onClick={() => openProfileDialog(u)}
                               className="h-7 text-[11px] gap-1"
-                              title="Edit Profile"
+                              title="Edit User"
                             >
                               <Edit2 className="h-3 w-3" /> Edit
                             </Button>
@@ -467,7 +469,7 @@ export default function UsersPage() {
         <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <Sliders className="h-4 w-4 text-blue-500" />
+              <Sliders className="h-4 w-4 text-[--info]" />
               Scoping Access: {selectedUser?.name}
             </DialogTitle>
             <DialogDescription className="text-xs">
@@ -484,7 +486,7 @@ export default function UsersPage() {
             )}
 
             {selectedUser?.role === "admin" && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-700 dark:text-emerald-300 text-xs">
+              <div className="p-3 bg-[--success]/10 border border-[--success]/20 text-[--success] rounded-lg text-xs">
                 <strong>Note:</strong> System Administrators have global access to all projects and sites by default. Scoping rules are evaluated but will never block an Admin.
               </div>
             )}
@@ -528,7 +530,7 @@ export default function UsersPage() {
                               type="checkbox"
                               checked={isProjectSelected}
                               onChange={() => handleToggleProject(project._id)}
-                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                             />
                             <span className="font-bold text-xs text-foreground">{project.name}</span>
                             <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
@@ -555,7 +557,7 @@ export default function UsersPage() {
                                     key={site._id}
                                     className={`flex items-center gap-2 p-1.5 rounded-md border text-xs cursor-pointer select-none transition-colors ${
                                       isSiteSelected
-                                        ? "border-blue-500/50 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                                        ? "border-[--info]/50 bg-[--info]/10 text-[--info]"
                                         : "border-transparent hover:bg-muted/40 text-foreground"
                                     }`}
                                   >
@@ -563,7 +565,7 @@ export default function UsersPage() {
                                       type="checkbox"
                                       checked={isSiteSelected}
                                       onChange={() => handleToggleSite(site._id, project._id)}
-                                      className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                      className="h-3.5 w-3.5 rounded border-border text-[--info] focus:ring-[--info]"
                                     />
                                     <div className="truncate">
                                       <span className="font-medium">{site.name}</span>
@@ -584,7 +586,7 @@ export default function UsersPage() {
               )}
             </div>
 
-            <DialogFooter className="pt-3 border-t border-border mt-4">
+            <DialogFooter className="pt-2">
               <Button
                 type="button"
                 variant="outline"
@@ -614,7 +616,7 @@ export default function UsersPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              <ShieldCheck className="h-4 w-4 text-[--success]" />
               Change Role: {selectedUser?.name}
             </DialogTitle>
             <DialogDescription className="text-xs">
@@ -725,7 +727,7 @@ export default function UsersPage() {
                 id="editIsActive"
                 checked={editIsActive}
                 onChange={(e) => setEditIsActive(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
               />
               <label htmlFor="editIsActive" className="text-xs font-medium text-foreground cursor-pointer select-none">
                 Account is Active (Uncheck to deactivate access)

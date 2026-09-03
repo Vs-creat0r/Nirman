@@ -2,8 +2,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { useSession } from "../../../components/providers/auth-provider";
+import { api } from "@/convex/_generated/api";
+import { useSession } from "@/components/providers/auth-provider";
 import { Loader2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";

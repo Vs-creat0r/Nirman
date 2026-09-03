@@ -414,9 +414,9 @@ export function DocumentTable({
                         <span
                           className={`capitalize font-semibold text-[11px] ${
                             row.priority === "urgent"
-                              ? "text-rose-500 font-bold"
+                              ? "text-[--destructive] font-bold"
                               : row.priority === "high"
-                              ? "text-amber-500"
+                              ? "text-[--warning]"
                               : "text-muted-foreground"
                           }`}
                         >

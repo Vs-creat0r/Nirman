@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import materialRequestContract from "@/contracts/material_request.json";
 import type { DocumentContract } from "@/lib/form-engine-types";
 import { Send } from "lucide-react";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export default function NewMaterialRequestPage() {
   const router = useRouter();
@@ -28,29 +29,32 @@ export default function NewMaterialRequestPage() {
   const submitImmediatelyRef = React.useRef(false);
 
   const optionsMap = {
-    projects: projects || [],
-    sites: sites || [],
+    projectId: (projects || []).map((p) => ({
+      value: p._id,
+      label: `${p.name} (${p.code})`,
+    })),
+    siteId: (sites || []).map((s) => ({
+      value: s._id,
+      label: `${s.name} (${s.code})`,
+    })),
   };
 
   const handleSave = async (data: Record<string, unknown>) => {
-    setError(null);
     setIsSubmitting(true);
-    const submitImmediately = submitImmediatelyRef.current;
+    setError(null);
 
     try {
-      if (!data.projectId) {
-        throw new Error("Please select a project.");
-      }
-
+      const submitImmediately = submitImmediatelyRef.current;
       const items = Array.isArray(data.items) ? data.items : [];
+
       if (items.length === 0) {
-        throw new Error("Please add at least one line item.");
+        throw new Error("At least one line item is required.");
       }
 
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i];
+      // Pre-validation for line items
+      for (const it of items as any[]) {
         if (!it.itemName || !it.itemName.trim()) {
-          throw new Error(`Item #${i + 1} must have a valid item name.`);
+          throw new Error("All line items must have a valid item name.");
         }
         const qty = Number(it.quantity);
         if (isNaN(qty) || qty <= 0) {
@@ -59,10 +63,10 @@ export default function NewMaterialRequestPage() {
       }
 
       // Format payload for createMR mutation
-      const payload: any = {
-        projectId: data.projectId as any,
-        siteId: data.siteId ? (data.siteId as any) : undefined,
-        items: items.map((it: any) => ({
+      const payload = {
+        projectId: data.projectId as Id<"projects">,
+        siteId: data.siteId ? (data.siteId as Id<"sites">) : undefined,
+        items: (items as any[]).map((it: any) => ({
           itemName: it.itemName.trim(),
           description: it.description?.trim() || undefined,
           hsnSacCode: it.hsnSacCode?.trim() || undefined,
@@ -70,7 +74,7 @@ export default function NewMaterialRequestPage() {
           unit: it.unit || "bags",
           projectItemId: it.projectItemId || undefined,
         })),
-        priority: (data.priority as any) || "normal",
+        priority: (data.priority as "low" | "normal" | "urgent") || "normal",
         requiredBy: data.requiredBy ? String(data.requiredBy) : undefined,
         notes: data.notes ? String(data.notes).trim() : undefined,
         submitImmediately,

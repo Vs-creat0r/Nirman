@@ -395,7 +395,7 @@ export function DocumentView({
           </div>
 
           {/* Vendor Quotes Comparison for Cost Comparisons */}
-          {doc.vendorQuotes && (doc.vendorQuotes as any[]).length > 0 && (
+          {Array.isArray(doc.vendorQuotes) && doc.vendorQuotes.length > 0 && (
             <CCComparisonView
               quotes={doc.vendorQuotes as EnrichedVendorQuote[]}
               selectedVendorId={doc.selectedVendorId as string | undefined}

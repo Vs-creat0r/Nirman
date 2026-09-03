@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
-import { type UserRole } from "../lib/nav-config";
+import { api } from "@/convex/_generated/api";
+import { type UserRole } from "@/lib/nav-config";
 import { useSession } from "@/components/providers/auth-provider";
 
 export function useRole(): { role: UserRole | null; isLoading: boolean; user: any } {

@@ -102,8 +102,8 @@ export default function EditQueriedMaterialRequestPage() {
 
       await resubmitMRMutation({
         id,
-        projectId: data.projectId as any,
-        siteId: data.siteId ? (data.siteId as any) : undefined,
+        projectId: data.projectId as Id<"projects">,
+        siteId: data.siteId ? (data.siteId as Id<"sites">) : undefined,
         items: items.map((it: any) => ({
           itemName: it.itemName.trim(),
           description: it.description?.trim() || undefined,
@@ -112,7 +112,7 @@ export default function EditQueriedMaterialRequestPage() {
           unit: it.unit || "bags",
           projectItemId: it.projectItemId || undefined,
         })),
-        priority: (data.priority as any) || "normal",
+        priority: (data.priority as "low" | "normal" | "urgent") || "normal",
         requiredBy: data.requiredBy ? String(data.requiredBy) : undefined,
         notes: data.notes ? String(data.notes).trim() : undefined,
         token: token || undefined,
@@ -151,10 +151,10 @@ export default function EditQueriedMaterialRequestPage() {
 
       {/* Query note from manager */}
       {mr.reviewNote && (
-        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+        <div className="p-4 rounded-lg bg-[--warning]/10 border border-[--warning]/30 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-[--warning] flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="text-xs font-bold text-amber-500">
+            <h3 className="text-xs font-bold text-[--warning]">
               Manager Feedback / Query
             </h3>
             <p className="text-xs text-foreground mt-0.5">

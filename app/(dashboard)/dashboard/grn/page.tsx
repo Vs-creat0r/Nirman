@@ -51,7 +51,7 @@ export default function GRNPage() {
   // Filtered GRNs
   const filteredGRNs = React.useMemo(() => {
     if (!grns) return [];
-    return (grns as any[]).filter((grn: any) => {
+    return grns.filter((grn) => {
       // Filter mode
       if (filterMode === "exact" && grn.hasDiscrepancy) return false;
       if (filterMode === "discrepancy" && !grn.hasDiscrepancy) return false;
@@ -75,9 +75,9 @@ export default function GRNPage() {
   }, [grns, filterMode, searchQuery]);
 
   // Counts
-  const totalGRNs = (grns as any[])?.length ?? 0;
-  const exactCount = (grns as any[])?.filter((g: any) => !g.hasDiscrepancy).length ?? 0;
-  const discrepancyCount = (grns as any[])?.filter((g: any) => g.hasDiscrepancy).length ?? 0;
+  const totalGRNs = grns?.length ?? 0;
+  const exactCount = grns?.filter((g) => !g.hasDiscrepancy).length ?? 0;
+  const discrepancyCount = grns?.filter((g) => g.hasDiscrepancy).length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -88,7 +88,7 @@ export default function GRNPage() {
             <h1 className="text-2xl font-bold tracking-tight text-foreground select-none">
               Goods Receipt Notes (GRN)
             </h1>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[--success]/10 text-[--success]">
               Verified Receipts
             </span>
           </div>
@@ -124,15 +124,15 @@ export default function GRNPage() {
           </CardContent>
         </Card>
 
-        <Card className={exactCount > 0 ? "border-emerald-500/30 bg-emerald-500/5" : ""}>
+        <Card className={exactCount > 0 ? "border-[--success]/30 bg-[--success]/5" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
               Verified Exact Match
             </CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <CheckCircle2 className="h-4 w-4 text-[--success]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold tracking-tight text-foreground font-mono text-emerald-600 dark:text-emerald-400">
+            <div className="text-2xl font-bold tracking-tight text-foreground font-mono text-[--success]">
               {grns ? exactCount : "—"}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -141,12 +141,12 @@ export default function GRNPage() {
           </CardContent>
         </Card>
 
-        <Card className={discrepancyCount > 0 ? "border-amber-500/30 bg-amber-500/5" : ""}>
+        <Card className={discrepancyCount > 0 ? "border-[--warning]/30 bg-[--warning]/5" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
               Discrepancies Logged
             </CardTitle>
-            <AlertTriangle className={`h-4 w-4 ${discrepancyCount > 0 ? "text-amber-500 animate-pulse" : "text-muted-foreground"}`} />
+            <AlertTriangle className={`h-4 w-4 ${discrepancyCount > 0 ? "text-[--warning] animate-pulse" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
@@ -180,7 +180,7 @@ export default function GRNPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[--success]" />
             Exact Match ({exactCount})
           </button>
           <button
@@ -191,7 +191,7 @@ export default function GRNPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[--warning]" />
             With Variance ({discrepancyCount})
           </button>
         </div>
@@ -199,25 +199,24 @@ export default function GRNPage() {
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search GRN, PO, DC, vendor, site..."
+            placeholder="Search by GRN, PO, site, or vendor…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 text-xs h-8"
+            className="pl-8 h-9 text-xs"
           />
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table Content */}
       {grns === undefined ? (
-        <div className="p-8 border border-border rounded-xl bg-card space-y-3">
-          <div className="h-6 w-1/3 bg-muted animate-pulse rounded" />
+        <div className="space-y-2">
           <div className="h-10 w-full bg-muted/60 animate-pulse rounded" />
           <div className="h-10 w-full bg-muted/40 animate-pulse rounded" />
           <div className="h-10 w-full bg-muted/20 animate-pulse rounded" />
         </div>
       ) : filteredGRNs.length === 0 ? (
         <div className="p-12 text-center border border-dashed border-border rounded-xl bg-surface/30 space-y-3">
-          <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+          <div className="mx-auto h-12 w-12 rounded-full bg-[--success]/10 text-[--success] flex items-center justify-center">
             <ClipboardCheck className="h-6 w-6" />
           </div>
           <h3 className="text-sm font-semibold text-foreground">No Goods Receipt Notes</h3>
@@ -272,11 +271,11 @@ export default function GRNPage() {
 
                     <td className="px-4 py-3">
                       {grn.hasDiscrepancy ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[--warning]/10 text-[--warning]">
                           <AlertTriangle className="h-3 w-3" /> Variance
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[--success]/10 text-[--success]">
                           <CheckCircle2 className="h-3 w-3" /> Verified Exact
                         </span>
                       )}
@@ -344,7 +343,7 @@ export default function GRNPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/40">
               <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                <div className="h-9 w-9 rounded-lg bg-[--success]/10 text-[--success] flex items-center justify-center">
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
@@ -352,7 +351,7 @@ export default function GRNPage() {
                     <h2 className="text-base font-bold text-foreground font-mono">
                       {selectedGRNDetails?.refNo || "Goods Receipt Note"}
                     </h2>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[--success]/15 text-[--success]">
                       DELIVERED
                     </span>
                   </div>
@@ -402,7 +401,7 @@ export default function GRNPage() {
                         <span className="text-muted-foreground">→</span>
                       </>
                     )}
-                    <span className="px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded border border-emerald-500/30 font-bold">
+                    <span className="px-2 py-1 bg-[--success]/10 text-[--success] rounded border border-[--success]/30 font-bold">
                       GRN: {selectedGRNDetails.refNo}
                     </span>
                   </div>
@@ -485,7 +484,7 @@ export default function GRNPage() {
                           return (
                             <tr
                               key={idx}
-                              className={isExact ? "hover:bg-muted/20" : "bg-amber-500/5"}
+                              className={isExact ? "hover:bg-muted/20" : "bg-[--warning]/5"}
                             >
                               <td className="px-3 py-2 font-medium text-foreground">
                                 {item.itemName}
@@ -498,9 +497,9 @@ export default function GRNPage() {
                               </td>
                               <td className="px-3 py-2 text-right font-mono font-semibold">
                                 {isExact ? (
-                                  <span className="text-emerald-600 dark:text-emerald-400">0</span>
+                                  <span className="text-[--success]">0</span>
                                 ) : (
-                                  <span className="text-amber-600 dark:text-amber-400">
+                                  <span className="text-[--warning]">
                                     {variance > 0 ? `+${variance}` : variance}
                                   </span>
                                 )}

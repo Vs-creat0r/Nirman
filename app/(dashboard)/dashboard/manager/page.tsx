@@ -67,12 +67,12 @@ export default function ManagerDashboard() {
 
       {/* Summary stats */}
       <div className="grid gap-4 sm:grid-cols-4">
-        <Card className={pendingRequests && pendingRequests.length > 0 ? "border-amber-500/40 bg-amber-500/5" : ""}>
+        <Card className={pendingRequests && pendingRequests.length > 0 ? "border-[--warning]/40 bg-[--warning]/5" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
               Pending MRs
             </CardTitle>
-            <Clock className={`h-4 w-4 ${pendingRequests && pendingRequests.length > 0 ? "text-amber-500 animate-pulse" : "text-muted-foreground"}`} />
+            <Clock className={`h-4 w-4 ${pendingRequests && pendingRequests.length > 0 ? "text-[--warning] animate-pulse" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
@@ -84,12 +84,12 @@ export default function ManagerDashboard() {
           </CardContent>
         </Card>
 
-        <Card className={pendingCCs && pendingCCs.length > 0 ? "border-amber-500/40 bg-amber-500/5" : ""}>
+        <Card className={pendingCCs && pendingCCs.length > 0 ? "border-[--warning]/40 bg-[--warning]/5" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
               Pending CCs
             </CardTitle>
-            <Clock className={`h-4 w-4 ${pendingCCs && pendingCCs.length > 0 ? "text-amber-500 animate-pulse" : "text-muted-foreground"}`} />
+            <Clock className={`h-4 w-4 ${pendingCCs && pendingCCs.length > 0 ? "text-[--warning] animate-pulse" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
@@ -101,12 +101,12 @@ export default function ManagerDashboard() {
           </CardContent>
         </Card>
 
-        <Card className={pendingPOs && pendingPOs.length > 0 ? "border-amber-500/40 bg-amber-500/5" : ""}>
+        <Card className={pendingPOs && pendingPOs.length > 0 ? "border-[--warning]/40 bg-[--warning]/5" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
               Pending POs
             </CardTitle>
-            <Clock className={`h-4 w-4 ${pendingPOs && pendingPOs.length > 0 ? "text-amber-500 animate-pulse" : "text-muted-foreground"}`} />
+            <Clock className={`h-4 w-4 ${pendingPOs && pendingPOs.length > 0 ? "text-[--warning] animate-pulse" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tracking-tight text-foreground font-mono">

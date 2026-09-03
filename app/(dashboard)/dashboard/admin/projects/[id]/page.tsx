@@ -366,7 +366,7 @@ export default function ProjectDetailPage() {
 
                     {/* Physical In-Stock (Procured - Consumed) */}
                     <td className="py-3 px-3 text-right font-mono whitespace-nowrap">
-                      <span className={physicalInStock < 0 ? "text-amber-600 font-semibold" : "text-foreground"}>
+                      <span className={physicalInStock < 0 ? "text-[--warning] font-semibold" : "text-foreground"}>
                         {physicalInStock}
                       </span>{" "}
                       <span className="text-[10px] text-muted-foreground uppercase font-normal">{item.unit}</span>

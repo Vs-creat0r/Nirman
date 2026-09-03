@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
+import { useRole } from "@/hooks/use-role";
 import { StatusBadge } from "@/components/document/status-badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Plus,
@@ -49,7 +51,7 @@ function CCRowAction({ cc, token }: { cc: any; token?: string | null }) {
   if (canResubmit) {
     return (
       <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}/edit`}>
-        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-amber-600 dark:text-amber-400 border-amber-500/30">
+        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-[--warning] border-[--warning]/30">
           <Pencil className="h-3 w-3" />
           Edit & Resubmit
         </Button>
@@ -59,72 +61,61 @@ function CCRowAction({ cc, token }: { cc: any; token?: string | null }) {
 
   return (
     <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}`}>
-      <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
+      <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-primary hover:underline">
         View
       </Button>
     </Link>
   );
 }
 
-export default function ProcurementCostComparisonsPage() {
+export default function CostComparisonsListPage() {
+  const { role } = useRole();
   const { token } = useSession();
 
   const ccs = useQuery(
     api.cost_comparisons.listCCs,
     token ? { token } : "skip"
   );
-
-  const rawPendingMRs = useQuery(
+  const pendingMRs = useQuery(
     api.cost_comparisons.listApprovedMRsForCC,
     token ? { token } : "skip"
   );
-
-  // Safeguard: Ensure no MR that already has an open CC appears in the "Ready for CC" prompt banner
-  const pendingMRs = React.useMemo(() => {
-    if (!rawPendingMRs) return [];
-    if (!ccs) return rawPendingMRs;
-    const existingCCMrIds = new Set(
-      ccs.filter((cc) => !COST_COMPARISON_CLOSED_STATES.includes(cc.status)).map((cc) => String(cc.materialRequestId))
-    );
-    const existingCCMrRefNos = new Set(
-      ccs.filter((cc) => !COST_COMPARISON_CLOSED_STATES.includes(cc.status)).map((cc) => cc.materialRequestRefNo)
-    );
-    return rawPendingMRs.filter(
-      (mr) => !existingCCMrIds.has(String(mr._id)) && !existingCCMrRefNos.has(mr.refNo)
-    );
-  }, [rawPendingMRs, ccs]);
 
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const filteredCCs = (ccs || []).filter((cc) => {
     if (statusFilter !== "all" && cc.status !== statusFilter) return false;
+    return true;
+  }).filter((cc) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
       cc.refNo.toLowerCase().includes(q) ||
-      cc.materialRequestRefNo.toLowerCase().includes(q) ||
-      cc.projectName.toLowerCase().includes(q) ||
-      cc.vendorNames.some((v: string) => v.toLowerCase().includes(q))
+      (cc.materialRequestRefNo && cc.materialRequestRefNo.toLowerCase().includes(q)) ||
+      (cc.projectName && cc.projectName.toLowerCase().includes(q))
     );
   });
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
-          <h1 className="text-xl font-bold text-foreground">
-            Cost Comparisons (CC)
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Cost Comparisons (CC)
+            </h1>
+            <Badge variant="draft">Procurement</Badge>
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Collect and compare vendor quotations for approved material requests. Minimum 2 quotes required.
+            Manage multi-vendor quote evaluations and prepare commercial recommendations for manager authorization.
           </p>
         </div>
 
         <Link href="/dashboard/procurement/cost-comparisons/new">
-          <Button size="sm" className="gap-1.5 text-xs font-semibold">
-            <Plus className="h-4 w-4" />
+          <Button size="sm" variant="primary" className="h-8 gap-1.5 text-xs font-semibold">
+            <Plus className="h-3.5 w-3.5" />
             New Cost Comparison
           </Button>
         </Link>
@@ -132,12 +123,12 @@ export default function ProcurementCostComparisonsPage() {
 
       {/* ── ACTION REQUIRED: Approved MRs awaiting CC ── */}
       {pendingMRs && pendingMRs.length > 0 && (
-        <Card className="border-amber-500/30 bg-amber-500/[0.02]">
-          <CardHeader className="py-3 px-4 bg-amber-500/10 border-b border-amber-500/20">
+        <Card className="border-[--warning]/30 bg-[--warning]/[0.02]">
+          <CardHeader className="py-3 px-4 bg-[--warning]/10 border-b border-[--warning]/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-amber-500 animate-pulse" />
-                <CardTitle className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                <Clock className="h-4 w-4 text-[--warning] animate-pulse" />
+                <CardTitle className="text-xs font-bold text-[--warning] uppercase tracking-wider">
                   Action Required: Material Requests Ready for CC ({pendingMRs.length})
                 </CardTitle>
               </div>
@@ -286,7 +277,7 @@ export default function ProcurementCostComparisonsPage() {
                     </td>
                     <td className="py-3 px-3 font-medium">
                       {cc.selectedVendorName ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <span className="text-[--success] font-semibold flex items-center gap-1">
                           <CheckCircle2 className="h-3 w-3" />
                           {cc.selectedVendorName}
                         </span>

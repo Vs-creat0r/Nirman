@@ -3,12 +3,12 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronRight, LogOut, PanelLeftClose, PanelLeft } from "lucide-react";
-import { useRole } from "../../hooks/use-role";
-import { useSession } from "../providers/auth-provider";
-import { navConfig, type NavItem } from "../../lib/nav-config";
-import { ProjectSelector } from "./project-selector";
-import { cn } from "../../lib/cn";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "../ui/tooltip";
+import { useRole } from "@/hooks/use-role";
+import { useSession } from "@/components/providers/auth-provider";
+import { navConfig, type NavItem } from "@/lib/nav-config";
+import { ProjectSelector } from "@/components/layout/project-selector";
+import { cn } from "@/lib/cn";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 interface SidebarProps {
   isOpen?: boolean;

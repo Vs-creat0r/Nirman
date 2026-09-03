@@ -361,7 +361,7 @@ function NewCostComparisonForm() {
                 <span className="text-muted-foreground">Comparison Summary:</span>
                 <div className="font-semibold text-foreground">
                   {quotes.length} Vendor Quotes &bull; Lowest Quoted Total:{" "}
-                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="font-mono text-[--success] font-bold">
                     ₹{minTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </span>
                 </div>

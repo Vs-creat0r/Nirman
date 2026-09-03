@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/document/status-badge";
 import { DispatchDeliveryModal } from "@/components/document/dispatch-delivery-modal";
 import { ConfirmDeliveryModal } from "@/components/document/confirm-delivery-modal";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -42,7 +43,7 @@ function DCActionsCell({
     <Button
       size="sm"
       onClick={onReceive}
-      className="h-7 px-2.5 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+      className="h-7 px-2.5 text-xs gap-1 bg-[--success] hover:bg-[--success]/90 text-white font-medium shadow-sm"
     >
       <CheckCircle2 className="h-3.5 w-3.5" />
       {canDeliver.label}
@@ -60,68 +61,52 @@ export default function DeliveriesPage() {
   const [selectedDCForDetails, setSelectedDCForDetails] = React.useState<any | null>(null);
   const [selectedDCForReceive, setSelectedDCForReceive] = React.useState<any | null>(null);
 
-  const deliveries = useQuery(
-    api.delivery_challans.listDCs,
-    token ? { token } : "skip"
-  );
+  const deliveries = useQuery(api.delivery_challans.listDCs, token ? { token } : "skip");
 
-  const canDispatch = role === "procurement_officer" || role === "project_manager" || role === "admin";
-  const isSupervisor = role === "site_supervisor";
+  const inTransitCount = deliveries?.filter((d) => (DELIVERY_CHALLAN_OPEN_STATES as readonly string[]).includes(d.status)).length || 0;
+  const deliveredCount = deliveries?.filter((d) => (DELIVERY_CHALLAN_CLOSED_STATES as readonly string[]).includes(d.status)).length || 0;
+  const totalCount = deliveries?.length || 0;
 
-  // Filtered deliveries
-  const filteredDeliveries = React.useMemo(() => {
-    if (!deliveries) return [];
-    return (deliveries as any[]).filter((dc: any) => {
-      // Tab filter
-      if (activeTab === "in_transit" && !DELIVERY_CHALLAN_OPEN_STATES.includes(dc.status)) return false;
-      if (activeTab === "delivered" && !DELIVERY_CHALLAN_CLOSED_STATES.includes(dc.status)) return false;
+  const filteredDeliveries = (deliveries || []).filter((dc) => {
+    if (activeTab === "in_transit" && !(DELIVERY_CHALLAN_OPEN_STATES as readonly string[]).includes(dc.status)) return false;
+    if (activeTab === "delivered" && !(DELIVERY_CHALLAN_CLOSED_STATES as readonly string[]).includes(dc.status)) return false;
+    return true;
+  }).filter((dc) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      dc.refNo.toLowerCase().includes(q) ||
+      (dc.poRefNo && dc.poRefNo.toLowerCase().includes(q)) ||
+      (dc.vendorName && dc.vendorName.toLowerCase().includes(q)) ||
+      (dc.siteName && dc.siteName.toLowerCase().includes(q)) ||
+      (dc.vehicleNo && dc.vehicleNo.toLowerCase().includes(q)) ||
+      (dc.driverName && dc.driverName.toLowerCase().includes(q))
+    );
+  });
 
-      // Search
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchRef = dc.refNo?.toLowerCase().includes(q);
-        const matchPo = dc.poRefNo?.toLowerCase().includes(q);
-        const matchVehicle = dc.vehicleNo?.toLowerCase().includes(q);
-        const matchDriver = dc.driverName?.toLowerCase().includes(q);
-        const matchVendor = dc.vendorName?.toLowerCase().includes(q);
-        const matchSite = dc.siteName?.toLowerCase().includes(q);
-        if (!matchRef && !matchPo && !matchVehicle && !matchDriver && !matchVendor && !matchSite) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [deliveries, activeTab, searchQuery]);
-
-  // Counts
-  const inTransitCount = deliveries?.filter((d) => (DELIVERY_CHALLAN_OPEN_STATES as readonly string[]).includes(d.status)).length ?? 0;
-  const deliveredCount = deliveries?.filter((d) => (DELIVERY_CHALLAN_CLOSED_STATES as readonly string[]).includes(d.status)).length ?? 0;
-  const totalCount = deliveries?.length ?? 0;
+  const canDispatch = role === "procurement_officer" || role === "admin";
 
   return (
     <div className="space-y-6">
-      {/* Header Bar */}
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground select-none">
-              Deliveries & Dispatch
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Delivery Challans (DC)
             </h1>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">
-              Challan Tracking
-            </span>
+            <Badge variant="delivery">Logistics</Badge>
           </div>
-          <p className="text-xs text-muted-foreground select-none mt-1">
-            Track site dispatches, driver logistics, and delivery receipts in real-time.
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Track dispatches from vendors to construction sites, vehicle tracking, and gate receipts.
           </p>
         </div>
 
         {canDispatch && (
           <Button
-            onClick={() => setIsDispatchModalOpen(true)}
             size="sm"
-            className="gap-1.5 text-xs font-semibold shadow-sm"
+            onClick={() => setIsDispatchModalOpen(true)}
+            className="gap-1.5 text-xs font-semibold h-8"
           >
             <Plus className="h-3.5 w-3.5" />
             Dispatch New Delivery
@@ -131,12 +116,12 @@ export default function DeliveriesPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className={inTransitCount > 0 ? "border-indigo-500/30 bg-indigo-500/5" : ""}>
+        <Card className={inTransitCount > 0 ? "border-[--info]/30 bg-[--info]/5" : ""}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
               Out for Delivery / In Transit
             </CardTitle>
-            <Truck className={`h-4 w-4 ${inTransitCount > 0 ? "text-indigo-500 animate-pulse" : "text-muted-foreground"}`} />
+            <Truck className={`h-4 w-4 ${inTransitCount > 0 ? "text-[--info] animate-pulse" : "text-muted-foreground"}`} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
@@ -153,7 +138,7 @@ export default function DeliveriesPage() {
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider select-none">
               Received & Delivered
             </CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <CheckCircle2 className="h-4 w-4 text-[--success]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tracking-tight text-foreground font-mono">
@@ -205,7 +190,7 @@ export default function DeliveriesPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[--info]" />
             In Transit ({inTransitCount})
           </button>
           <button
@@ -216,7 +201,7 @@ export default function DeliveriesPage() {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[--success]" />
             Delivered ({deliveredCount})
           </button>
         </div>
@@ -332,7 +317,7 @@ export default function DeliveriesPage() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <StatusBadge status={dc.status} />
                         {dc.isPartial && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[--warning]/10 text-[--warning] border border-[--warning]/20">
                             Partial Batch
                           </span>
                         )}
@@ -483,7 +468,7 @@ export default function DeliveriesPage() {
                       setSelectedDCForDetails(null);
                       setSelectedDCForReceive(dcToReceive);
                     }}
-                    className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                    className="text-xs gap-1.5 bg-[--success] hover:bg-[--success]/90 text-white font-medium"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     Confirm Receipt & Generate GRN

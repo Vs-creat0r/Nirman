@@ -22,6 +22,7 @@ import {
   Layers,
   ArrowUpRight,
   Sparkles,
+  BarChart3,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,7 +94,7 @@ export default function ProcurementDashboard() {
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Authorized PO Value
             </CardTitle>
-            <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500">
+            <div className="p-1.5 rounded-md bg-[--success]/10 text-[--success]">
               <IndianRupee className="h-4 w-4" />
             </div>
           </CardHeader>
@@ -102,7 +103,7 @@ export default function ProcurementDashboard() {
               ₹{(metrics?.totalApprovedPOValue || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-              <span className="font-semibold text-emerald-500 font-mono">{metrics?.approvedPOCount || 0}</span> active orders issued
+              <span className="font-semibold text-[--success] font-mono">{metrics?.approvedPOCount || 0}</span> active orders issued
             </p>
           </CardContent>
         </Card>
@@ -113,7 +114,7 @@ export default function ProcurementDashboard() {
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Orders Under Review
             </CardTitle>
-            <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-500">
+            <div className="p-1.5 rounded-md bg-[--info]/10 text-[--info]">
               <Clock className="h-4 w-4" />
             </div>
           </CardHeader>
@@ -122,7 +123,7 @@ export default function ProcurementDashboard() {
               ₹{(metrics?.totalPendingPOValue || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-              <span className="font-semibold text-blue-500 font-mono">{metrics?.submittedPOCount || 0}</span> with Manager for signoff
+              <span className="font-semibold text-[--info] font-mono">{metrics?.submittedPOCount || 0}</span> with Manager for signoff
             </p>
           </CardContent>
         </Card>
@@ -153,7 +154,7 @@ export default function ProcurementDashboard() {
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Approved Vendors
             </CardTitle>
-            <div className="p-1.5 rounded-md bg-amber-500/10 text-amber-500">
+            <div className="p-1.5 rounded-md bg-[--warning]/10 text-[--warning]">
               <Users className="h-4 w-4" />
             </div>
           </CardHeader>
@@ -168,29 +169,28 @@ export default function ProcurementDashboard() {
         </Card>
       </div>
 
-      {/* ── 3. Visual 5-Stage Procurement Pipeline Stepper ── */}
-      <Card className="border-border overflow-hidden">
-        <CardHeader className="border-b border-border pb-3 bg-muted/20">
+      {/* ── Visual Lifecycle Tracker (Interactive Funnel Pipeline) ── */}
+      <Card className="border-border bg-surface shadow-xs">
+        <CardHeader className="pb-3 border-b border-border bg-muted/20">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-primary" />
+              <BarChart3 className="h-4 w-4 text-primary" />
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground">
-                Procurement Pipeline Flow & Stage Counts
+                Procurement Pipeline & Action Tracker
               </CardTitle>
             </div>
             <span className="text-[11px] text-muted-foreground">
-              Total Open Actions: <strong className="font-mono text-primary font-bold">{totalActionsNeeded}</strong>
+              Real-time document lifecycle velocity
             </span>
           </div>
         </CardHeader>
-
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* Stage 1: MR Ingestion */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {/* Stage 1: Ingestion */}
             <div className="p-3 rounded-lg border border-border bg-surface flex flex-col justify-between space-y-2 relative overflow-hidden">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">1. MR Ingestion</span>
-                <span className="p-1 rounded bg-blue-500/10 text-blue-500">
+                <span className="p-1 rounded bg-[--info]/10 text-[--info]">
                   <FileText className="h-3.5 w-3.5" />
                 </span>
               </div>
@@ -229,17 +229,17 @@ export default function ProcurementDashboard() {
             {/* Stage 3: Clarifications */}
             <div className={`p-3 rounded-lg border flex flex-col justify-between space-y-2 ${
               (metrics?.queriedCCCount || 0) + (metrics?.queriedPOCount || 0) > 0
-                ? "border-amber-500/40 bg-amber-500/5"
+                ? "border-[--warning]/40 bg-[--warning]/5"
                 : "border-border bg-surface"
             }`}>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">3. Queried Items</span>
-                <span className="p-1 rounded bg-amber-500/10 text-amber-500">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[--warning]">3. Queried Items</span>
+                <span className="p-1 rounded bg-[--warning]/10 text-[--warning]">
                   <AlertTriangle className="h-3.5 w-3.5" />
                 </span>
               </div>
               <div>
-                <div className="text-xl font-bold font-mono text-amber-500">
+                <div className="text-xl font-bold font-mono text-[--warning]">
                   {(metrics?.queriedCCCount || 0) + (metrics?.queriedPOCount || 0)}
                 </div>
                 <div className="text-[10px] text-muted-foreground">
@@ -249,7 +249,7 @@ export default function ProcurementDashboard() {
               <button
                 type="button"
                 onClick={() => setActiveQueueTab("queried")}
-                className="text-[10px] font-semibold text-amber-500 hover:underline inline-flex items-center gap-0.5 pt-1 text-left cursor-pointer"
+                className="text-[10px] font-semibold text-[--warning] hover:underline inline-flex items-center gap-0.5 pt-1 text-left cursor-pointer"
               >
                 Resolve Queries <ArrowRight className="h-2.5 w-2.5" />
               </button>
@@ -258,17 +258,17 @@ export default function ProcurementDashboard() {
             {/* Stage 4: PO Generation */}
             <div className={`p-3 rounded-lg border flex flex-col justify-between space-y-2 ${
               (metrics?.ccsAwaitingPOCount || 0) > 0
-                ? "border-emerald-500/40 bg-emerald-500/5"
+                ? "border-[--success]/40 bg-[--success]/5"
                 : "border-border bg-surface"
             }`}>
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">4. PO Creation</span>
-                <span className="p-1 rounded bg-emerald-500/10 text-emerald-500">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[--success]">4. PO Creation</span>
+                <span className="p-1 rounded bg-[--success]/10 text-[--success]">
                   <Sparkles className="h-3.5 w-3.5" />
                 </span>
               </div>
               <div>
-                <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                <div className="text-xl font-bold font-mono text-[--success]">
                   {metrics?.ccsAwaitingPOCount || 0}
                 </div>
                 <div className="text-[10px] text-muted-foreground">Approved CCs ready for PO</div>
@@ -276,7 +276,7 @@ export default function ProcurementDashboard() {
               <button
                 type="button"
                 onClick={() => setActiveQueueTab("ready_po")}
-                className="text-[10px] font-semibold text-emerald-600 hover:underline inline-flex items-center gap-0.5 pt-1 text-left cursor-pointer"
+                className="text-[10px] font-semibold text-[--success] hover:underline inline-flex items-center gap-0.5 pt-1 text-left cursor-pointer"
               >
                 Generate POs <ArrowRight className="h-2.5 w-2.5" />
               </button>
@@ -286,7 +286,7 @@ export default function ProcurementDashboard() {
             <div className="p-3 rounded-lg border border-border bg-surface flex flex-col justify-between space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">5. Active POs</span>
-                <span className="p-1 rounded bg-emerald-500/10 text-emerald-500">
+                <span className="p-1 rounded bg-[--success]/10 text-[--success]">
                   <ShoppingBag className="h-3.5 w-3.5" />
                 </span>
               </div>
@@ -349,14 +349,14 @@ export default function ProcurementDashboard() {
             onClick={() => setActiveQueueTab("queried")}
             className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer flex items-center gap-2 shrink-0 ${
               activeQueueTab === "queried"
-                ? "bg-amber-500 text-white shadow-xs"
+                ? "bg-[--warning] text-white shadow-xs"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             }`}
           >
             <AlertTriangle className="h-3.5 w-3.5" />
             <span>Queried Items</span>
             <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-              activeQueueTab === "queried" ? "bg-white/20 text-white" : "bg-amber-500/20 text-amber-500"
+              activeQueueTab === "queried" ? "bg-white/20 text-white" : "bg-[--warning]/20 text-[--warning]"
             }`}>
               {(metrics?.queriedCCCount || 0) + (metrics?.queriedPOCount || 0)}
             </span>
@@ -401,7 +401,7 @@ export default function ProcurementDashboard() {
               <div className="divide-y divide-border">
                 {!metrics?.mrsReadyForCC || metrics.mrsReadyForCC.length === 0 ? (
                   <div className="p-8 text-center text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto mb-1.5" />
+                    <CheckCircle2 className="h-6 w-6 text-[--success] mx-auto mb-1.5" />
                     <p className="font-semibold text-foreground">All site requests are processed</p>
                     <p className="text-[11px]">No pending MRs waiting for cost comparison tenders.</p>
                   </div>
@@ -411,7 +411,7 @@ export default function ProcurementDashboard() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold text-foreground">{mr.refNo}</span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-[--info]/10 text-[--info] border border-[--info]/20">
                             Ready for CC
                           </span>
                         </div>
@@ -454,7 +454,7 @@ export default function ProcurementDashboard() {
               <div className="divide-y divide-border">
                 {!metrics?.ccsAwaitingPO || metrics.ccsAwaitingPO.length === 0 ? (
                   <div className="p-8 text-center text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto mb-1.5" />
+                    <CheckCircle2 className="h-6 w-6 text-[--success] mx-auto mb-1.5" />
                     <p className="font-semibold text-foreground">All approved CCs have been converted to POs</p>
                     <p className="text-[11px]">No pending approved quotes waiting for order generation.</p>
                   </div>
@@ -464,7 +464,7 @@ export default function ProcurementDashboard() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold text-foreground">{cc.refNo}</span>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[--success]/10 text-[--success] border border-[--success]/20">
                             Approved Quote
                           </span>
                         </div>
@@ -477,7 +477,7 @@ export default function ProcurementDashboard() {
                       <Button
                         size="sm"
                         onClick={() => setSelectedCCForPO(cc)}
-                        className="text-xs font-semibold gap-1 h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="text-xs font-semibold gap-1 h-8 bg-[--success] hover:bg-[--success]/90 text-white"
                       >
                         <span>Generate PO</span>
                         <ArrowUpRight className="h-3.5 w-3.5" />
@@ -495,7 +495,7 @@ export default function ProcurementDashboard() {
           <Card>
             <CardHeader className="border-b border-border pb-3 bg-muted/10">
               <div>
-                <CardTitle className="text-xs font-bold text-amber-500 flex items-center gap-2">
+                <CardTitle className="text-xs font-bold text-[--warning] flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
                   Documents Queried by Project Manager
                 </CardTitle>
@@ -509,7 +509,7 @@ export default function ProcurementDashboard() {
                 {(!metrics?.queriedCCs || metrics.queriedCCs.length === 0) &&
                 (!metrics?.queriedPOs || metrics.queriedPOs.length === 0) ? (
                   <div className="p-8 text-center text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto mb-1.5" />
+                    <CheckCircle2 className="h-6 w-6 text-[--success] mx-auto mb-1.5" />
                     <p className="font-semibold text-foreground">No queried documents</p>
                     <p className="text-[11px]">All submitted cost comparisons and purchase orders are clear.</p>
                   </div>
@@ -520,18 +520,18 @@ export default function ProcurementDashboard() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-foreground">{cc.refNo}</span>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/30">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[--warning]/10 text-[--warning] border border-[--warning]/30">
                               Cost Comparison Queried
                             </span>
                           </div>
                           {cc.reviewNote && (
-                            <p className="text-[11px] text-foreground/80 italic pl-2 border-l-2 border-amber-500/50">
+                            <p className="text-[11px] text-foreground/80 italic pl-2 border-l-2 border-[--warning]/50">
                               &ldquo;{cc.reviewNote}&rdquo;
                             </p>
                           )}
                         </div>
                         <Link href={`/dashboard/procurement/cost-comparisons/${cc._id}`}>
-                          <Button size="sm" variant="outline" className="text-xs font-semibold gap-1 h-8 border-amber-500/30 text-amber-600 dark:text-amber-400">
+                          <Button size="sm" variant="outline" className="text-xs font-semibold gap-1 h-8 border-[--warning]/30 text-[--warning]">
                             Resolve CC Query
                           </Button>
                         </Link>
@@ -543,18 +543,18 @@ export default function ProcurementDashboard() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-foreground">{po.refNo}</span>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/30">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[--warning]/10 text-[--warning] border border-[--warning]/30">
                               Purchase Order Queried
                             </span>
                           </div>
                           {po.reviewNote && (
-                            <p className="text-[11px] text-foreground/80 italic pl-2 border-l-2 border-amber-500/50">
+                            <p className="text-[11px] text-foreground/80 italic pl-2 border-l-2 border-[--warning]/50">
                               &ldquo;{po.reviewNote}&rdquo;
                             </p>
                           )}
                         </div>
                         <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
-                          <Button size="sm" variant="outline" className="text-xs font-semibold gap-1 h-8 border-amber-500/30 text-amber-600 dark:text-amber-400">
+                          <Button size="sm" variant="outline" className="text-xs font-semibold gap-1 h-8 border-[--warning]/30 text-[--warning]">
                             Resolve PO Query
                           </Button>
                         </Link>

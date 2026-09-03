@@ -80,15 +80,15 @@ export default function SystemLogsPage() {
   const getDocIcon = (docType: string) => {
     switch (docType) {
       case "material_request":
-        return <FileText className="h-3.5 w-3.5 text-blue-500" />;
+        return <FileText className="h-3.5 w-3.5 text-[--info]" />;
       case "cost_comparison":
         return <FileBarChart2 className="h-3.5 w-3.5 text-purple-500" />;
       case "purchase_order":
-        return <ShoppingBag className="h-3.5 w-3.5 text-amber-500" />;
+        return <ShoppingBag className="h-3.5 w-3.5 text-[--warning]" />;
       case "delivery_challan":
-        return <Truck className="h-3.5 w-3.5 text-indigo-500" />;
+        return <Truck className="h-3.5 w-3.5 text-[--info]" />;
       case "grn":
-        return <ClipboardCheck className="h-3.5 w-3.5 text-emerald-500" />;
+        return <ClipboardCheck className="h-3.5 w-3.5 text-[--success]" />;
       default:
         return <Activity className="h-3.5 w-3.5 text-muted-foreground" />;
     }

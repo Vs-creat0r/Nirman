@@ -103,7 +103,7 @@ export function CCVendorQuotePanel({
   };
 
   return (
-    <Card className={`overflow-hidden border transition-all ${isLowest ? "border-emerald-500/50 bg-emerald-500/[0.02]" : "border-border"}`}>
+    <Card className={`overflow-hidden border transition-all ${isLowest ? "border-[--success]/50 bg-[--success]/[0.02]" : "border-border"}`}>
       {/* Panel Header */}
       <CardHeader className="py-3 px-4 bg-muted/40 border-b border-border">
         <div className="flex items-center justify-between gap-3">
@@ -112,10 +112,10 @@ export function CCVendorQuotePanel({
               V{index + 1}
             </span>
             <span className="text-xs font-bold text-foreground">
-              Vendor Quotation #{index + 1}
+              {selectedVendor ? selectedVendor.name : `Vendor Quotation #${index + 1}`}
             </span>
             {isLowest && (
-              <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">
+              <span className="text-[10px] font-bold bg-[--success]/15 text-[--success] px-2 py-0.5 rounded-full border border-[--success]/30">
                 ★ Lowest Total
               </span>
             )}
@@ -348,7 +348,7 @@ export function CCVendorQuotePanel({
           )}
           <div className="flex justify-between text-foreground font-bold text-sm pt-1 border-t border-border">
             <span>Total Quotation:</span>
-            <span className={isLowest ? "text-emerald-600 dark:text-emerald-400" : ""}>
+            <span className={isLowest ? "text-[--success]" : ""}>
               ₹{quote.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </span>
           </div>

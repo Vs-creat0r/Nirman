@@ -49,7 +49,7 @@ function PORowAction({ po, token }: { po: any; token?: string | null }) {
   if (canResubmit) {
     return (
       <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
-        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-amber-600 dark:text-amber-400 border-amber-500/30">
+        <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 gap-1 font-medium text-[--warning] border-[--warning]/30">
           <Pencil className="h-3 w-3" />
           Edit & Resubmit
         </Button>
@@ -59,9 +59,8 @@ function PORowAction({ po, token }: { po: any; token?: string | null }) {
 
   return (
     <Link href={`/dashboard/procurement/purchase-orders/${po._id}`}>
-      <Button variant="ghost" size="sm" className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground">
+      <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-primary hover:underline">
         View
-        <ArrowRight className="h-3 w-3" />
       </Button>
     </Link>
   );
@@ -122,12 +121,12 @@ export default function ProcurementPurchaseOrdersPage() {
 
       {/* ── ACTION REQUIRED: Approved CCs awaiting PO generation ── */}
       {readyCCs && readyCCs.length > 0 && (
-        <Card className="border-emerald-500/30 bg-emerald-500/[0.02]">
-          <CardHeader className="py-3 px-4 bg-emerald-500/10 border-b border-emerald-500/20">
+        <Card className="border-[--success]/30 bg-[--success]/[0.02]">
+          <CardHeader className="py-3 px-4 bg-[--success]/10 border-b border-[--success]/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <CardTitle className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                <CheckCircle2 className="h-4 w-4 text-[--success]" />
+                <CardTitle className="text-xs font-bold text-[--success] uppercase tracking-wider">
                   Ready for Purchase Order Generation ({readyCCs.length})
                 </CardTitle>
               </div>
@@ -158,7 +157,7 @@ export default function ProcurementPurchaseOrdersPage() {
                         Winning Vendor: <strong className="text-foreground">{cc.selectedVendorName}</strong>
                       </span>
                       <span>
-                        Total: <strong className="font-mono text-emerald-600 dark:text-emerald-400">₹{cc.winningTotal.toLocaleString("en-IN")}</strong>
+                        Total: <strong className="font-mono text-[--success]">₹{cc.winningTotal.toLocaleString("en-IN")}</strong>
                       </span>
                       <span>{cc.itemCount} items</span>
                     </div>
@@ -167,7 +166,7 @@ export default function ProcurementPurchaseOrdersPage() {
                   <Button
                     size="sm"
                     onClick={() => setActiveModalCC(cc)}
-                    className="text-xs font-semibold gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                    className="text-xs font-semibold gap-1.5 h-8 bg-[--success] hover:bg-[--success]/90 text-white cursor-pointer"
                   >
                     Generate Purchase Order
                     <ArrowRight className="h-3 w-3" />
