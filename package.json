@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "gen": "node scripts/generate-from-contracts.mjs",
     "gen:check": "node scripts/generate-from-contracts.mjs --check",
-    "check:metrics": "node scripts/check-metrics.mjs"
+    "check:metrics": "node scripts/check-metrics.mjs",
+    "check:gate3": "node scripts/gate3-parity-check.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.7.0",

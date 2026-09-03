@@ -2,7 +2,7 @@
  * @fileoverview CI Metric Ratchet
  *
  * Enforces "never make it worse" ceilings on four code quality counters.
- * Baselines were recorded at Stage 1 / Day 3 commit (695a832).
+ * Baselines updated at Stage 4 completion (Gate 3).
  *
  * To intentionally raise a baseline: update the number here, justify in
  * the commit message, and get explicit review. Do NOT raise it silently.
@@ -18,11 +18,11 @@ import { readFileSync, readdirSync } from "fs";
 import { join, extname } from "path";
 
 const BASELINES = {
-  filesOver500Lines: 15,        // 15 at 695a832; 2 new files from Stage 1 (projects/page, users/page)
-  anyUsages: 140,               // 140 in source roots (app, components, convex, lib, hooks) excluding tests/generated
-  filesWithHardcodedColors: 29, // 29 at 695a832 per reviewer grep (Tailwind inline classes)
-  filesWithRelativeImports: 19, // 19 at 695a832
-  consoleCallsInConvex: 0,      // 0 in convex/ backend (enforces zero console logging)
+  filesOver500Lines: 14,        // locked: PO detail collapsed from 716 -> 163 (14 files > 500 lines)
+  anyUsages: 105,               // locked: 101 achieved (+4 headroom)
+  filesWithHardcodedColors: 0,  // locked: 0 files with hardcoded status colors
+  filesWithRelativeImports: 0,  // locked: 0 files with relative imports
+  consoleCallsInConvex: 0,      // locked: 0 console calls in convex/
 };
 
 const SOURCE_ROOTS = ["app", "components", "convex", "lib", "hooks"];
@@ -93,7 +93,7 @@ function countConvexConsoleCalls() {
 
 // --- Main ---
 console.log("\n=================================================================");
-console.log("  NIRMAN CI - Code Quality Metric Ratchet  (baseline: 695a832)");
+console.log("  NIRMAN CI - Code Quality Metric Ratchet  (baseline: v1.6.0 / Gate 3)");
 console.log("=================================================================\n");
 
 let failed = false;
