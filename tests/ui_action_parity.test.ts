@@ -28,15 +28,28 @@ const DASHBOARD_PAGES_WITH_STATE_SETS = [
 ];
 
 describe("Gate 3: UI Action Parity & Server Authority", () => {
-  it("all 8 core action pages import and query api.lifecycle.availableActions", () => {
+  it("DocumentView shell and all core action pages query api.lifecycle.availableActions", () => {
+    // Assert DocumentView shell directly queries availableActions
+    const docViewPath = path.resolve(process.cwd(), "components/document/document-view.tsx");
+    expect(fs.existsSync(docViewPath), "DocumentView must exist").toBe(true);
+    const docViewContent = fs.readFileSync(docViewPath, "utf-8");
+    expect(
+      docViewContent.includes("api.lifecycle.availableActions"),
+      "DocumentView must query api.lifecycle.availableActions"
+    ).toBe(true);
+
     for (const relPath of ACTION_PAGES) {
       const fullPath = path.resolve(process.cwd(), relPath);
       expect(fs.existsSync(fullPath), `File must exist: ${relPath}`).toBe(true);
       const content = fs.readFileSync(fullPath, "utf-8");
 
+      const queriesAvailableActions =
+        content.includes("api.lifecycle.availableActions") ||
+        content.includes("DocumentView");
+
       expect(
-        content.includes("api.lifecycle.availableActions"),
-        `Expected ${relPath} to query api.lifecycle.availableActions`
+        queriesAvailableActions,
+        `Expected ${relPath} to query api.lifecycle.availableActions or render DocumentView shell`
       ).toBe(true);
     }
   });

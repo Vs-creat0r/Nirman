@@ -1,4 +1,5 @@
 export { DocumentForm } from "./document-form";
+export { DocumentView } from "./document-view";
 export { FieldRenderer } from "./field-renderer";
 export { TextInput } from "./inputs/text-input";
 export { NumberInput } from "./inputs/number-input";
