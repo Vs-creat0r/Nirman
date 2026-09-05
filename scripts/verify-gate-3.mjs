@@ -23,7 +23,7 @@ async function runGate3() {
 
   // 1. Authenticate
   console.log("\n[1/5] Authenticating as admin...");
-  const token = await client.mutation(api.auth.login, {
+  const token = await client.action(api.auth.login, {
     username: "admin",
     password: "admin123",
   });

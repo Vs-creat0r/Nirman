@@ -22,11 +22,12 @@ async function main() {
   console.log("================================================================================\n");
 
   // 1. Authenticate as Admin
-  console.log("[1/5] Authenticating as Admin...");
-  const adminToken = await client.mutation(api.auth.login, {
+  console.log("Authenticating as admin...");
+  const adminToken = await client.action(api.auth.login, {
     username: "admin",
     password: "admin123",
   });
+
   console.log("  ✔ Admin session established.\n");
 
   // 2. Pre-Backfill Snapshot

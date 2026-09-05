@@ -36,12 +36,13 @@ async function main() {
 
   const results = [];
 
-  // 1. Authenticate Admin
-  console.log("[1/6] Authenticating as Admin...");
-  const adminToken = await client.mutation(api.auth.login, {
+  // 1. Authenticate
+  console.log("\n[1/7] Authenticating...");
+  const adminToken = await client.action(api.auth.login, {
     username: "admin",
     password: "admin123",
   });
+
   console.log("  ✔ Admin session established.");
 
   // 2. Fetch or Create Active Project & Site

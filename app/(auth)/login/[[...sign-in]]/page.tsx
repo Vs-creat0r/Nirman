@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ export default function LoginPage() {
   
   const router = useRouter();
   const { setToken } = useSession();
-  const loginMutation = useMutation(api.auth.login);
+  const loginAction = useAction(api.auth.login);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +26,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const token = await loginMutation({ username, password });
+      const token = await loginAction({ username, password });
       setToken(token);
       router.push("/dashboard");
     } catch (err: any) {

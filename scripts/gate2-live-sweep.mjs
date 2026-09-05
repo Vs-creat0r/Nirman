@@ -22,10 +22,11 @@ async function main() {
 
   // 1. Authenticate as Admin to verify/provision test records
   console.log("[1/5] Authenticating as Admin...");
-  const adminToken = await client.mutation(api.auth.login, {
+  const adminToken = await client.action(api.auth.login, {
     username: "admin",
     password: "admin123",
   });
+
   console.log("  ✔ Admin session established.");
 
   // Fetch or create Project Alpha and Project Beta
@@ -111,10 +112,11 @@ async function main() {
     token: adminToken,
   });
 
-  const supervisorToken = await client.mutation(api.auth.login, {
+  const supervisorToken = await client.action(api.auth.login, {
     username: "supervisor",
     password: "supervisor123",
   });
+
   console.log("  ✔ Site Supervisor authenticated with strict Site Alpha-1 scoping.");
 
   // Provision documents and shared vendor records

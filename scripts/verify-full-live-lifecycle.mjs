@@ -18,14 +18,15 @@ async function runFullLiveLifecycle() {
 
   // 1. Authenticate
   console.log("\n[1/8] Authenticating Admin & Supervisor...");
-  const adminToken = await client.mutation(api.auth.login, {
+  const adminToken = await client.action(api.auth.login, {
     username: "admin",
     password: "admin123",
   });
-  const supToken = await client.mutation(api.auth.login, {
+  const supToken = await client.action(api.auth.login, {
     username: "supervisor",
     password: "supervisor",
   });
+
 
   const projects = await client.query(api.projects.listAllProjects, { token: adminToken });
   const project = projects[0];

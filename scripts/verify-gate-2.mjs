@@ -21,10 +21,17 @@ async function runGate2() {
   console.log("==================================================================");
 
   // 1. Login with actual supervisor credentials
-  console.log("\n[1/6] Authenticating as site supervisor (`supervisor`)...");
-  const supervisorToken = await client.mutation(api.auth.login, {
+  console.log("\n[1/6] Authenticating as site supervisor...");
+  const supervisorToken = await client.action(api.auth.login, {
     username: "supervisor",
-    password: "supervisor",
+    password: "password123",
+  });
+  console.log("Authenticated supervisor token acquired.");
+
+  // Authenticate as Admin for later approvals
+  const adminToken = await client.action(api.auth.login, {
+    username: "admin",
+    password: "admin123",
   });
 
   const me = await client.query(api.users.getMyUser, { token: supervisorToken });
@@ -37,10 +44,7 @@ async function runGate2() {
   }
 
   // 2. Identify assigned site (Site A) and unassigned site (Site B)
-  const adminToken = await client.mutation(api.auth.login, {
-    username: "admin",
-    password: "admin123",
-  });
+
   const allSites = await client.query(api.sites.listAllSites, { token: adminToken });
 
   const assignedSite = allSites.find((s) => me.assignedSiteIds?.includes(s._id));

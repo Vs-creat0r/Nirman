@@ -53,8 +53,9 @@ async function uploadPhotoProof(token) {
 }
 
 async function login(username, password) {
-  return await client.mutation(api.auth.login, { username, password });
+  return await client.action(api.auth.login, { username, password });
 }
+
 
 async function main() {
   console.log("================================================================================");

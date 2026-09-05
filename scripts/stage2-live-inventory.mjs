@@ -24,14 +24,14 @@ async function runStage2Regression() {
   console.log("==================================================================");
 
   // 1. Authenticate Admin and Site Supervisor
-  console.log("\n[1/8] Authenticating Admin & Site Supervisor...");
-  const adminToken = await client.mutation(api.auth.login, {
+  console.log("\n[1/7] Authenticating...");
+  const adminToken = await client.action(api.auth.login, {
     username: "admin",
     password: "admin123",
   });
-  console.log("  ✓ Admin authenticated");
+  console.log("Admin authenticated.");
 
-  const supToken = await client.mutation(api.auth.login, {
+  const supToken = await client.action(api.auth.login, {
     username: "supervisor",
     password: "supervisor",
   });
