@@ -73,14 +73,15 @@ export default function GrnDetailPage() {
               <Camera className="h-4 w-4 text-primary" /> Delivery Proof Photos ({photos.length})
             </h3>
             {grn.hasDiscrepancy ? (
-              <Badge variant="destructive" className="text-[10px] gap-1">
+              <Badge variant="danger" className="text-[10px] gap-1">
                 <AlertTriangle className="h-3 w-3" /> Quantity Discrepancy Flagged
               </Badge>
             ) : (
-              <Badge variant="default" className="text-[10px] gap-1 bg-[--success]/10 text-[--success] border-[--success]/20">
+              <Badge variant="success" className="text-[10px] gap-1 bg-[--success]/10 text-[--success] border-[--success]/20">
                 <CheckCircle2 className="h-3 w-3" /> Full Delivery Verified
               </Badge>
             )}
+
           </div>
 
           <PhotoGrid photos={photos} />

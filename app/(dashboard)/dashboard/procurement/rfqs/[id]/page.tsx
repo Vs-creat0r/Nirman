@@ -17,9 +17,10 @@ export default function ProcurementRfqDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as Id<"rfq">;
-  const { token, user } = useSession();
+  const { token } = useSession();
 
   const [isAddQuoteOpen, setIsAddQuoteOpen] = React.useState(false);
+
 
   const rfq = useQuery(api.rfqs.getRfq, token && id ? { id, token } : "skip");
   const quotes = useQuery(api.rfq_quotes.getQuotesByRfq, token && id ? { rfqId: id, token } : "skip");
@@ -44,8 +45,9 @@ export default function ProcurementRfqDetailPage() {
     description: it.description,
   }));
 
-  const canAddQuote = (rfq.status === "draft" || rfq.status === "open") && (user?.role === "procurement_officer" || user?.role === "admin");
+  const canAddQuote = rfq.status === "draft" || rfq.status === "open";
   const canCreateCc = rfq.status === "closed" && (quotes?.length || 0) > 0;
+
 
   return (
     <div className="space-y-4">

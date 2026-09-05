@@ -25,11 +25,12 @@ interface ItemRow {
   projectItemId?: string;
 }
 
-export default function NewRfqPage() {
+function NewRfqForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromMrId = searchParams.get("fromMr") as Id<"material_request"> | null;
   const { token } = useSession();
+
 
   const projects = useQuery(api.projects.listAllProjects, token ? { token } : "skip");
   const vendors = useQuery(api.vendors.listVendors, token ? { token } : "skip");
@@ -53,7 +54,6 @@ export default function NewRfqPage() {
       if (sourceMr.items && sourceMr.items.length > 0) {
         setItems(sourceMr.items.map((it) => ({
           itemName: it.itemName,
-          category: it.category,
           quantity: it.quantity,
           unit: (UNITS.includes(it.unit as (typeof UNITS)[number]) ? it.unit : "bags") as (typeof UNITS)[number],
           projectItemId: it.projectItemId,
@@ -116,8 +116,9 @@ export default function NewRfqPage() {
         <Link href="/dashboard/procurement/rfqs" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" /> Back to RFQs
         </Link>
-        {fromMrId && sourceMr && <Badge variant="outline" className="text-xs">From MR: {sourceMr.refNo}</Badge>}
+        {fromMrId && sourceMr && <Badge variant="pending" className="text-xs">From MR: {sourceMr.refNo}</Badge>}
       </div>
+
 
       <Card>
         <CardHeader>
@@ -191,3 +192,19 @@ export default function NewRfqPage() {
     </div>
   );
 }
+
+export default function NewRfqPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="p-16 flex flex-col items-center justify-center gap-3 text-xs text-muted-foreground">
+          <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span>Loading Form…</span>
+        </div>
+      }
+    >
+      <NewRfqForm />
+    </React.Suspense>
+  );
+}
+

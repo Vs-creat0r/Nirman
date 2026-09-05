@@ -346,7 +346,9 @@ export const getRfq = query({
     // Fetch audit logs
     const logs = await ctx.db
       .query("logs")
-      .withIndex("by_documentId", (q) => q.eq("documentId", args.id))
+      .withIndex("by_documentType_documentId", (q) =>
+        q.eq("documentType", "rfq").eq("documentId", args.id)
+      )
       .collect();
 
     return {
@@ -383,8 +385,9 @@ export const listRfqs = query({
 
     const rfqs = await queryScopedByIndex(ctx, "rfq", scope, {
       projectId: args.projectId,
-      status: args.status,
+      statusFilter: args.status,
     });
+
 
     const enriched = await Promise.all(
       rfqs.map(async (rfq) => {

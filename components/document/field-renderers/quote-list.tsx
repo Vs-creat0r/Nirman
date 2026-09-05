@@ -83,13 +83,14 @@ export function QuoteList({ quotes, onAddQuote, canAddQuote }: QuoteListProps) {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-bold text-foreground">Vendor Summary:</span>
           {vendorQuotes.map(([vid, v]) => (
-            <Badge key={vid} variant="outline" className="text-[11px] gap-1.5 py-1 px-2.5">
+            <div key={vid} className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded border border-border bg-muted/20 text-[11px]">
               <Building className="h-3 w-3 text-primary" />
               <span className="font-semibold text-foreground">{v.vendorName}:</span>
               <span className="font-mono text-foreground font-bold">₹{v.totalSum.toLocaleString("en-IN")}</span>
               <span className="text-muted-foreground text-[10px]">({v.itemCount} items)</span>
-            </Badge>
+            </div>
           ))}
+
         </div>
 
         <div className="flex items-center gap-2">

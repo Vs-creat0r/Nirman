@@ -149,18 +149,18 @@ export default function RfqsDirectoryPage() {
                     <div className="text-[11px] text-muted-foreground">{rfq.siteName}</div>
                   </TableCell>
                   <TableCell className="py-3 px-3 text-center">
-                    <Badge variant="outline" className="text-[10px] gap-1 font-mono">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono border border-border rounded px-1.5 py-0.5">
                       <Users className="h-3 w-3" /> {rfq.vendorCount}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="py-3 px-3 text-center">
-                    <Badge variant="outline" className="text-[10px] gap-1 font-mono">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono border border-border rounded px-1.5 py-0.5">
                       <Package className="h-3 w-3" /> {rfq.itemCount}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="py-3 px-3 text-center">
                     <Badge
-                      variant={rfq.quotesCount > 0 ? "default" : "secondary"}
+                      variant={rfq.quotesCount > 0 ? "success" : "draft"}
                       className="text-[10px] font-mono"
                     >
                       {rfq.quotesCount} quote{rfq.quotesCount === 1 ? "" : "s"}
@@ -170,7 +170,7 @@ export default function RfqsDirectoryPage() {
                     {rfq.dueDate || "—"}
                   </TableCell>
                   <TableCell className="py-3 px-3 text-center">
-                    <StatusBadge status={rfq.status} docType="rfq" />
+                    <StatusBadge status={rfq.status} />
                   </TableCell>
                   <TableCell className="py-3 px-4 text-right">
                     <Link href={`/dashboard/procurement/rfqs/${rfq._id}`}>
@@ -179,6 +179,7 @@ export default function RfqsDirectoryPage() {
                       </Button>
                     </Link>
                   </TableCell>
+
                 </TableRow>
               ))}
             </TableBody>

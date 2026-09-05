@@ -10,14 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  ClipboardCheck,
   CheckCircle2,
   AlertTriangle,
   Search,
   Camera,
   Truck,
-  Building2,
-  Calendar,
   ArrowRight,
 } from "lucide-react";
 
@@ -84,7 +81,7 @@ export default function GRNDirectoryPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             size="sm"
-            variant={filterMode === "all" ? "default" : "outline"}
+            variant={filterMode === "all" ? "primary" : "outline"}
             onClick={() => setFilterMode("all")}
             className="text-xs h-8"
           >
@@ -92,7 +89,7 @@ export default function GRNDirectoryPage() {
           </Button>
           <Button
             size="sm"
-            variant={filterMode === "exact" ? "default" : "outline"}
+            variant={filterMode === "exact" ? "primary" : "outline"}
             onClick={() => setFilterMode("exact")}
             className="text-xs h-8 gap-1.5"
           >
@@ -101,7 +98,7 @@ export default function GRNDirectoryPage() {
           </Button>
           <Button
             size="sm"
-            variant={filterMode === "discrepancy" ? "default" : "outline"}
+            variant={filterMode === "discrepancy" ? "primary" : "outline"}
             onClick={() => setFilterMode("discrepancy")}
             className="text-xs h-8 gap-1.5"
           >
@@ -121,56 +118,56 @@ export default function GRNDirectoryPage() {
         </div>
       </div>
 
-      {/* GRN Table */}
+      {/* Receipts Table */}
       <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
         {filteredGRNs.length === 0 ? (
-          <div className="p-12 text-center text-xs text-muted-foreground space-y-2">
-            <ClipboardCheck className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-            <p className="font-semibold text-foreground">No GRN records found</p>
-            <p className="text-[11px] text-muted-foreground">
-              Confirm incoming deliveries from the deliveries dashboard to generate GRNs.
-            </p>
+          <div className="p-12 text-center text-muted-foreground text-sm">
+            No Goods Receipt Notes match the selected filter.
           </div>
         ) : (
           <Table>
-            <TableHeader className="bg-muted/30">
+            <TableHeader className="bg-muted/40 text-xs">
               <TableRow>
-                <TableHead className="text-xs font-semibold py-3 px-4">GRN Ref</TableHead>
-                <TableHead className="text-xs font-semibold py-3 px-3">Linked PO & DC</TableHead>
-                <TableHead className="text-xs font-semibold py-3 px-3">Vendor & Site</TableHead>
-                <TableHead className="text-xs font-semibold py-3 px-3 text-center">Items</TableHead>
-                <TableHead className="text-xs font-semibold py-3 px-3 text-center">Photos</TableHead>
-                <TableHead className="text-xs font-semibold py-3 px-3">Received By</TableHead>
-                <TableHead className="text-xs font-semibold py-3 px-3 text-center">Verification</TableHead>
-                <TableHead className="text-xs font-semibold py-3 px-4 text-right">Action</TableHead>
+                <TableHead className="py-2.5 px-4 font-bold">GRN Ref</TableHead>
+                <TableHead className="py-2.5 px-3 font-bold">PO Ref</TableHead>
+                <TableHead className="py-2.5 px-3 font-bold">DC Ref / Vehicle</TableHead>
+                <TableHead className="py-2.5 px-3 font-bold">Vendor</TableHead>
+                <TableHead className="py-2.5 px-3 font-bold">Site</TableHead>
+                <TableHead className="py-2.5 px-3 font-bold text-center">Items</TableHead>
+                <TableHead className="py-2.5 px-3 font-bold text-center">Photos</TableHead>
+                <TableHead className="py-2.5 px-3 font-bold">Received By / Date</TableHead>
+                <TableHead className="py-2.5 px-3 font-bold text-center">Match Status</TableHead>
+                <TableHead className="py-2.5 px-4 text-right font-bold">Action</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-border text-xs">
+            <TableBody className="text-xs divide-y divide-border">
               {filteredGRNs.map((grn) => (
-                <TableRow key={grn._id} className="hover:bg-muted/15 transition-colors">
-                  <TableCell className="py-3 px-4 font-mono font-bold text-foreground">
-                    <Link href={`/dashboard/grn/${grn._id}`} className="hover:underline text-primary">
+                <TableRow key={grn._id} className="hover:bg-muted/30 transition-colors">
+                  <TableCell className="py-3 px-4 font-mono font-bold text-primary">
+                    <Link href={`/dashboard/grn/${grn._id}`} className="hover:underline">
                       {grn.refNo}
                     </Link>
                   </TableCell>
-                  <TableCell className="py-3 px-3 font-mono text-[11px]">
-                    <div className="font-bold text-foreground">{grn.poRefNo}</div>
-                    <div className="text-muted-foreground">{grn.dcRefNo}</div>
+                  <TableCell className="py-3 px-3 font-mono font-medium">
+                    {grn.poRefNo}
                   </TableCell>
                   <TableCell className="py-3 px-3">
-                    <div className="font-semibold text-foreground flex items-center gap-1">
-                      <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="truncate max-w-[140px]">{grn.vendorName}</span>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">{grn.siteName}</div>
+                    <div className="font-mono font-medium">{grn.dcRefNo}</div>
+                    <div className="text-[11px] text-muted-foreground">{grn.vehicleNo}</div>
+                  </TableCell>
+                  <TableCell className="py-3 px-3 font-medium">
+                    {grn.vendorName}
+                  </TableCell>
+                  <TableCell className="py-3 px-3 font-medium">
+                    {grn.siteName}
                   </TableCell>
                   <TableCell className="py-3 px-3 text-center font-mono font-semibold">
                     {grn.itemCount}
                   </TableCell>
                   <TableCell className="py-3 px-3 text-center">
-                    <Badge variant="outline" className="text-[10px] gap-1 font-mono">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono border border-border rounded px-1.5 py-0.5">
                       <Camera className="h-3 w-3" /> {grn.photoCount}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell className="py-3 px-3 text-muted-foreground">
                     <div>{grn.confirmedByName}</div>
@@ -184,11 +181,11 @@ export default function GRNDirectoryPage() {
                   </TableCell>
                   <TableCell className="py-3 px-3 text-center">
                     {grn.hasDiscrepancy ? (
-                      <Badge variant="destructive" className="text-[10px] gap-1">
+                      <Badge variant="danger" className="text-[10px] gap-1">
                         <AlertTriangle className="h-3 w-3" /> Shortfall
                       </Badge>
                     ) : (
-                      <Badge variant="default" className="text-[10px] gap-1 bg-[--success]/10 text-[--success] border-[--success]/20">
+                      <Badge variant="success" className="text-[10px] gap-1 bg-[--success]/10 text-[--success] border-[--success]/20">
                         <CheckCircle2 className="h-3 w-3" /> Verified
                       </Badge>
                     )}

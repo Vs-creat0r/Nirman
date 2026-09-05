@@ -486,8 +486,14 @@ async function queryTableByIndex<TableName extends ScopedTableName>(
       const res = await ctx.db.query("stock_movements").collect();
       return res as unknown as Doc<TableName>[];
     }
+
+    default: {
+      const res = await (ctx.db.query as any)(table).collect();
+      return res as Doc<TableName>[];
+    }
   }
 }
+
 
 /**
  * Index-backed scoped query — replaces collect() → filterScopedList() for large tables.
