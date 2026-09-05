@@ -67,4 +67,17 @@ describe("Auth Security & Hardening", () => {
     expect(wrong.valid).toBe(false);
     expect(wrong.needsMigration).toBe(false);
   });
+
+  it("identifies algorithm prefixes correctly", async () => {
+    const pbkdf2Str = await hashPassword("myPass");
+    expect(pbkdf2Str.startsWith("pbkdf2:")).toBe(true);
+
+    const sha256Str = "sha256:10000:aabbcc:ddeeff";
+    expect(sha256Str.startsWith("sha256:")).toBe(true);
+
+    const plainStr = "mypassword123";
+    expect(plainStr.startsWith("pbkdf2:")).toBe(false);
+    expect(plainStr.startsWith("sha256:")).toBe(false);
+  });
 });
+

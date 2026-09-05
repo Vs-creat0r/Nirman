@@ -1,7 +1,8 @@
-import { action, mutation, internalQuery, internalMutation } from "./_generated/server";
+import { query, action, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
+import { resolveCallerScope } from "./scoping";
 
 export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
@@ -200,3 +201,35 @@ export const logout = mutation({
     }
   },
 });
+
+export const hashAlgoForUser = query({
+  args: {
+    token: v.string(),
+    username: v.string(),
+  },
+  handler: async (ctx, args): Promise<"pbkdf2" | "sha256" | "plaintext" | "not_found"> => {
+    const scope = await resolveCallerScope(ctx, args.token);
+    if (!scope.isAdmin) {
+      throw new Error("Unauthorized: Admin privileges required");
+    }
+
+    const username = args.username.trim().toLowerCase();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_username", (q) => q.eq("username", username))
+      .first();
+
+    if (!user || !user.passwordHash) {
+      return "not_found";
+    }
+
+    if (user.passwordHash.startsWith("pbkdf2:")) {
+      return "pbkdf2";
+    }
+    if (user.passwordHash.startsWith("sha256:")) {
+      return "sha256";
+    }
+    return "plaintext";
+  },
+});
+
