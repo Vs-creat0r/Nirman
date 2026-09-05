@@ -31,16 +31,32 @@ function NewCostComparisonForm() {
   const { token } = useSession();
 
   const urlMrId = searchParams.get("mrId") as Id<"material_request"> | null;
+  const urlRfqId = searchParams.get("fromRfq") as Id<"rfq"> | null;
   const [selectedMrId, setSelectedMrId] = React.useState<Id<"material_request"> | "">(
     urlMrId || ""
   );
-
 
   // Queries
   const readyMRs = useQuery(
     api.cost_comparisons.listApprovedMRsForCC,
     token ? { token } : "skip"
   );
+  const currentRfq = useQuery(
+    api.rfqs.getRfq,
+    urlRfqId && token ? { id: urlRfqId, token } : "skip"
+  );
+  const rfqQuotes = useQuery(
+    api.rfq_quotes.getQuotesByRfq,
+    urlRfqId && token ? { rfqId: urlRfqId, token } : "skip"
+  );
+
+  // If seeded from RFQ with source MR, auto-set MR
+  React.useEffect(() => {
+    if (currentRfq?.sourceMrId && !selectedMrId) {
+      setSelectedMrId(currentRfq.sourceMrId);
+    }
+  }, [currentRfq, selectedMrId]);
+
   const currentMR = useQuery(
     api.material_requests.getMR,
     selectedMrId && token ? { id: selectedMrId as Id<"material_request">, token } : "skip"
@@ -201,6 +217,7 @@ function NewCostComparisonForm() {
 
       const payload = {
         materialRequestId: selectedMrId as Id<"material_request">,
+        rfqId: urlRfqId || undefined,
         vendorQuotes: quotes.map((q) => ({
           vendorId: q.vendorId as Id<"vendors">,
           items: q.items.map((it) => ({

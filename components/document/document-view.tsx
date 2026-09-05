@@ -11,17 +11,13 @@ import { DocumentItemsTable } from "@/components/document/document-items-table";
 import { DocumentAuditTrail } from "@/components/document/document-audit-trail";
 import { DocumentFinancialSummary } from "@/components/document/document-financial-summary";
 import { CCComparisonView, type EnrichedVendorQuote } from "@/components/document/cc-comparison-view";
+import {
+  DocumentActionModal,
+  getActionVariant,
+  type ActiveModalAction,
+} from "@/components/document/document-action-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import {
   ArrowLeft,
   Calendar,
@@ -35,14 +31,22 @@ import {
 import { MATERIAL_REQUEST_STATUS_BADGES } from "@/lib/lifecycle/material_request";
 import { COST_COMPARISON_STATUS_BADGES } from "@/lib/lifecycle/cost_comparison";
 import { PURCHASE_ORDER_STATUS_BADGES } from "@/lib/lifecycle/purchase_order";
+import { RFQ_STATUS_BADGES } from "@/lib/lifecycle/rfq";
 import type { FieldDef, OptionsMap } from "@/lib/form-engine-types";
 
-export type DocumentType = "material_request" | "cost_comparison" | "purchase_order";
+export type DocumentType =
+  | "material_request"
+  | "cost_comparison"
+  | "purchase_order"
+  | "rfq"
+  | "delivery_challan"
+  | "grn";
 
 const BADGE_REGISTRY = {
   material_request: MATERIAL_REQUEST_STATUS_BADGES,
   cost_comparison: COST_COMPARISON_STATUS_BADGES,
   purchase_order: PURCHASE_ORDER_STATUS_BADGES,
+  rfq: RFQ_STATUS_BADGES,
 } as const;
 
 export interface LineItem {
@@ -118,7 +122,7 @@ export interface DocumentViewProps {
     grn?: { id: string; refNo: string; status: string; role?: string };
   };
   backHref: string;
-  backLabel: string;
+  backLabel?: string;
   editHref?: string;
   onAction?: (actionName: string, note?: string) => Promise<void>;
   onSelectVendor?: (vendorId: string) => void;
@@ -130,9 +134,27 @@ export interface DocumentViewProps {
   children?: React.ReactNode;
 }
 
+const ACTION_ICONS: Record<string, React.ReactNode> = {
+  submit: <Send className="h-3.5 w-3.5" />,
+  resubmit: <Send className="h-3.5 w-3.5" />,
+  send: <Send className="h-3.5 w-3.5" />,
+  issue: <Send className="h-3.5 w-3.5" />,
+  approve: <CheckCircle2 className="h-3.5 w-3.5" />,
+  accept: <CheckCircle2 className="h-3.5 w-3.5" />,
+  reject: <XCircle className="h-3.5 w-3.5" />,
+  query: <HelpCircle className="h-3.5 w-3.5" />,
+  cancel: <AlertTriangle className="h-3.5 w-3.5" />,
+  short_close: <AlertTriangle className="h-3.5 w-3.5" />,
+  close: <CheckCircle2 className="h-3.5 w-3.5" />,
+  archive: <XCircle className="h-3.5 w-3.5" />,
+};
+
+function getActionIcon(name: string): React.ReactNode {
+  return ACTION_ICONS[name] ?? <CheckCircle2 className="h-3.5 w-3.5" />;
+}
+
 /**
  * Universal Document Detail View Shell (DocumentView).
- * Read-view sibling component to DocumentForm for detail pages.
  */
 export function DocumentView({
   docType,
@@ -140,7 +162,7 @@ export function DocumentView({
   fields,
   linkedDocs,
   backHref,
-  backLabel,
+  backLabel = "Back",
   editHref,
   onAction,
   onSelectVendor,
@@ -159,12 +181,7 @@ export function DocumentView({
       : "skip"
   );
 
-  const [activeModalAction, setActiveModalAction] = React.useState<{
-    name: string;
-    label: string;
-    requiresNote: boolean;
-  } | null>(null);
-  const [modalNote, setModalNote] = React.useState("");
+  const [activeModalAction, setActiveModalAction] = React.useState<ActiveModalAction | null>(null);
   const [isExecutingAction, setIsExecutingAction] = React.useState(false);
   const [actionError, setActionError] = React.useState<string | null>(null);
 
@@ -187,7 +204,6 @@ export function DocumentView({
       action.name === "short_close";
 
     if (needsModal) {
-      setModalNote("");
       setActiveModalAction({
         name: action.name,
         label: action.label,
@@ -208,40 +224,18 @@ export function DocumentView({
     }
   };
 
-  const handleModalConfirm = async () => {
-    if (!activeModalAction || !onAction) return;
-    if (activeModalAction.requiresNote && !modalNote.trim()) {
-      setActionError("Please provide a note or reason for this action.");
-      return;
-    }
-
+  const handleModalConfirm = async (actionName: string, note?: string) => {
+    if (!onAction) return;
     setIsExecutingAction(true);
     setActionError(null);
     try {
-      await onAction(activeModalAction.name, modalNote.trim() || undefined);
+      await onAction(actionName, note);
       setActiveModalAction(null);
-      setModalNote("");
     } catch (err: unknown) {
-      setActionError((err as Error).message || `Failed to execute ${activeModalAction.label}.`);
+      setActionError((err as Error).message || "Action failed.");
     } finally {
       setIsExecutingAction(false);
     }
-  };
-
-  const getActionVariant = (name: string) => {
-    if (name === "approve" || name === "accept") return "primary" as const;
-    if (name === "reject" || name === "cancel") return "destructive" as const;
-    if (name === "query") return "outline" as const;
-    return "primary" as const;
-  };
-
-  const getActionIcon = (name: string) => {
-    if (name === "submit" || name === "resubmit" || name === "send") return <Send className="h-3.5 w-3.5" />;
-    if (name === "approve") return <CheckCircle2 className="h-3.5 w-3.5" />;
-    if (name === "reject") return <XCircle className="h-3.5 w-3.5" />;
-    if (name === "query") return <HelpCircle className="h-3.5 w-3.5" />;
-    if (name === "cancel" || name === "short_close") return <AlertTriangle className="h-3.5 w-3.5" />;
-    return <CheckCircle2 className="h-3.5 w-3.5" />;
   };
 
   const actions = availableActionsData?.actions || [];
@@ -307,7 +301,17 @@ export function DocumentView({
 
       {linkedDocs && (
         <DocumentLineageBar
-          currentType={docType === "material_request" ? "mr" : docType === "cost_comparison" ? "cc" : "po"}
+          currentType={
+            docType === "material_request"
+              ? "mr"
+              : docType === "cost_comparison"
+              ? "cc"
+              : docType === "purchase_order"
+              ? "po"
+              : docType === "grn"
+              ? "grn"
+              : "dc"
+          }
           mr={linkedDocs.mr}
           cc={linkedDocs.cc}
           po={linkedDocs.po}
@@ -327,7 +331,8 @@ export function DocumentView({
               </div>
               {(doc.projectName || doc.siteName) && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {doc.projectName}{doc.siteName ? ` • ${doc.siteName}` : ""}
+                  {doc.projectName}
+                  {doc.siteName ? ` • ${doc.siteName}` : ""}
                 </p>
               )}
             </div>
@@ -344,7 +349,9 @@ export function DocumentView({
                 </span>
               </div>
               {doc.priority && (
-                <div>Priority: <span className="font-bold capitalize text-foreground">{doc.priority}</span></div>
+                <div>
+                  Priority: <span className="font-bold capitalize text-foreground">{doc.priority}</span>
+                </div>
               )}
             </div>
           </div>
@@ -385,7 +392,9 @@ export function DocumentView({
             {doc.placeOfSupplyStateCode && (
               <div>
                 <span className="text-muted-foreground block text-[11px]">Place of Supply</span>
-                <span className="font-semibold text-foreground font-mono">State {doc.placeOfSupplyStateCode}</span>
+                <span className="font-semibold text-foreground font-mono">
+                  State {doc.placeOfSupplyStateCode}
+                </span>
               </div>
             )}
             <div>
@@ -405,9 +414,9 @@ export function DocumentView({
           )}
 
           {fields &&
-            fields.map((field) => (
+            fields.map((field) =>
               renderCustomField ? <div key={field.field}>{renderCustomField(field, doc)}</div> : null
-            ))}
+            )}
 
           <DocumentItemsTable items={lineItems} />
 
@@ -429,65 +438,14 @@ export function DocumentView({
         </CardContent>
       </Card>
 
-      {activeModalAction && (
-        <Dialog open={!!activeModalAction} onOpenChange={(open) => !open && setActiveModalAction(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{activeModalAction.label}</DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-1">
-                Confirm execution of {activeModalAction.label.toLowerCase()} on {doc.refNo}.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="modal-action-note">
-                  {activeModalAction.requiresNote ? "Reason / Clarification Note" : "Note (Optional)"}{" "}
-                  {activeModalAction.requiresNote && <span className="text-[--destructive] font-bold">*</span>}
-                </Label>
-                <textarea
-                  id="modal-action-note"
-                  value={modalNote}
-                  onChange={(e) => setModalNote(e.target.value)}
-                  placeholder={activeModalAction.requiresNote ? "Explain reason or clarification instructions (required)…" : "Add an optional note…"}
-                  rows={3}
-                  maxLength={1000}
-                  className="w-full rounded-md border border-border bg-input px-3 py-2 text-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
-                />
-              </div>
-
-              {actionError && (
-                <div className="p-2 rounded bg-[--destructive]/10 border border-[--destructive]/20 text-[--destructive] text-[11px] font-semibold">
-                  {actionError}
-                </div>
-              )}
-            </div>
-
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveModalAction(null)}
-                disabled={isExecutingAction}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant={getActionVariant(activeModalAction.name)}
-                size="sm"
-                onClick={handleModalConfirm}
-                disabled={isExecutingAction}
-                className="text-xs font-semibold"
-              >
-                {isExecutingAction ? "Submitting…" : activeModalAction.label}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <DocumentActionModal
+        activeAction={activeModalAction}
+        refNo={doc.refNo}
+        onClose={() => setActiveModalAction(null)}
+        onConfirm={handleModalConfirm}
+        isExecuting={isExecutingAction}
+        actionError={actionError}
+      />
     </div>
   );
 }
