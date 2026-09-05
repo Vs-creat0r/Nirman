@@ -12,7 +12,8 @@
     "gen": "node scripts/generate-from-contracts.mjs",
     "gen:check": "node scripts/generate-from-contracts.mjs --check",
     "check:metrics": "node scripts/check-metrics.mjs",
-    "check:gate3": "node scripts/gate3-parity-check.mjs"
+    "check:gate3": "node scripts/gate3-parity-check.mjs",
+    "verify:pdf": "npx tsx scripts/verify-pdf-generation.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
@@ -29,6 +30,7 @@
     "lucide-react": "^1.28.0",
     "next": "16.2.12",
     "next-themes": "^0.4.6",
+    "pdfmake": "^0.3.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.84.0",
@@ -38,6 +40,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pdfmake": "^0.3.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
