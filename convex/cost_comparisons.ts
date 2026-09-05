@@ -152,6 +152,7 @@ export function processVendorQuotes(
 export const createCC = mutation({
   args: {
     materialRequestId: v.id("material_request"),
+    rfqId: v.optional(v.id("rfq")),
     vendorQuotes: v.array(
       v.object({
         vendorId: v.id("vendors"),
@@ -191,6 +192,13 @@ export const createCC = mutation({
     const scope = await resolveCallerScope(ctx, args.token);
     assertDocumentAccess(scope, mr, mr.refNo);
 
+    if (args.rfqId) {
+      const rfq = await ctx.db.get(args.rfqId);
+      if (rfq) {
+        assertDocumentAccess(scope, rfq, rfq.refNo);
+      }
+    }
+
     // Process & calculate quotes server-side with MR items for projectItemId resolution
     const processedQuotes = processVendorQuotes(args.vendorQuotes, mr.items);
 
@@ -201,6 +209,7 @@ export const createCC = mutation({
     const ccId = await ctx.db.insert("cost_comparison", {
       refNo,
       materialRequestId: mr._id,
+      rfqId: args.rfqId,
       projectId: mr.projectId,
       siteId: mr.siteId || undefined,
       vendorQuotes: processedQuotes,

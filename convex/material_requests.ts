@@ -224,6 +224,38 @@ export const queryMR = mutation({
 });
 
 /**
+ * Route approved MR to RFQ flow (ready_for_cc -> routed_to_rfq).
+ */
+export const sendToRfq = mutation({
+  args: { id: v.id("material_request"), note: v.optional(v.string()), token: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    return await transition(ctx, {
+      table: "material_request",
+      documentId: args.id,
+      transitionName: "send_to_rfq",
+      token: args.token,
+      note: args.note,
+    });
+  },
+});
+
+/**
+ * Route approved MR directly to Cost Comparison flow (ready_for_cc -> routed_to_cc).
+ */
+export const sendToCc = mutation({
+  args: { id: v.id("material_request"), note: v.optional(v.string()), token: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    return await transition(ctx, {
+      table: "material_request",
+      documentId: args.id,
+      transitionName: "send_to_cc",
+      token: args.token,
+      note: args.note,
+    });
+  },
+});
+
+/**
  * Supervisor updates & resubmits a queried Material Request.
  */
 export const resubmitMR = mutation({

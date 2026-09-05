@@ -177,7 +177,9 @@ export type ScopedTableName =
   | "project_items"
   | "grn"
   | "inventory"
-  | "stock_movements";
+  | "stock_movements"
+  | "rfq"
+  | "rfq_quotes";
 
 interface TableIndexConfig {
   hasProjectIdStatusIndex?: boolean;
@@ -224,6 +226,12 @@ const SCHEMA_INDEX_CAPABILITIES: Record<ScopedTableName, TableIndexConfig> = {
     hasProjectIdIndex: true,
     hasSiteIdIndex: true,
   },
+  rfq: {
+    hasProjectIdStatusIndex: true,
+    hasProjectIdIndex: true,
+    hasStatusIndex: true,
+  },
+  rfq_quotes: {},
 };
 
 /**

@@ -23,6 +23,8 @@ export const PERMISSIONS = {
   "material_requests:reject": ["project_manager", "admin"],
   "material_requests:query": ["project_manager", "admin"],
   "material_requests:resubmit": ["site_supervisor", "project_manager", "admin"],
+  "material_requests:send_to_rfq": ["project_manager", "procurement_officer", "admin"],
+  "material_requests:send_to_cc": ["project_manager", "procurement_officer", "admin"],
   "material_requests:delete": ["site_supervisor", "project_manager", "admin"],
   "material_requests:add_note": ["site_supervisor", "project_manager", "procurement_officer", "admin"],
   "material_requests:process_delivery": ["site_supervisor", "procurement_officer", "admin"],
@@ -58,6 +60,20 @@ export const PERMISSIONS = {
   "purchase_orders:close": ["project_manager", "admin"],
   "purchase_orders:close_on_receipt": ["site_supervisor", "procurement_officer", "admin"],
   "purchase_orders:delete": ["procurement_officer", "project_manager", "admin"],
+
+  // Request for Quotations (RFQ)
+  "rfqs:create": ["procurement_officer", "site_supervisor", "project_manager", "admin"],
+  "rfqs:update": ["procurement_officer", "admin"],
+  "rfqs:issue": ["procurement_officer", "admin"],
+  "rfqs:close": ["procurement_officer", "admin"],
+  "rfqs:archive": ["project_manager", "admin"],
+  "rfqs:add_vendor": ["procurement_officer", "admin"],
+  "rfqs:delete": ["procurement_officer", "admin"],
+
+  // RFQ Quotes
+  "rfq_quotes:add": ["procurement_officer", "admin"],
+  "rfq_quotes:supersede": ["procurement_officer", "admin"],
+  "rfq_quotes:delete": ["procurement_officer", "admin"],
 
   // Delivery Challans
   "delivery_challans:create": ["procurement_officer", "project_manager", "admin"],
