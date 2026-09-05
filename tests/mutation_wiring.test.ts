@@ -21,6 +21,8 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
     rejectMR: "material_requests:reject",
     queryMR: "material_requests:query",
     resubmitMR: "material_requests:resubmit",
+    sendToRfq: "material_requests:send_to_rfq",
+    sendToCc: "material_requests:send_to_cc",
     deleteMR: "material_requests:delete",
   },
   "cost_comparisons.ts": {
@@ -88,6 +90,18 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
     updateUserAssignments: "users:manage",
     updateUser: "users:manage",
     changeUserRole: "users:change_role",
+  },
+  "rfqs.ts": {
+    createRfq: "rfqs:create",
+    addVendorToRfq: "rfqs:add_vendor",
+    issueRfq: "rfqs:issue",
+    closeRfq: "rfqs:close",
+    archiveRfq: "rfqs:archive",
+    deleteRfq: "rfqs:delete",
+  },
+  "rfq_quotes.ts": {
+    addQuote: "rfq_quotes:add",
+    supersedeQuote: "rfq_quotes:supersede",
   },
   "movement_actions.ts": {
     issueStock: "movements:issue",

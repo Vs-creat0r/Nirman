@@ -21,6 +21,9 @@ const DETAIL_PAGES = [
   { path: "app/(dashboard)/dashboard/procurement/cost-comparisons/[id]/page.tsx", maxLines: 120, docType: "cost_comparison" },
   { path: "app/(dashboard)/dashboard/manager/purchase-orders/[id]/page.tsx", maxLines: 120, docType: "purchase_order" },
   { path: "app/(dashboard)/dashboard/procurement/purchase-orders/[id]/page.tsx", maxLines: 200, docType: "purchase_order" },
+  { path: "app/(dashboard)/dashboard/procurement/rfqs/[id]/page.tsx", maxLines: 120, docType: "rfq" },
+  { path: "app/(dashboard)/dashboard/manager/rfqs/[id]/page.tsx", maxLines: 120, docType: "rfq" },
+  { path: "app/(dashboard)/dashboard/grn/[id]/page.tsx", maxLines: 120, docType: "grn" },
 ];
 
 const EXTRACTED_COMPONENTS = [
@@ -31,6 +34,9 @@ const EXTRACTED_COMPONENTS = [
   "components/document/cc-comparison-view.tsx",
   "components/document/document-lineage-bar.tsx",
   "components/document/status-badge.tsx",
+  "components/document/field-renderers/quote-list.tsx",
+  "components/document/field-renderers/photo-grid.tsx",
+  "components/document/add-quote-modal.tsx",
 ];
 
 const CONTRACTS = [
@@ -38,6 +44,7 @@ const CONTRACTS = [
   "contracts/cost_comparison.json",
   "contracts/purchase_order.json",
   "contracts/delivery_challan.json",
+  "contracts/rfq.json",
 ];
 
 function logSection(title) {

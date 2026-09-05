@@ -256,6 +256,41 @@ describe("🔴 GATE 2 — Role-by-State Available Actions Matrix", () => {
     });
   });
 
+  describe("RFQ Action Matrix", () => {
+    const creatorId = "user_procurement_1";
+
+    it("evaluates actions in 'draft' status (issue action)", () => {
+      const doc = { _id: "rfq_1", status: "draft", createdBy: creatorId };
+
+      // Procurement officer and Admin can issue RFQ
+      const poRes = computeAvailableActions("rfq", doc, { _id: creatorId, role: "procurement_officer" });
+      const issueAction = poRes.actions.find((a) => a.name === "issue");
+      expect(issueAction?.enabled).toBe(true);
+
+      // Site supervisor cannot issue RFQ
+      const supRes = computeAvailableActions("rfq", doc, { _id: "user_sup_1", role: "site_supervisor" });
+      expect(supRes.actions.find((a) => a.name === "issue")?.enabled).toBe(false);
+    });
+
+    it("evaluates actions in 'open' status (close & archive actions)", () => {
+      const doc = { _id: "rfq_1", status: "open", createdBy: creatorId };
+
+      const poRes = computeAvailableActions("rfq", doc, { _id: creatorId, role: "procurement_officer" });
+      expect(poRes.actions.find((a) => a.name === "close")?.enabled).toBe(true);
+
+      const pmRes = computeAvailableActions("rfq", doc, { _id: "user_pm_1", role: "project_manager" });
+      expect(pmRes.actions.find((a) => a.name === "archive")?.enabled).toBe(true);
+    });
+
+    it("guarantees zero available actions in terminal RFQ state ('archived')", () => {
+      const doc = { _id: "rfq_1", status: "archived" };
+      for (const role of ALL_ROLES) {
+        const res = computeAvailableActions("rfq", doc, { _id: "u1", role });
+        expect(res.actions).toHaveLength(0);
+      }
+    });
+  });
+
   describe("Guard Registry & Fail-Closed Validation", () => {
     it("throws when evaluateGuard is called with an unregistered guard", () => {
       expect(() =>

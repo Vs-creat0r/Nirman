@@ -18,8 +18,8 @@ import { readFileSync, readdirSync } from "fs";
 import { join, extname } from "path";
 
 const BASELINES = {
-  filesOver500Lines: 14,        // locked: PO detail collapsed from 716 -> 163 (14 files > 500 lines)
-  anyUsages: 105,               // locked: 101 achieved (+4 headroom)
+  filesOver500Lines: 14,        // locked: Stage 5 target (<= 14 files > 500 lines)
+  anyUsages: 102,               // locked: 98 achieved (+4 headroom)
   filesWithHardcodedColors: 0,  // locked: 0 files with hardcoded status colors
   filesWithRelativeImports: 0,  // locked: 0 files with relative imports
   consoleCallsInConvex: 0,      // locked: 0 console calls in convex/

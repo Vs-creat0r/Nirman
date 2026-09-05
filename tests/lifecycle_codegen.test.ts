@@ -30,11 +30,16 @@ import {
   DELIVERY_CHALLAN_STATES,
   DELIVERY_CHALLAN_TRANSITIONS,
 } from "@/convex/lifecycle/delivery_challan";
+import {
+  RFQ_INITIAL_STATE,
+  RFQ_STATES,
+  RFQ_TRANSITIONS,
+} from "@/convex/lifecycle/rfq";
 
 /**
  * Hardcoded Ground-Truth Policy Baseline for Lifecycle Actions.
  *
- * This literal represents the immutable expectation for all 4 state machines.
+ * This literal represents the immutable expectation for all state machines.
  * Any drift between contracts and this policy fails the gate.
  */
 const EXPECTED_LIFECYCLE_POLICY: Record<string, readonly string[]> = {
@@ -51,6 +56,8 @@ const EXPECTED_LIFECYCLE_POLICY: Record<string, readonly string[]> = {
   "material_requests:reject": ["project_manager", "admin"],
   "material_requests:query": ["project_manager", "admin"],
   "material_requests:resubmit": ["site_supervisor", "project_manager", "admin"],
+  "material_requests:send_to_rfq": ["project_manager", "procurement_officer", "admin"],
+  "material_requests:send_to_cc": ["project_manager", "procurement_officer", "admin"],
   "material_requests:review_on_cc": ["procurement_officer", "project_manager", "admin"],
   "material_requests:advance_on_cc_approval": ["project_manager", "admin"],
   "material_requests:reset_on_cc_reject": ["project_manager", "admin"],
@@ -76,6 +83,11 @@ const EXPECTED_LIFECYCLE_POLICY: Record<string, readonly string[]> = {
   "delivery_challans:dispatch": ["procurement_officer", "project_manager", "admin"],
   "delivery_challans:deliver": ["site_supervisor", "procurement_officer", "admin"],
   "delivery_challans:cancel": ["procurement_officer", "project_manager", "admin"],
+
+  // Request for Quotations
+  "rfqs:issue": ["procurement_officer", "admin"],
+  "rfqs:close": ["procurement_officer", "admin"],
+  "rfqs:archive": ["project_manager", "admin"],
 };
 
 describe("S3-01 / S3-05 · Lifecycle Codegen & Permission Drift", () => {
@@ -317,6 +329,62 @@ describe("S3-01 / S3-05 · Lifecycle Codegen & Permission Drift", () => {
         expect(
           reachable.has(state),
           `State "${state}" in delivery_challan is unreachable from initial state "${DELIVERY_CHALLAN_INITIAL_STATE}"!`
+        ).toBe(true);
+      }
+    });
+  });
+
+  describe("RFQ Lifecycle State Machine Integrity", () => {
+    it("has a valid initial state that exists in declared states", () => {
+      expect(RFQ_STATES).toHaveProperty(RFQ_INITIAL_STATE);
+    });
+
+    it("ensures every non-terminal state has at least one outgoing transition", () => {
+      const nonTerminalStates = Object.entries(RFQ_STATES)
+        .filter(([_, def]) => !def.terminal)
+        .map(([sName]) => sName);
+
+      for (const state of nonTerminalStates) {
+        const hasExit = RFQ_TRANSITIONS.some((t) =>
+          (t.from as readonly string[]).includes(state)
+        );
+        expect(
+          hasExit,
+          `State "${state}" is non-terminal but has no outgoing transition!`
+        ).toBe(true);
+      }
+    });
+
+    it("ensures every transition references declared states and valid roles", () => {
+      const declaredStates = new Set(Object.keys(RFQ_STATES));
+      for (const t of RFQ_TRANSITIONS) {
+        expect(declaredStates.has(t.to)).toBe(true);
+        for (const f of t.from) {
+          expect(declaredStates.has(f)).toBe(true);
+        }
+        expect(t.roles.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("validates BFS reachability from initial state to all RFQ states", () => {
+      const reachable = new Set<string>([RFQ_INITIAL_STATE]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const t of RFQ_TRANSITIONS) {
+          const fromReachable = t.from.some((f) => reachable.has(f));
+          if (fromReachable && !reachable.has(t.to)) {
+            reachable.add(t.to);
+            changed = true;
+          }
+        }
+      }
+
+      const allStates = Object.keys(RFQ_STATES);
+      for (const state of allStates) {
+        expect(
+          reachable.has(state),
+          `State "${state}" in rfq is unreachable from initial state "${RFQ_INITIAL_STATE}"!`
         ).toBe(true);
       }
     });
