@@ -68,13 +68,15 @@ Project Manager has the highest authority. They can approve, reject, or directly
 - Overview cards: Pending Approvals, Deliveries In Progress.
 - Real-time feed of all recent activity across all sites.
 
-### 3.2 Approve / Reject Material Request
+### 3.2 Approve / Reject Material Request & Path-1 Routing
 ```
 Dashboard → Pending Requests list
   → Click Request → Request Detail View
-      ├── [Approve] → Status: ready_for_cc (or Procurement Officer clicks "Create CC")
+      ├── [Approve] → Status: ready_for_cc (Approved)
+      │     ├── [Send to RFQ] → Status: routed_to_rfq (Pre-fills RFQ with MR items & project)
+      │     └── [Send to CC]  → Status: routed_to_cc (Directly open CC form with min 2 quotes)
       ├── [Reject]  → Modal: Enter rejection reason → Status: rejected
-      └── [Query] → Modal: Enter query notes → Status: queried (back to Site Supervisor)
+      └── [Query]   → Modal: Enter query notes → Status: queried (back to Site Supervisor)
 ```
 
 ### 3.3 Direct Document Creation (Manager Privilege)
@@ -82,7 +84,7 @@ Dashboard → Pending Requests list
 Manager Dashboard → "Create New" Dropdown
   → Select document type: [RFQ | PO | CC | DC]
   → Universal Document Form (adapts fields per type)
-  → Submit → IMMEDIATELY finalized (no approval step needed)
+  → Submit → Finalized/Issued
 ```
 
 ### 3.4 Review Cost Comparison
@@ -111,41 +113,48 @@ Procurement Officer handles all the purchasing mechanics. They operate as an exe
 - Pipeline view: counts at each stage (RFQ, CC review, PO review, Pending PO, Delivery).
 - Action queues: items requiring attention at each stage.
 
-### 4.2 Path 1: Send to Procurement (from Project Item List)
+### 4.2 RFQ & Quote Ledger Flow
 ```
-Projects → Select Project → Item List (Tender/BOQ)
-  → Select one or more items (checkbox on hover)
-  → Click "Send to Procurement"
-      ├── [RFQ]            → Item details auto-filled into new RFQ → Saved to RFQ page
-      ├── [Purchase Order] → Select vendor → Item details auto-filled into new PO → Saved to PO page
-      └── [Delivery]       → Item details auto-filled into new DC → Saved to Delivery page
+Step 1 — Create / Draft RFQ:
+  → Raised standalone or pre-filled from approved MR (?fromMr=<id>)
+  → Status: draft → [issue] → open
+  → Share with invited vendors via WhatsApp / Email
+
+Step 2 — Record Vendor Quotations:
+  → As vendors quote, Procurement Officer records immutable quote rows in rfq_quotes
+  → Corrections supersede prior quotes with full audit trail
+  → Status: open → [close] → closed
+
+Step 3 — Seed Cost Comparison from RFQ:
+  → Closed RFQ unlocks "Create Cost Comparison"
+  → Line-item vendor quotes snapshot into CC comparison table automatically
+  → Status on MR: routed_to_rfq → review_cc
 ```
 
-### 4.3 Path 2: Default Flow (RFQ → CC → PO → DC)
+### 4.3 Default Downstream Flow (CC → PO → DC → GRN)
 ```
-Step 1 — Create RFQ:
-RFQ page → Select approved request items
-  → Universal Document Form (type: RFQ)
-  → Send to vendor via WhatsApp / Email button (redirects to WhatsApp with pre-filled message)
-  → After quotes received, click "Create CC" on RFQ list
-
-Step 2 — Create CC:
+Step 1 — Create CC:
   → Universal Document Form (type: COST_COMPARISON)
-  → Vendor quotes are auto-filled from RFQ; add/edit price, tax, delivery terms
+  → Vendor quotes are auto-filled from RFQ or entered manually; add/edit price, tax, delivery terms
   → Minimum 2 vendor quotes required
   → Submit → Status: review_cc (Manager review pending)
 
-Step 3 — Create PO (after CC approved):
+Step 2 — Create PO (after CC approved):
   → Universal Document Form (type: PURCHASE_ORDER)
   → Vendor info and item details auto-filled from approved CC
   → PDF auto-generated on creation
   → Submit → Status: review_po (Manager review pending)
 
-Step 4 — Create Delivery Challan (after PO approved):
+Step 3 — Create Delivery Challan (after PO approved):
   → Universal Document Form (type: DELIVERY_CHALLAN)
   → Fields: Vehicle number, Driver name, Items dispatched (can be partial qty), Expected arrival
   → Submit → Status: delivery_processing (Site sees "Out for Delivery")
   → If partial qty → Remaining qty stays in Pending Purchase Orders
+
+Step 4 — Verify Receipt & Goods Receipt Note (GRN):
+  → Site Supervisor confirms arrival and uploads unloading proof photos
+  → System generates immutable GRN and posts inventory stock movement
+  → Status: delivered
 ```
 
 ### 4.4 Vendor Management

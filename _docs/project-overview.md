@@ -67,7 +67,8 @@ The system acts as the **central nervous system** between:
 |---|---|
 | Material Request | Site Supervisor creates requests for site materials |
 | Manager Approval | Project Manager approves/rejects material requests |
-| Cost Comparison (CC) | Procurement Officer gets vendor quotes, Manager selects vendor |
+| RFQ (Request for Quotation) | Procurement Officer/Manager issues RFQs, invites vendors, collects quote ledger |
+| Cost Comparison (CC) | Procurement Officer compares vendor quotes, Manager selects vendor |
 | Purchase Order (PO) | Procurement Officer issues formal purchase order to vendor |
 | Delivery Challan (DC) | Tracks dispatch and delivery of purchased goods |
 | GRN (Goods Receipt Note) | Site confirms receipt; closes the request loop |
@@ -77,7 +78,6 @@ The system acts as the **central nervous system** between:
 | Module | Description |
 |---|---|
 | Inventory Management | Track on-site and warehouse stock levels post-delivery |
-| RFQ (Request for Quotation) | When the user clicks the Request for Quotation - send button, chose mail or whatsapp if choose icon; they are redirected to WhatsApp, which opens the vendor’s number and a pre‑filled message. No API key is required; the user can send the message manually. First redirect to WhatsApp, then handle the remaining steps. will do all other things.  |
 
 ### Phase 3 — Project Intelligence (Future)
 | Module | Description |
