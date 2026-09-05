@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@/lib/env";
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider";
 import "./globals.css";
 
