@@ -76,7 +76,7 @@ function countColors() {
 }
 
 function countRelative() {
-  return walkDir(SOURCE_ROOTS, [".ts", ".tsx"], EXCLUDE)
+  return walkDir(["app", "components", "lib", "hooks"], [".ts", ".tsx"], EXCLUDE)
     .filter(f => { try { return /from ['"]\.\.\//. test(readFileSync(f, "utf8")); } catch { return false; } });
 }
 

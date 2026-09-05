@@ -479,7 +479,7 @@ for (const c of lifecycleContracts) {
 }
 
 const permissionsGeneratedTs = `${BANNER}
-import type { UserRole } from "@/convex/permissions";
+import type { UserRole } from "../permissions";
 
 export const GENERATED_LIFECYCLE_PERMISSIONS = {
 ${lifecyclePermissionEntries.join("\n")}

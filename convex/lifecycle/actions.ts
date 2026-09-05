@@ -8,11 +8,11 @@
  * Designed for both UI button rendering (Day 4) and autonomous AI agent consumption (Stage 6).
  */
 
-import { query } from "@/convex/_generated/server";
+import { query } from "../_generated/server";
 import { v } from "convex/values";
-import { Id, TableNames } from "@/convex/_generated/dataModel";
-import { UserRole } from "@/convex/permissions";
-import { resolveCallerScope, assertDocumentAccess } from "@/convex/scoping";
+import { Id, TableNames } from "../_generated/dataModel";
+import { UserRole } from "../permissions";
+import { resolveCallerScope, assertDocumentAccess } from "../scoping";
 import { LIFECYCLE_REGISTRY, LifecycleTable, TransitionDef } from "./index";
 import { evaluateGuard } from "./guards";
 

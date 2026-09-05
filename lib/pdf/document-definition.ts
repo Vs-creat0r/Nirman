@@ -199,7 +199,7 @@ export function buildDocumentDefinition(data: PdfDocumentData): TDocumentDefinit
   } else if (data.vendors && data.vendors.length > 0) {
     const vendorsListStack: Content[] = [
       { text: "INVITED VENDORS", style: "sectionHeading" },
-      ...data.vendors.map((v, idx) => ({
+      ...data.vendors.map((v: { name: string; gstin?: string }, idx: number) => ({
         text: `${idx + 1}. ${v.name}${v.gstin ? ` (GST: ${v.gstin})` : ""}`,
         fontSize: 8.5,
         margin: [0, 1, 0, 1] as Margins,

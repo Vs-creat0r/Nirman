@@ -8,12 +8,12 @@
 
 "use node";
 
-import { action } from "@/convex/_generated/server";
-import { internal } from "@/convex/_generated/api";
+import { action } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { PDF_VFS, PDF_FONTS } from "@/lib/pdf/fonts";
-import { buildDocumentDefinition } from "@/lib/pdf/document-definition";
-import type { PdfDocumentData } from "@/convex/pdf_data";
+import { PDF_VFS, PDF_FONTS } from "../lib/pdf/fonts";
+import { buildDocumentDefinition } from "../lib/pdf/document-definition";
+import type { PdfDocumentData } from "./pdf_data";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfmake = require("pdfmake");

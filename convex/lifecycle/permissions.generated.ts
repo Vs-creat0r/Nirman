@@ -1,7 +1,7 @@
 // GENERATED FILE — do not edit.
 // Source: contracts/*.json  ·  Regenerate: node scripts/generate-from-contracts.mjs
 
-import type { UserRole } from "@/convex/permissions";
+import type { UserRole } from "../permissions";
 
 export const GENERATED_LIFECYCLE_PERMISSIONS = {
   "cost_comparisons:submit": ["procurement_officer", "project_manager", "admin"] as const,

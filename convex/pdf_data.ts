@@ -5,10 +5,10 @@
  * checks via resolveCallerScope and assertDocumentAccess across all 6 document types.
  */
 
-import { internalQuery } from "@/convex/_generated/server";
+import { internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { Id, TableNames } from "@/convex/_generated/dataModel";
-import { resolveCallerScope, assertDocumentAccess } from "@/convex/scoping";
+import { Id, TableNames } from "./_generated/dataModel";
+import { resolveCallerScope, assertDocumentAccess } from "./scoping";
 
 export type PdfDocType =
   | "material_request"

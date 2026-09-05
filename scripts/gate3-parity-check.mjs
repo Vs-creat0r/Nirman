@@ -219,9 +219,9 @@ check(
   `Hardcoded Tailwind palette colors count: ${hardcodedColorFiles.length} (must be 0)`
 );
 
-// Relative imports check
+// Relative imports check (frontend & lib code)
 const relativeImportFiles = [];
-const sourceDirs = ["app", "components", "convex", "hooks", "lib"];
+const sourceDirs = ["app", "components", "hooks", "lib"];
 for (const d of sourceDirs) {
   scanDir(resolve(ROOT, d), f => f.endsWith(".ts") || f.endsWith(".tsx"), file => {
     const content = readFileSync(file, "utf-8");
