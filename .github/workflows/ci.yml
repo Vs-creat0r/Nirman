@@ -30,8 +30,17 @@ jobs:
       - name: Metric ratchet
         run: npm run check:metrics
 
+      # Gate 3 contract-to-UI parity & zero regression invariants
+      - name: Gate 3 parity & invariants
+        run: npm run check:gate3
+
+      # Path-1 multi-route E2E regression check
+      - name: Path-1 E2E regression
+        run: node scripts/gate3-path1-e2e.mjs
+
       - name: Typecheck
         run: npx tsc --noEmit
 
       - name: Tests
         run: npm test
+
