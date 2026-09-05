@@ -265,5 +265,26 @@ Every document status change — whether user-initiated or cascade — routes th
 
 ---
 
-*Last Updated: Stage 1 / Sprint 2 hardening (2026-08-31). Scoping and accounting models added.*
+## Environments & Production Architecture
+
+> **Added in Stage 5.5.** Details the multi-tier deployment environment separation and runtime security model.
+
+### Multi-Tier Architecture
+
+| Environment | Purpose | Convex Backend | Next.js / Vercel Frontend | Secrets & Config |
+|---|---|---|---|---|
+| **Development** | Local iteration & testing | Dev Deployment (`dev:...` isolate) | Localhost (`http://localhost:3000`) | `.env.local` |
+| **Preview** | Pull Request checks & staging | Preview Deployment / Dedicated Dev | Vercel Preview Deployments | Vercel Preview Project Variables |
+| **Production** | Live construction operations | Production Deployment (`prod:...` isolate) | Vercel Production (`nirman-erp.com` / custom domain) | Vercel Production Project Variables + Convex Dashboard Secrets |
+
+### Security Model & Runtime Guards
+- **Fail-Fast Environment Validation (`lib/env.ts`)**: Validates `NEXT_PUBLIC_CONVEX_URL` and required URLs on both client and server at startup.
+- **Node Action Authentication (`convex/auth.ts`)**: Login is isolated to a Convex Action using CSPRNG 256-bit session tokens (`crypto.getRandomValues`) and PBKDF2/scrypt password hashing with constant-time equality checks.
+- **Atomic Session Persistence & Lazy Migration**: Upgrades legacy plaintext credentials to salted PBKDF2 hashes upon successful authentication.
+- **Zero Raw Mutations**: All document mutations enforce `resolveCallerScope` RBAC and route through state machine transitions.
+
+---
+
+*Last Updated: Stage 5.5 Production Environment & Readiness (2026-09-05).*
 *This document is the source of truth for project scope decisions.*
+
