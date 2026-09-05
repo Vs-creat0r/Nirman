@@ -22,11 +22,17 @@ import {
   PURCHASE_ORDER_STATES,
   PURCHASE_ORDER_TRANSITIONS,
 } from "./purchase_order";
+import {
+  RFQ_INITIAL_STATE,
+  RFQ_STATES,
+  RFQ_TRANSITIONS,
+} from "./rfq";
 
 export * from "./cost_comparison";
 export * from "./delivery_challan";
 export * from "./material_request";
 export * from "./purchase_order";
+export * from "./rfq";
 export * from "./permissions.generated";
 
 export const LIFECYCLE_REGISTRY = {
@@ -49,6 +55,11 @@ export const LIFECYCLE_REGISTRY = {
     initial: PURCHASE_ORDER_INITIAL_STATE,
     states: PURCHASE_ORDER_STATES,
     transitions: PURCHASE_ORDER_TRANSITIONS,
+  },
+  rfq: {
+    initial: RFQ_INITIAL_STATE,
+    states: RFQ_STATES,
+    transitions: RFQ_TRANSITIONS,
   },
 } as const;
 

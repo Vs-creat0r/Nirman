@@ -5,21 +5,22 @@ import { z } from "zod";
 
 /** Request for Quotation — editable form fields only. Read-only and generated fields are excluded. */
 export const rfqSchema = z.object({
-  materialRequestId: z.string().min(1, "Material request is required").optional(),
-  projectItemIds: z.array(z.string()).optional(),
-  vendorIds: z.array(z.string()).min(1, "Add at least 1 vendors"),
-  items: z.array(z.object({
+  projectId: z.string().min(1, "Project is required"),
+  siteId: z.string().min(1, "Site is required").optional(),
+  vendorIds: z.array(z.string()).min(1, "Add at least 1 invited vendors"),
+  requestedItems: z.array(z.object({
       itemName: z.string().min(1, "Item is required").max(180, "Item is too long"),
+      category: z.string().optional(),
       quantity: z.coerce.number().min(0.001, "Qty must be at least 0.001"),
       unit: z.enum(["bags", "MT", "kg", "nos", "cum", "brass", "sqm", "ltr", "rmt"]),
-      remarks: z.string().max(300, "Remarks is too long").optional(),
-    })).min(1, "Add at least 1 items"),
+      description: z.string().max(300, "Description / Specs is too long").optional(),
+    })).min(1, "Add at least 1 requested items"),
+  dueDate: z.string().min(1, "Quotes Due Date is required").optional(),
   sentVia: z.enum(["whatsapp", "email", "manual"]).optional(),
-  responseByDate: z.string().min(1, "Quotes needed by is required").optional(),
-  notes: z.string().max(1000, "Notes is too long").optional(),
+  notes: z.string().max(1000, "Notes / Instructions is too long").optional(),
 });
 
 export type RfqInput = z.infer<typeof rfqSchema>;
 
-export const rfqStatuses = ["draft", "submitted", "queried", "rejected", "approved"] as const;
+export const rfqStatuses = ["draft", "open", "closed", "archived"] as const;
 export type RfqStatus = (typeof rfqStatuses)[number];

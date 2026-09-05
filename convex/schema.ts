@@ -171,7 +171,7 @@ export default defineSchema({
     priority: v.union(v.literal("low"), v.literal("normal"), v.literal("high"), v.literal("urgent")),
     requiredBy: v.optional(v.string()),
     notes: v.optional(v.string()),
-    status: v.union(v.literal("draft"), v.literal("pending"), v.literal("queried"), v.literal("rejected"), v.literal("ready_for_cc"), v.literal("review_cc"), v.literal("ready_for_po"), v.literal("review_po"), v.literal("pending_po"), v.literal("delivery_processing"), v.literal("delivered")),
+    status: v.union(v.literal("draft"), v.literal("pending"), v.literal("queried"), v.literal("rejected"), v.literal("ready_for_cc"), v.literal("routed_to_rfq"), v.literal("routed_to_cc"), v.literal("review_cc"), v.literal("ready_for_po"), v.literal("review_po"), v.literal("pending_po"), v.literal("delivery_processing"), v.literal("delivered")),
     createdBy: v.id("users"),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.string()),
@@ -274,33 +274,63 @@ export default defineSchema({
     .index("by_siteId_status", ["siteId", "status"])
     .index("by_costComparisonId", ["costComparisonId"]),
 
-  // Request for Quotation — Sent to vendors to collect quotes. DEFERRED TO SPRINT 2 — contract defined now so the schema is stable.
+  // Request for Quotation — Sent to vendors to collect material price quotes prior to Cost Comparison.
   rfq: defineTable({
     refNo: v.string(),
-    materialRequestId: v.optional(v.id("material_request")),
-    projectItemIds: v.optional(v.array(v.id("project_items"))),
+    projectId: v.id("projects"),
+    siteId: v.optional(v.id("sites")),
+    sourceMrId: v.optional(v.id("material_request")),
     vendorIds: v.array(v.id("vendors")),
-    items: v.array(
+    requestedItems: v.array(
       v.object({
         itemName: v.string(),
+        category: v.optional(v.string()),
         quantity: v.number(),
         unit: v.string(),
         projectItemId: v.optional(v.id("project_items")),
-        remarks: v.optional(v.string()),
+        description: v.optional(v.string()),
       })
     ),
+    dueDate: v.optional(v.string()),
     sentVia: v.optional(v.union(v.literal("whatsapp"), v.literal("email"), v.literal("manual"))),
     sentAt: v.optional(v.string()),
-    responseByDate: v.optional(v.string()),
     notes: v.optional(v.string()),
-    status: v.union(v.literal("draft"), v.literal("submitted"), v.literal("queried"), v.literal("rejected"), v.literal("approved")),
+    status: v.union(v.literal("draft"), v.literal("open"), v.literal("closed"), v.literal("archived")),
     createdBy: v.id("users"),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.optional(v.string()),
   })
     .index("by_refNo", ["refNo"])
     .index("by_status", ["status"])
-    .index("by_materialRequestId", ["materialRequestId"]),
+    .index("by_projectId_status", ["projectId", "status"])
+    .index("by_projectId", ["projectId"])
+    .index("by_sourceMrId", ["sourceMrId"]),
+
+  // RFQ Quotes — Immutable line-item quotes submitted by vendors for an RFQ.
+  rfq_quotes: defineTable({
+    rfqId: v.id("rfq"),
+    vendorId: v.id("vendors"),
+    itemId: v.optional(v.string()),
+    projectItemId: v.optional(v.id("project_items")),
+    itemName: v.string(),
+    category: v.optional(v.string()),
+    unit: v.string(),
+    quantity: v.number(),
+    rate: v.number(),
+    taxRate: v.optional(v.number()),
+    total: v.number(),
+    validityDate: v.optional(v.string()),
+    quoteFileId: v.optional(v.id("_storage")),
+    notes: v.optional(v.string()),
+    supersededBy: v.optional(v.id("rfq_quotes")),
+    createdBy: v.id("users"),
+    updatedBy: v.optional(v.id("users")),
+    updatedAt: v.optional(v.string()),
+  })
+    .index("by_rfqId_vendorId", ["rfqId", "vendorId"])
+    .index("by_vendorId", ["vendorId"])
+    .index("by_itemName", ["itemName"])
+    .index("by_rfqId", ["rfqId"]),
 
   // Session — User sessions for native auth.
   sessions: defineTable({

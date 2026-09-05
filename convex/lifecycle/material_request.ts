@@ -3,7 +3,7 @@
 
 import type { CascadeRule, TransitionDef } from "./types";
 
-export type MaterialRequestState = "draft" | "pending" | "queried" | "rejected" | "ready_for_cc" | "review_cc" | "ready_for_po" | "review_po" | "pending_po" | "delivery_processing" | "delivered";
+export type MaterialRequestState = "draft" | "pending" | "queried" | "rejected" | "ready_for_cc" | "routed_to_rfq" | "routed_to_cc" | "review_cc" | "ready_for_po" | "review_po" | "pending_po" | "delivery_processing" | "delivered";
 
 export const MATERIAL_REQUEST_INITIAL_STATE: MaterialRequestState = "draft";
 
@@ -12,7 +12,9 @@ export const MATERIAL_REQUEST_STATES = {
   pending: { kind: "locked", owner: "none", terminal: false, badge: { label: "Pending", variant: "default" } },
   queried: { kind: "editable", owner: "creator", terminal: false, badge: { label: "Queried", variant: "destructive" } },
   rejected: { kind: "closed", owner: "none", terminal: true, badge: { label: "Rejected", variant: "destructive" } },
-  ready_for_cc: { kind: "locked", owner: "none", terminal: false, badge: { label: "Ready for CC", variant: "default" } },
+  ready_for_cc: { kind: "locked", owner: "none", terminal: false, badge: { label: "Approved / Ready for CC", variant: "default" } },
+  routed_to_rfq: { kind: "locked", owner: "none", terminal: false, badge: { label: "Routed to RFQ", variant: "default" } },
+  routed_to_cc: { kind: "locked", owner: "none", terminal: false, badge: { label: "Routed to CC", variant: "default" } },
   review_cc: { kind: "locked", owner: "none", terminal: false, badge: { label: "Review CC", variant: "default" } },
   ready_for_po: { kind: "locked", owner: "none", terminal: false, badge: { label: "Ready for PO", variant: "default" } },
   review_po: { kind: "locked", owner: "none", terminal: false, badge: { label: "Review PO", variant: "default" } },
@@ -21,13 +23,13 @@ export const MATERIAL_REQUEST_STATES = {
   delivered: { kind: "closed", owner: "none", terminal: true, badge: { label: "Delivered", variant: "default" } },
 } as const;
 
-export const MATERIAL_REQUEST_OPEN_STATES: readonly MaterialRequestState[] = ["draft", "pending", "queried", "ready_for_cc", "review_cc", "ready_for_po", "review_po", "pending_po", "delivery_processing"] as const;
+export const MATERIAL_REQUEST_OPEN_STATES: readonly MaterialRequestState[] = ["draft", "pending", "queried", "ready_for_cc", "routed_to_rfq", "routed_to_cc", "review_cc", "ready_for_po", "review_po", "pending_po", "delivery_processing"] as const;
 
 export const MATERIAL_REQUEST_CLOSED_STATES: readonly MaterialRequestState[] = ["rejected", "delivered"] as const;
 
 export const MATERIAL_REQUEST_EDITABLE_STATES: readonly MaterialRequestState[] = ["draft", "queried"] as const;
 
-export const MATERIAL_REQUEST_LOCKED_STATES: readonly MaterialRequestState[] = ["pending", "ready_for_cc", "review_cc", "ready_for_po", "review_po", "pending_po"] as const;
+export const MATERIAL_REQUEST_LOCKED_STATES: readonly MaterialRequestState[] = ["pending", "ready_for_cc", "routed_to_rfq", "routed_to_cc", "review_cc", "ready_for_po", "review_po", "pending_po"] as const;
 
 export const MATERIAL_REQUEST_TRANSITIONS = [
   {
@@ -75,9 +77,23 @@ export const MATERIAL_REQUEST_TRANSITIONS = [
     guards: ["hasAtLeastOneItem"] as const,
   },
   {
+    name: "send_to_rfq",
+    label: "Send to RFQ",
+    from: ["ready_for_cc"] as const,
+    to: "routed_to_rfq",
+    roles: ["project_manager", "procurement_officer", "admin"] as const,
+  },
+  {
+    name: "send_to_cc",
+    label: "Send to CC",
+    from: ["ready_for_cc"] as const,
+    to: "routed_to_cc",
+    roles: ["project_manager", "procurement_officer", "admin"] as const,
+  },
+  {
     name: "review_on_cc",
     label: "Move to CC Review",
-    from: ["ready_for_cc", "review_cc"] as const,
+    from: ["ready_for_cc", "routed_to_rfq", "routed_to_cc", "review_cc"] as const,
     to: "review_cc",
     roles: ["procurement_officer", "project_manager", "admin"] as const,
   },

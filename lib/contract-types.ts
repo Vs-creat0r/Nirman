@@ -4,9 +4,9 @@
 export const ROLES = ["admin", "project_manager", "procurement_officer", "site_supervisor"] as const;
 export type Role = (typeof ROLES)[number];
 
-export const CONTRACT_TABLES = ["cost_comparison", "delivery_challan", "grn", "inventory", "logs", "material_request", "project_items", "projects", "purchase_order", "rfq", "sessions", "settings", "sites", "stock_movements", "tc_templates", "users", "vendors"] as const;
+export const CONTRACT_TABLES = ["cost_comparison", "delivery_challan", "grn", "inventory", "logs", "material_request", "project_items", "projects", "purchase_order", "rfq", "rfq_quotes", "sessions", "settings", "sites", "stock_movements", "tc_templates", "users", "vendors"] as const;
 export type ContractTable = (typeof CONTRACT_TABLES)[number];
 
 /** Every status any document can hold, union of all contracts. */
-export const ALL_STATUSES = ["draft", "submitted", "queried", "rejected", "approved", "delivery_processing", "delivered", "cancelled", "pending", "ready_for_cc", "review_cc", "ready_for_po", "review_po", "pending_po", "closed"] as const;
+export const ALL_STATUSES = ["draft", "submitted", "queried", "rejected", "approved", "delivery_processing", "delivered", "cancelled", "pending", "ready_for_cc", "routed_to_rfq", "routed_to_cc", "review_cc", "ready_for_po", "review_po", "pending_po", "closed", "open", "archived"] as const;
 export type AnyStatus = (typeof ALL_STATUSES)[number];

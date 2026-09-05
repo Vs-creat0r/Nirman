@@ -3,7 +3,7 @@
   "name": "rfq",
   "label": "Request for Quotation",
   "version": "1.0.0",
-  "description": "Sent to vendors to collect quotes. DEFERRED TO SPRINT 2 — contract defined now so the schema is stable.",
+  "description": "Sent to vendors to collect material price quotes prior to Cost Comparison.",
   "fields": [
     {
       "field": "refNo",
@@ -13,28 +13,40 @@
       "required": true
     },
     {
-      "field": "materialRequestId",
-      "label": "Material request",
+      "field": "projectId",
+      "label": "Project",
       "type": "reference",
       "input": "select",
+      "required": true,
+      "relation": {
+        "table": "projects"
+      },
+      "optionsFrom": "projects"
+    },
+    {
+      "field": "siteId",
+      "label": "Site",
+      "type": "reference",
+      "input": "select",
+      "required": false,
+      "relation": {
+        "table": "sites"
+      },
+      "optionsFrom": "sites"
+    },
+    {
+      "field": "sourceMrId",
+      "label": "Source Material Request",
+      "type": "reference",
+      "input": "readonly",
       "required": false,
       "relation": {
         "table": "material_request"
       }
     },
     {
-      "field": "projectItemIds",
-      "label": "BOQ items",
-      "type": "array",
-      "input": "multi-select",
-      "required": false,
-      "relation": {
-        "table": "project_items"
-      }
-    },
-    {
       "field": "vendorIds",
-      "label": "Vendors",
+      "label": "Invited Vendors",
       "type": "array",
       "input": "multi-select",
       "required": true,
@@ -47,8 +59,8 @@
       }
     },
     {
-      "field": "items",
-      "label": "Items",
+      "field": "requestedItems",
+      "label": "Requested Items",
       "type": "array",
       "input": "item-list",
       "required": true,
@@ -59,13 +71,19 @@
             "field": "itemName",
             "label": "Item",
             "type": "string",
-            "input": "autocomplete",
+            "input": "text",
             "required": true,
-            "optionsFrom": "project_items",
             "validation": {
               "minLength": 1,
               "maxLength": 180
             }
+          },
+          {
+            "field": "category",
+            "label": "Category",
+            "type": "string",
+            "input": "text",
+            "required": false
           },
           {
             "field": "quantity",
@@ -99,7 +117,7 @@
           },
           {
             "field": "projectItemId",
-            "label": "BOQ item",
+            "label": "BOQ Item",
             "type": "reference",
             "input": "hidden",
             "required": false,
@@ -108,8 +126,8 @@
             }
           },
           {
-            "field": "remarks",
-            "label": "Remarks",
+            "field": "description",
+            "label": "Description / Specs",
             "type": "string",
             "input": "text",
             "required": false,
@@ -122,6 +140,13 @@
       "validation": {
         "minLength": 1
       }
+    },
+    {
+      "field": "dueDate",
+      "label": "Quotes Due Date",
+      "type": "date",
+      "input": "date",
+      "required": false
     },
     {
       "field": "sentVia",
@@ -145,15 +170,8 @@
       "required": false
     },
     {
-      "field": "responseByDate",
-      "label": "Quotes needed by",
-      "type": "date",
-      "input": "date",
-      "required": false
-    },
-    {
       "field": "notes",
-      "label": "Notes",
+      "label": "Notes / Instructions",
       "type": "text",
       "input": "textarea",
       "required": false,
@@ -170,10 +188,9 @@
       "validation": {
         "enum": [
           "draft",
-          "submitted",
-          "queried",
-          "rejected",
-          "approved"
+          "open",
+          "closed",
+          "archived"
         ]
       },
       "default": "draft"
@@ -181,15 +198,98 @@
   ],
   "statuses": [
     "draft",
-    "submitted",
-    "queried",
-    "rejected",
-    "approved"
+    "open",
+    "closed",
+    "archived"
   ],
+  "lifecycle": {
+    "initial": "draft",
+    "states": {
+      "draft": {
+        "kind": "editable",
+        "owner": "creator",
+        "terminal": false,
+        "badge": {
+          "label": "Draft",
+          "variant": "secondary"
+        }
+      },
+      "open": {
+        "kind": "locked",
+        "owner": "none",
+        "terminal": false,
+        "badge": {
+          "label": "Open",
+          "variant": "default"
+        }
+      },
+      "closed": {
+        "kind": "locked",
+        "owner": "none",
+        "terminal": false,
+        "badge": {
+          "label": "Closed",
+          "variant": "default"
+        }
+      },
+      "archived": {
+        "kind": "closed",
+        "owner": "none",
+        "terminal": true,
+        "badge": {
+          "label": "Archived",
+          "variant": "destructive"
+        }
+      }
+    },
+    "transitions": [
+      {
+        "name": "issue",
+        "label": "Issue RFQ",
+        "from": [
+          "draft"
+        ],
+        "to": "open",
+        "roles": [
+          "procurement_officer",
+          "admin"
+        ],
+        "actor": "creator"
+      },
+      {
+        "name": "close",
+        "label": "Close RFQ",
+        "from": [
+          "open"
+        ],
+        "to": "closed",
+        "roles": [
+          "procurement_officer",
+          "admin"
+        ],
+        "actor": "creator"
+      },
+      {
+        "name": "archive",
+        "label": "Archive RFQ",
+        "from": [
+          "open",
+          "closed"
+        ],
+        "to": "archived",
+        "roles": [
+          "project_manager",
+          "admin"
+        ],
+        "actor": "creator"
+      }
+    ]
+  },
   "relations": {
-    "materialRequestId": "material_request",
-    "vendorIds": "vendors",
-    "projectItemIds": "project_items"
+    "sourceMrId": "material_request",
+    "projectId": "projects",
+    "siteId": "sites",
+    "vendorIds": "vendors"
   },
   "indexes": [
     [
@@ -199,7 +299,14 @@
       "status"
     ],
     [
-      "materialRequestId"
+      "projectId",
+      "status"
+    ],
+    [
+      "projectId"
+    ],
+    [
+      "sourceMrId"
     ]
   ],
   "audit": {

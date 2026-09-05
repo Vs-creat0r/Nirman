@@ -21,5 +21,5 @@ export const material_requestSchema = z.object({
 
 export type MaterialRequestInput = z.infer<typeof material_requestSchema>;
 
-export const material_requestStatuses = ["draft", "pending", "queried", "rejected", "ready_for_cc", "review_cc", "ready_for_po", "review_po", "pending_po", "delivery_processing", "delivered"] as const;
+export const material_requestStatuses = ["draft", "pending", "queried", "rejected", "ready_for_cc", "routed_to_rfq", "routed_to_cc", "review_cc", "ready_for_po", "review_po", "pending_po", "delivery_processing", "delivered"] as const;
 export type MaterialRequestStatus = (typeof material_requestStatuses)[number];

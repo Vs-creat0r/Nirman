@@ -169,6 +169,8 @@
           "queried",
           "rejected",
           "ready_for_cc",
+          "routed_to_rfq",
+          "routed_to_cc",
           "review_cc",
           "ready_for_po",
           "review_po",
@@ -186,6 +188,8 @@
     "queried",
     "rejected",
     "ready_for_cc",
+    "routed_to_rfq",
+    "routed_to_cc",
     "review_cc",
     "ready_for_po",
     "review_po",
@@ -237,7 +241,25 @@
         "owner": "none",
         "terminal": false,
         "badge": {
-          "label": "Ready for CC",
+          "label": "Approved / Ready for CC",
+          "variant": "default"
+        }
+      },
+      "routed_to_rfq": {
+        "kind": "locked",
+        "owner": "none",
+        "terminal": false,
+        "badge": {
+          "label": "Routed to RFQ",
+          "variant": "default"
+        }
+      },
+      "routed_to_cc": {
+        "kind": "locked",
+        "owner": "none",
+        "terminal": false,
+        "badge": {
+          "label": "Routed to CC",
           "variant": "default"
         }
       },
@@ -375,10 +397,38 @@
         ]
       },
       {
+        "name": "send_to_rfq",
+        "label": "Send to RFQ",
+        "from": [
+          "ready_for_cc"
+        ],
+        "to": "routed_to_rfq",
+        "roles": [
+          "project_manager",
+          "procurement_officer",
+          "admin"
+        ]
+      },
+      {
+        "name": "send_to_cc",
+        "label": "Send to CC",
+        "from": [
+          "ready_for_cc"
+        ],
+        "to": "routed_to_cc",
+        "roles": [
+          "project_manager",
+          "procurement_officer",
+          "admin"
+        ]
+      },
+      {
         "name": "review_on_cc",
         "label": "Move to CC Review",
         "from": [
           "ready_for_cc",
+          "routed_to_rfq",
+          "routed_to_cc",
           "review_cc"
         ],
         "to": "review_cc",

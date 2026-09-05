@@ -17,6 +17,8 @@ export const GENERATED_LIFECYCLE_PERMISSIONS = {
   "material_requests:reject": ["project_manager", "admin"] as const,
   "material_requests:query": ["project_manager", "admin"] as const,
   "material_requests:resubmit": ["site_supervisor", "project_manager", "admin"] as const,
+  "material_requests:send_to_rfq": ["project_manager", "procurement_officer", "admin"] as const,
+  "material_requests:send_to_cc": ["project_manager", "procurement_officer", "admin"] as const,
   "material_requests:review_on_cc": ["procurement_officer", "project_manager", "admin"] as const,
   "material_requests:advance_on_cc_approval": ["project_manager", "admin"] as const,
   "material_requests:reset_on_cc_reject": ["project_manager", "admin"] as const,
@@ -35,6 +37,9 @@ export const GENERATED_LIFECYCLE_PERMISSIONS = {
   "purchase_orders:cancel": ["project_manager", "admin"] as const,
   "purchase_orders:close": ["project_manager", "admin"] as const,
   "purchase_orders:close_on_receipt": ["site_supervisor", "procurement_officer", "admin"] as const,
+  "rfqs:issue": ["procurement_officer", "admin"] as const,
+  "rfqs:close": ["procurement_officer", "admin"] as const,
+  "rfqs:archive": ["project_manager", "admin"] as const,
 } as const satisfies Record<string, readonly UserRole[]>;
 
 export type GeneratedLifecycleActionName = keyof typeof GENERATED_LIFECYCLE_PERMISSIONS;

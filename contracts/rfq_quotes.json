@@ -1,0 +1,172 @@
+{
+  "$schema": "contract.v1",
+  "name": "rfq_quotes",
+  "label": "RFQ Quotes",
+  "version": "1.0.0",
+  "description": "Immutable line-item quotes submitted by vendors for an RFQ.",
+  "fields": [
+    {
+      "field": "rfqId",
+      "label": "RFQ",
+      "type": "reference",
+      "input": "hidden",
+      "required": true,
+      "relation": {
+        "table": "rfq"
+      }
+    },
+    {
+      "field": "vendorId",
+      "label": "Vendor",
+      "type": "reference",
+      "input": "select",
+      "required": true,
+      "relation": {
+        "table": "vendors"
+      },
+      "optionsFrom": "vendors"
+    },
+    {
+      "field": "itemId",
+      "label": "Item Identifier",
+      "type": "string",
+      "input": "text",
+      "required": false
+    },
+    {
+      "field": "projectItemId",
+      "label": "BOQ Item",
+      "type": "reference",
+      "input": "hidden",
+      "required": false,
+      "relation": {
+        "table": "project_items"
+      }
+    },
+    {
+      "field": "itemName",
+      "label": "Item Name",
+      "type": "string",
+      "input": "text",
+      "required": true,
+      "validation": {
+        "minLength": 1,
+        "maxLength": 180
+      }
+    },
+    {
+      "field": "category",
+      "label": "Category",
+      "type": "string",
+      "input": "text",
+      "required": false
+    },
+    {
+      "field": "unit",
+      "label": "Unit",
+      "type": "string",
+      "input": "text",
+      "required": true
+    },
+    {
+      "field": "quantity",
+      "label": "Quantity",
+      "type": "number",
+      "input": "number",
+      "required": true,
+      "validation": {
+        "min": 0.001
+      }
+    },
+    {
+      "field": "rate",
+      "label": "Rate",
+      "type": "number",
+      "input": "number",
+      "required": true,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "taxRate",
+      "label": "GST Rate (%)",
+      "type": "number",
+      "input": "number",
+      "required": false,
+      "default": 18
+    },
+    {
+      "field": "total",
+      "label": "Total",
+      "type": "number",
+      "input": "readonly",
+      "required": true,
+      "validation": {
+        "min": 0
+      }
+    },
+    {
+      "field": "validityDate",
+      "label": "Quote Validity Date",
+      "type": "date",
+      "input": "date",
+      "required": false
+    },
+    {
+      "field": "quoteFileId",
+      "label": "Quote Document",
+      "type": "file",
+      "input": "file",
+      "required": false
+    },
+    {
+      "field": "notes",
+      "label": "Notes",
+      "type": "text",
+      "input": "textarea",
+      "required": false,
+      "validation": {
+        "maxLength": 1000
+      }
+    },
+    {
+      "field": "supersededBy",
+      "label": "Superseded By Quote",
+      "type": "reference",
+      "input": "hidden",
+      "required": false,
+      "relation": {
+        "table": "rfq_quotes"
+      }
+    }
+  ],
+  "statuses": [],
+  "relations": {
+    "rfqId": "rfq",
+    "vendorId": "vendors",
+    "projectItemId": "project_items",
+    "supersededBy": "rfq_quotes"
+  },
+  "indexes": [
+    [
+      "rfqId",
+      "vendorId"
+    ],
+    [
+      "vendorId"
+    ],
+    [
+      "itemName"
+    ],
+    [
+      "rfqId"
+    ]
+  ],
+  "audit": {
+    "enabled": true,
+    "trackCreatedBy": true,
+    "trackUpdatedBy": true,
+    "trackUpdatedAt": true
+  }
+}
