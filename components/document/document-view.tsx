@@ -11,11 +11,11 @@ import { DocumentItemsTable } from "@/components/document/document-items-table";
 import { DocumentAuditTrail } from "@/components/document/document-audit-trail";
 import { DocumentFinancialSummary } from "@/components/document/document-financial-summary";
 import { CCComparisonView, type EnrichedVendorQuote } from "@/components/document/cc-comparison-view";
-import {
-  DocumentActionModal,
+import { DocumentActionModal,
   getActionVariant,
   type ActiveModalAction,
 } from "@/components/document/document-action-modal";
+import { DocumentPdfDownload } from "@/components/document/document-pdf-download";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -254,6 +254,7 @@ export function DocumentView({
 
         <div className="flex items-center gap-2 flex-wrap">
           {headerExtras}
+          <DocumentPdfDownload docType={docType} docId={doc._id} refNo={doc.refNo} />
           {editHref && hasEditAction && (
             <Link href={editHref}>
               <Button size="sm" variant="outline" className="gap-1.5 text-xs font-semibold">
