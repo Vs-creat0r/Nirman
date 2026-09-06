@@ -249,7 +249,8 @@ export function ComponentName({ id, mode }: ComponentProps) {
 - ❌ Hardcoded color values anywhere in component files
 - ❌ `console.log` left in production code
 - ❌ Files over 500 lines
-- ❌ Relative imports (`../../`) — use `@/` alias always
+- ❌ Relative imports (`../../`) in frontend/lib (`app/`, `components/`, `lib/`, `hooks/`) — use `@/` alias always. (Note: Inside `convex/`, imports MUST be relative (`./`, `../`) because Convex's esbuild bundler does not resolve `@/`).
+- ❌ `@/` imports inside `convex/` — Convex's bundler fails to resolve `@/`; all imports inside `convex/` must be relative.
 - ❌ Empty catch blocks — always handle errors meaningfully
 - ❌ Magic strings — use typed constants or enums
 

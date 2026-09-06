@@ -14,8 +14,13 @@ Convex agent skills for common tasks can be installed by running
 
 <!-- convex-ai-end -->
 
+## Import Path Rules
+- **Frontend & Lib** (`app/`, `components/`, `lib/`, `hooks/`): Use `@/` path alias always, never relative imports.
+- **Convex Backend** (`convex/`): Use relative imports only (`./`, `../`). Convex's esbuild bundler does not resolve `@/`. Never use `@/` inside `convex/`.
+
 ## UI & Form Field Rules
 - **Number Inputs**:
   1. Never show up/down stepper spin buttons / arrows.
   2. Never allow mouse wheel scrolling to alter numeric values.
   3. Never allow negative numbers (all values must be >= 0). Blocking negative keydown and clamping `Math.max(0, val)` is mandatory.
+
