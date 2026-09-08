@@ -27,13 +27,13 @@ export const COST_COMPARISON_TRANSITIONS = [
   {
     name: "submit",
     label: "Submit for Review",
-    from: ["draft", "queried"] as const,
+    from: ["draft"] as const,
     to: "submitted",
     roles: ["procurement_officer", "project_manager", "admin"] as const,
     actor: "creator",
     guards: ["hasAtLeastTwoQuotes"] as const,
     cascades: [
-      { table: "material_request", from: ["ready_for_cc", "review_cc"] as const, to: "review_cc" }
+      { table: "material_request", from: ["ready_for_cc", "routed_to_cc", "routed_to_rfq", "review_cc"] as const, to: "review_cc" }
     ] as const,
   },
   {
@@ -45,7 +45,7 @@ export const COST_COMPARISON_TRANSITIONS = [
     actor: "approver",
     guards: ["hasSelectedVendor"] as const,
     cascades: [
-      { table: "material_request", from: ["review_cc"] as const, to: "ready_for_po" }
+      { table: "material_request", from: ["ready_for_cc", "routed_to_cc", "routed_to_rfq", "review_cc"] as const, to: "ready_for_po" }
     ] as const,
   },
   {
@@ -56,7 +56,7 @@ export const COST_COMPARISON_TRANSITIONS = [
     roles: ["project_manager", "admin"] as const,
     actor: "approver",
     cascades: [
-      { table: "material_request", from: ["review_cc"] as const, to: "ready_for_cc" }
+      { table: "material_request", from: ["ready_for_cc", "routed_to_cc", "routed_to_rfq", "review_cc"] as const, to: "ready_for_cc" }
     ] as const,
     requiresNote: true,
   },
@@ -77,7 +77,7 @@ export const COST_COMPARISON_TRANSITIONS = [
     roles: ["procurement_officer", "project_manager", "admin"] as const,
     actor: "creator",
     cascades: [
-      { table: "material_request", from: ["ready_for_cc", "review_cc"] as const, to: "review_cc" }
+      { table: "material_request", from: ["ready_for_cc", "routed_to_cc", "routed_to_rfq", "review_cc"] as const, to: "review_cc" }
     ] as const,
   },
 ] as const satisfies readonly TransitionDef<CostComparisonState>[];

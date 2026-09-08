@@ -234,7 +234,13 @@ export const createCC = mutation({
     });
 
     // If submitted immediately, update parent MR status to review_cc
-    if (initialStatus === "submitted" && (mr.status === "ready_for_cc" || mr.status === "draft")) {
+    if (
+      initialStatus === "submitted" &&
+      (mr.status === "ready_for_cc" ||
+        mr.status === "routed_to_cc" ||
+        mr.status === "routed_to_rfq" ||
+        mr.status === "draft")
+    ) {
       await transition(ctx, {
         table: "material_request",
         documentId: mr._id,
@@ -261,21 +267,24 @@ export const submitCC = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requirePermission(
-      ctx,
-      "cost_comparisons:submit",
-      args.token
-    );
-
     const cc = await ctx.db.get(args.id);
     if (!cc) throw new Error("Cost comparison not found.");
+
+    const isQueried = cc.status === "queried";
+    await requirePermission(
+      ctx,
+      isQueried ? "cost_comparisons:resubmit" : "cost_comparisons:submit",
+      args.token
+    );
 
     return await transition(ctx, {
       table: "cost_comparison",
       documentId: args.id,
-      transitionName: "submit",
+      transitionName: isQueried ? "resubmit" : "submit",
       token: args.token,
-      note: `Cost Comparison ${cc.refNo} submitted for review`,
+      note: isQueried
+        ? `Cost Comparison ${cc.refNo} resubmitted for manager review`
+        : `Cost Comparison ${cc.refNo} submitted for review`,
     });
   },
 });

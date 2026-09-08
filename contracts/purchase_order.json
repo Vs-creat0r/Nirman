@@ -513,8 +513,7 @@
         "name": "submit",
         "label": "Submit for Approval",
         "from": [
-          "draft",
-          "queried"
+          "draft"
         ],
         "to": "submitted",
         "roles": [

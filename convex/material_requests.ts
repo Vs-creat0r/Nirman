@@ -167,6 +167,15 @@ export const createMR = mutation({
 export const submitMR = mutation({
   args: { id: v.id("material_request"), token: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const mr = await ctx.db.get(args.id);
+    if (!mr) throw new Error("Material request not found.");
+
+    const isQueried = mr.status === "queried";
+    await requirePermission(
+      ctx,
+      isQueried ? "material_requests:resubmit" : "material_requests:submit",
+      args.token
+    );
     const settings = await ctx.db.query("settings").first();
     const requireManagerApproval = settings?.requireManagerApprovalForRequests ?? true;
     const targetStatus = requireManagerApproval ? "pending" : "ready_for_cc";
@@ -174,10 +183,14 @@ export const submitMR = mutation({
     return await transition(ctx, {
       table: "material_request",
       documentId: args.id,
-      transitionName: "submit",
+      transitionName: isQueried ? "resubmit" : "submit",
       to: targetStatus,
       token: args.token,
-      note: !requireManagerApproval ? "Auto-approved on submission (manager approval disabled in settings)" : undefined,
+      note: !requireManagerApproval
+        ? "Auto-approved on submission (manager approval disabled in settings)"
+        : isQueried
+        ? "Resubmitted for approval"
+        : undefined,
     });
   },
 });

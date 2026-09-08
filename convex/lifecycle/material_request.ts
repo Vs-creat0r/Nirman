@@ -35,7 +35,7 @@ export const MATERIAL_REQUEST_TRANSITIONS = [
   {
     name: "submit",
     label: "Submit Request",
-    from: ["draft", "queried"] as const,
+    from: ["draft"] as const,
     to: "pending",
     roles: ["site_supervisor", "project_manager", "admin"] as const,
     actor: "creator",
@@ -70,7 +70,7 @@ export const MATERIAL_REQUEST_TRANSITIONS = [
   {
     name: "resubmit",
     label: "Resubmit Request",
-    from: ["draft", "queried"] as const,
+    from: ["queried"] as const,
     to: "pending",
     roles: ["site_supervisor", "project_manager", "admin"] as const,
     actor: "creator",

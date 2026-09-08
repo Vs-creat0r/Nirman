@@ -254,21 +254,24 @@ export const submitPO = mutation({
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requirePermission(
-      ctx,
-      "purchase_orders:submit",
-      args.token
-    );
-
     const po = await ctx.db.get(args.id);
     if (!po) throw new Error("Purchase Order not found.");
+
+    const isQueried = po.status === "queried";
+    await requirePermission(
+      ctx,
+      isQueried ? "purchase_orders:resubmit" : "purchase_orders:submit",
+      args.token
+    );
 
     return await transition(ctx, {
       table: "purchase_order",
       documentId: args.id,
-      transitionName: "submit",
+      transitionName: isQueried ? "resubmit" : "submit",
       token: args.token,
-      note: `Purchase Order ${po.refNo} submitted for manager approval`,
+      note: isQueried
+        ? `Purchase Order ${po.refNo} resubmitted for manager approval`
+        : `Purchase Order ${po.refNo} submitted for manager approval`,
     });
   },
 });
