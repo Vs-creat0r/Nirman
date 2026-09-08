@@ -88,7 +88,7 @@ describe("Gate 3: UI Action Parity & Server Authority", () => {
     }
   });
 
-  it("queried PO for procurement officer returns server-authoritative resubmit action with label and reason", () => {
+  it("queried PO for procurement officer returns server-authoritative resubmit action with label and reason, without duplicate submit", () => {
     const queriedPO = {
       _id: "po_queried_123" as any,
       status: "queried",
@@ -104,10 +104,110 @@ describe("Gate 3: UI Action Parity & Server Authority", () => {
 
     expect(result.status).toBe("queried");
     const resubmitAction = result.actions.find((a) => a.name === "resubmit");
+    const submitAction = result.actions.find((a) => a.name === "submit");
     expect(resubmitAction).toBeDefined();
     expect(resubmitAction?.enabled).toBe(true);
     expect(resubmitAction?.label).toBe("Resubmit Purchase Order");
     expect(resubmitAction?.to).toBe("submitted");
+    expect(submitAction).toBeUndefined();
+  });
+
+  it("queried Cost Comparison returns ONLY resubmit and NEVER duplicate submit", () => {
+    const queriedCC = {
+      _id: "cc_queried_123" as any,
+      status: "queried",
+      createdBy: "user_po_1",
+      vendorQuotes: [
+        { vendorId: "v_1", total: 1000 },
+        { vendorId: "v_2", total: 1200 },
+      ],
+    };
+
+    const result = computeAvailableActions(
+      "cost_comparison",
+      queriedCC,
+      { _id: "user_po_1", role: "procurement_officer" }
+    );
+
+    expect(result.status).toBe("queried");
+    const resubmitAction = result.actions.find((a) => a.name === "resubmit");
+    const submitAction = result.actions.find((a) => a.name === "submit");
+    expect(resubmitAction).toBeDefined();
+    expect(resubmitAction?.enabled).toBe(true);
+    expect(resubmitAction?.label).toBe("Resubmit for Review");
+    expect(submitAction).toBeUndefined();
+  });
+
+  it("draft Cost Comparison returns ONLY submit and NEVER resubmit", () => {
+    const draftCC = {
+      _id: "cc_draft_123" as any,
+      status: "draft",
+      createdBy: "user_po_1",
+      vendorQuotes: [
+        { vendorId: "v_1", total: 1000 },
+        { vendorId: "v_2", total: 1200 },
+      ],
+    };
+
+    const result = computeAvailableActions(
+      "cost_comparison",
+      draftCC,
+      { _id: "user_po_1", role: "procurement_officer" }
+    );
+
+    expect(result.status).toBe("draft");
+    const submitAction = result.actions.find((a) => a.name === "submit");
+    const resubmitAction = result.actions.find((a) => a.name === "resubmit");
+    expect(submitAction).toBeDefined();
+    expect(submitAction?.enabled).toBe(true);
+    expect(submitAction?.label).toBe("Submit for Review");
+    expect(resubmitAction).toBeUndefined();
+  });
+
+  it("queried Material Request returns ONLY resubmit and NEVER duplicate submit", () => {
+    const queriedMR = {
+      _id: "mr_queried_123" as any,
+      status: "queried",
+      createdBy: "user_sup_1",
+      items: [{ itemName: "Cement", quantity: 50 }],
+    };
+
+    const result = computeAvailableActions(
+      "material_request",
+      queriedMR,
+      { _id: "user_sup_1", role: "site_supervisor" }
+    );
+
+    expect(result.status).toBe("queried");
+    const resubmitAction = result.actions.find((a) => a.name === "resubmit");
+    const submitAction = result.actions.find((a) => a.name === "submit");
+    expect(resubmitAction).toBeDefined();
+    expect(resubmitAction?.enabled).toBe(true);
+    expect(resubmitAction?.label).toBe("Resubmit Request");
+    expect(submitAction).toBeUndefined();
+  });
+
+  it("draft Material Request returns ONLY submit and NEVER resubmit", () => {
+    const draftMR = {
+      _id: "mr_draft_123" as any,
+      status: "draft",
+      createdBy: "user_sup_1",
+      items: [{ itemName: "Cement", quantity: 50 }],
+    };
+
+    const result = computeAvailableActions(
+      "material_request",
+      draftMR,
+      { _id: "user_sup_1", role: "site_supervisor" }
+    );
+
+    expect(result.status).toBe("draft");
+    const submitAction = result.actions.find((a) => a.name === "submit");
+    const resubmitAction = result.actions.find((a) => a.name === "resubmit");
+    expect(submitAction).toBeDefined();
+    expect(submitAction?.enabled).toBe(true);
+    expect(submitAction?.label).toBe("Submit Request");
+    expect(resubmitAction).toBeUndefined();
   });
 
   it("action buttons bind disabled, title, and label directly to server availableActions fields", () => {

@@ -29,7 +29,7 @@ export const PURCHASE_ORDER_TRANSITIONS = [
   {
     name: "submit",
     label: "Submit for Approval",
-    from: ["draft", "queried"] as const,
+    from: ["draft"] as const,
     to: "submitted",
     roles: ["procurement_officer", "project_manager", "admin"] as const,
     actor: "creator",

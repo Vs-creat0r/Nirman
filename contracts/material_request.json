@@ -323,8 +323,7 @@
         "name": "submit",
         "label": "Submit Request",
         "from": [
-          "draft",
-          "queried"
+          "draft"
         ],
         "to": "pending",
         "roles": [
@@ -382,7 +381,6 @@
         "name": "resubmit",
         "label": "Resubmit Request",
         "from": [
-          "draft",
           "queried"
         ],
         "to": "pending",
