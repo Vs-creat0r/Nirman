@@ -2,6 +2,18 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const SESSION_COOKIE = "nirman_session";
+
+function writeSessionCookie(token: string | null) {
+  if (typeof document === "undefined") return;
+  const secure = location.protocol === "https:" ? "; Secure" : "";
+  if (token) {
+    document.cookie = `${SESSION_COOKIE}=${token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax${secure}`;
+  } else {
+    document.cookie = `${SESSION_COOKIE}=; path=/; max-age=0; SameSite=Lax${secure}`;
+  }
+}
+
 interface AuthContextType {
   token: string | null;
   setToken: (token: string | null) => void;
@@ -25,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedToken = localStorage.getItem("sessionToken");
     if (storedToken) {
       setTokenState(storedToken);
+      writeSessionCookie(storedToken); // backfill for sessions created before the cookie existed
     }
     setIsLoading(false);
   }, []);
@@ -35,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       localStorage.removeItem("sessionToken");
     }
+    writeSessionCookie(newToken);
     setTokenState(newToken);
   };
 

@@ -15,7 +15,8 @@ import {
   type LucideIcon 
 } from "lucide-react";
 
-export type UserRole = "site_supervisor" | "project_manager" | "procurement_officer" | "admin";
+import type { UserRole } from "@/convex/permissions";
+export type { UserRole };
 
 export interface NavItem {
   title: string;

@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
 import { UserRole } from "@/convex/permissions";
 import { useSession } from "@/components/providers/auth-provider";
 import { useRole } from "@/hooks/use-role";
+import { RequireRole } from "@/components/providers/require-role";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ import {
 import {
   UserCog,
   Users,
+  UserPlus,
+  KeyRound,
   ShieldCheck,
   Search,
   CheckCircle2,
@@ -67,6 +70,23 @@ export default function UsersPage() {
   const [profileError, setProfileError] = React.useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = React.useState(false);
 
+  // Add User Dialog State
+  const [isAddUserOpen, setIsAddUserOpen] = React.useState(false);
+  const [newName, setNewName] = React.useState("");
+  const [newUsername, setNewUsername] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [newUserRole, setNewUserRole] = React.useState<UserRole>("site_supervisor");
+  const [newEmail, setNewEmail] = React.useState("");
+  const [newPhone, setNewPhone] = React.useState("");
+  const [addUserError, setAddUserError] = React.useState<string | null>(null);
+  const [isCreatingUser, setIsCreatingUser] = React.useState(false);
+
+  // Reset Password Dialog State
+  const [isResetOpen, setIsResetOpen] = React.useState(false);
+  const [resetPassword, setResetPassword] = React.useState("");
+  const [resetError, setResetError] = React.useState<string | null>(null);
+  const [isResettingPw, setIsResettingPw] = React.useState(false);
+
   // Queries
   const users = useQuery(api.users.list, token ? { token } : "skip");
   const allProjects = useQuery(api.projects.listAllProjects, token && role === "admin" ? { token } : "skip");
@@ -76,6 +96,8 @@ export default function UsersPage() {
   const updateUserAssignments = useMutation(api.users.updateUserAssignments);
   const updateUser = useMutation(api.users.updateUser);
   const changeUserRole = useMutation(api.users.changeUserRole);
+  const createUser = useAction(api.users.createUser);
+  const adminResetPassword = useAction(api.users.adminResetPassword);
 
   const filteredUsers = React.useMemo(() => {
     if (!users) return [];
@@ -244,8 +266,75 @@ export default function UsersPage() {
     }
   };
 
+  const openAddUserDialog = () => {
+    setNewName("");
+    setNewUsername("");
+    setNewPassword("");
+    setNewUserRole("site_supervisor");
+    setNewEmail("");
+    setNewPhone("");
+    setAddUserError(null);
+    setIsAddUserOpen(true);
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+
+    if (newPassword.length < 8) {
+      setAddUserError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setAddUserError(null);
+    setIsCreatingUser(true);
+    try {
+      await createUser({
+        name: newName.trim(),
+        username: newUsername.trim(),
+        password: newPassword,
+        role: newUserRole,
+        email: newEmail.trim() || undefined,
+        phone: newPhone.trim() || undefined,
+        token,
+      });
+      setIsAddUserOpen(false);
+    } catch (err: unknown) {
+      setAddUserError(err instanceof Error ? err.message : "Failed to create user.");
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
+  const openResetDialog = (u: Doc<"users">) => {
+    setSelectedUser(u);
+    setResetPassword("");
+    setResetError(null);
+    setIsResetOpen(true);
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !selectedUser) return;
+    if (resetPassword.length < 8) {
+      setResetError("Password must be at least 8 characters.");
+      return;
+    }
+    setResetError(null);
+    setIsResettingPw(true);
+    try {
+      await adminResetPassword({ userId: selectedUser._id, newPassword: resetPassword, token });
+      setIsResetOpen(false);
+    } catch (err: unknown) {
+      setResetError(err instanceof Error ? err.message : "Failed to reset password.");
+    } finally {
+      setIsResettingPw(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <RequireRole roles={["admin"]}>
+      <div className="space-y-6">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
@@ -316,14 +405,25 @@ export default function UsersPage() {
           <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
             System User Directory ({users?.length || 0})
           </h3>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search users by name, role..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-xs h-8"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search users by name, role..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 text-xs h-8"
+              />
+            </div>
+            {role === "admin" && (
+              <Button
+                size="sm"
+                onClick={openAddUserDialog}
+                className="h-8 text-xs gap-1.5 font-semibold shrink-0"
+              >
+                <UserPlus className="h-3.5 w-3.5" /> Add User
+              </Button>
+            )}
           </div>
         </div>
 
@@ -382,7 +482,7 @@ export default function UsersPage() {
                         <div className="flex items-center gap-1.5">
                           {getRoleIcon(u.role)}
                           <Badge variant={getRoleBadgeVariant(u.role)}>
-                            {u.role.replace("_", " ")}
+                            {u.role.replaceAll("_", " ")}
                           </Badge>
                         </div>
                       </td>
@@ -429,8 +529,9 @@ export default function UsersPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => openScopingDialog(u)}
-                              className="h-7 text-[11px] gap-1 text-[--info] hover:text-[--info]/80"
-                              title="Assign Projects and Sites"
+                              disabled={isAdmin}
+                              className="h-7 text-[11px] gap-1 text-[--info] hover:text-[--info]/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={isAdmin ? "Administrators have global access" : "Assign Projects and Sites"}
                             >
                               <Sliders className="h-3 w-3" /> Scoping
                             </Button>
@@ -451,6 +552,15 @@ export default function UsersPage() {
                               title="Edit User"
                             >
                               <Edit2 className="h-3 w-3" /> Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openResetDialog(u)}
+                              className="h-7 text-[11px] gap-1"
+                              title="Reset Password"
+                            >
+                              <KeyRound className="h-3 w-3" /> Reset PW
                             </Button>
                           </div>
                         )}
@@ -633,6 +743,9 @@ export default function UsersPage() {
             )}
 
             <div className="space-y-1.5">
+              <p className="text-[11px] text-muted-foreground">
+                Currently: <span className="font-semibold text-foreground">{selectedUser?.role?.replaceAll("_", " ")}</span> → changing to:
+              </p>
               <label className="text-xs font-semibold text-foreground">Select New Role</label>
               <select
                 value={newRole}
@@ -758,6 +871,133 @@ export default function UsersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ADD USER DIALOG */}
+      <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-primary" />
+              Add New User
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Create a system account. The password is hashed on save; the user can change it after first login.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateUser} className="space-y-4 py-2">
+            {addUserError && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-xs flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{addUserError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Full Name</label>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} required className="text-xs h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">User ID (username)</label>
+                <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required className="text-xs h-9" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Temporary Password</label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={8}
+                placeholder="Min 8 characters"
+                className="text-xs h-9"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Role</label>
+              <select
+                value={newUserRole}
+                onChange={(e) => setNewUserRole(e.target.value as UserRole)}
+                className="w-full h-9 text-xs px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="site_supervisor">Site Supervisor (MRs & GRNs on site)</option>
+                <option value="project_manager">Project Manager (Approvals & Budgets)</option>
+                <option value="procurement_officer">Procurement Officer (Vendor Quotations & POs)</option>
+                <option value="admin">System Administrator (Master Controls)</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Email (optional)</label>
+                <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="text-xs h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Phone (optional)</label>
+                <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} className="text-xs h-9" />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsAddUserOpen(false)} disabled={isCreatingUser} className="text-xs h-8">
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={isCreatingUser} className="text-xs h-8 gap-1.5 font-semibold">
+                {isCreatingUser && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Create User
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* RESET PASSWORD DIALOG */}
+      <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-[--warning]" /> Reset Password: {selectedUser?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Set a new temporary password. The user should change it after their next login.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetPassword} className="space-y-4 py-2">
+            {resetError && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-xs flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{resetError}</span>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">New Temporary Password</label>
+              <Input
+                type="password"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                required
+                minLength={8}
+                placeholder="Min 8 characters"
+                className="text-xs h-9"
+              />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsResetOpen(false)} disabled={isResettingPw} className="text-xs h-8">
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" disabled={isResettingPw} className="text-xs h-8 gap-1.5 font-semibold">
+                {isResettingPw && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Reset Password
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
+    </RequireRole>
   );
 }

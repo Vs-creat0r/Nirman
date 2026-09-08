@@ -65,14 +65,16 @@ export default function ProjectDetailPage() {
   const [selectedCategory, setSelectedCategory] = React.useState("all");
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
+  const items = data?.items;
+
   const categories = React.useMemo(() => {
-    if (!data?.items) return [];
-    return Array.from(new Set(data.items.map((i) => i.category).filter(Boolean) as string[])).sort();
-  }, [data?.items]);
+    if (!items) return [];
+    return Array.from(new Set(items.map((i) => i.category).filter(Boolean) as string[])).sort();
+  }, [items]);
 
   const filteredItems = React.useMemo(() => {
-    if (!data?.items) return [];
-    return data.items.filter((item: ReconciledItem) => {
+    if (!items) return [];
+    return items.filter((item: ReconciledItem) => {
       if (selectedCategory !== "all" && item.category !== selectedCategory) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -80,7 +82,7 @@ export default function ProjectDetailPage() {
       }
       return true;
     });
-  }, [data?.items, selectedCategory, searchQuery]);
+  }, [items, selectedCategory, searchQuery]);
 
   const handleDelete = async (item: ReconciledItem) => {
     if (!token) return;
