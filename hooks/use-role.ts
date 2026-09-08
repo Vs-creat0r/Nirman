@@ -2,8 +2,15 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { type UserRole } from "@/lib/nav-config";
 import { useSession } from "@/components/providers/auth-provider";
+import type { Doc } from "@/convex/_generated/dataModel";
 
-export function useRole(): { role: UserRole | null; isLoading: boolean; user: any } {
+export type SafeUser = Omit<Doc<"users">, "passwordHash">;
+
+export function useRole(): {
+  role: UserRole | null;
+  isLoading: boolean;
+  user: SafeUser | null | undefined;
+} {
   const { token, isLoading: sessionLoading } = useSession();
   const user = useQuery(api.users.getMyUser, token ? { token } : "skip");
   
@@ -12,6 +19,6 @@ export function useRole(): { role: UserRole | null; isLoading: boolean; user: an
   return {
     role: user ? (user.role as UserRole) : null,
     isLoading,
-    user
+    user: user as SafeUser | null | undefined,
   };
 }

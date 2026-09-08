@@ -90,6 +90,8 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
     updateUserAssignments: "users:manage",
     updateUser: "users:manage",
     changeUserRole: "users:change_role",
+    insertUser: "users:manage",
+    persistUserPassword: "users:manage",
   },
   "rfqs.ts": {
     createRfq: "rfqs:create",

@@ -27,7 +27,7 @@ const eslintConfig = defineConfig([
     },
   },
  
-  // generated and backend files are exempt from strict UI line caps
+  // generated, backend, and test files are exempt from strict UI line caps and test mocks
   {
     files: [
       "convex/**",
@@ -35,10 +35,13 @@ const eslintConfig = defineConfig([
       "convex/schema.ts",
       "lib/schemas/**",
       "lib/contract-types.ts",
-      "components/document/**"
+      "components/document/**",
+      "tests/**"
     ],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-this-alias": "off",
+      "@typescript-eslint/no-unsafe-function-type": "off",
       "max-lines": "off",
       "no-restricted-imports": "off",
     },

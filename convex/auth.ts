@@ -5,16 +5,10 @@ import { Doc } from "./_generated/dataModel";
 import { resolveCallerScope } from "./scoping";
 
 export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    let diff = 1;
-    for (let i = 0; i < a.length; i++) {
-      diff |= a.charCodeAt(i) ^ a.charCodeAt(i);
-    }
-    return false;
-  }
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  let diff = a.length ^ b.length;
+  const len = Math.max(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
   }
   return diff === 0;
 }

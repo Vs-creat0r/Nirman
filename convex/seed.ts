@@ -4,41 +4,45 @@
  *
  * @module convex/seed
  */
-import { internalMutation } from "./_generated/server";
+import { action, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { hashPassword } from "./auth";
 
-export const seedAll = internalMutation({
+export const seedAll = action({
   args: {},
-  handler: async (ctx) => {
-    // ── 0. MIGRATE & DEDUPLICATE USERS ───────────────────────────────────
-    const allUsers = await ctx.db.query("users").collect();
-    for (const u of allUsers) {
-      if (!u.username || !u.passwordHash) {
-        if (u.role === "admin") {
-          await ctx.db.patch(u._id, { username: "admin", passwordHash: "admin123" });
-        } else if (u.role === "site_supervisor") {
-          await ctx.db.patch(u._id, { username: "supervisor", passwordHash: "supervisor123" });
-        } else if (u.role === "project_manager") {
-          await ctx.db.patch(u._id, { username: "manager", passwordHash: "manager123" });
-        } else if (u.role === "procurement_officer") {
-          await ctx.db.patch(u._id, { username: "procurement", passwordHash: "procurement123" });
-        }
-      }
+  handler: async (ctx): Promise<{ success: boolean; message: string }> => {
+    // Fail-closed: runs ONLY where ALLOW_SEED is explicitly enabled (dev deployment).
+    // Production never sets this var, so seedAll throws there. (P0-4)
+    if (process.env.ALLOW_SEED !== "true") {
+      throw new Error(
+        "Seeding is disabled. Set ALLOW_SEED=true in the DEV Convex deployment's Environment Variables to enable seedAll. Never set it on production."
+      );
     }
+    const [adminHash, supervisorHash, managerHash, procurementHash] = await Promise.all([
+      hashPassword("admin123"),
+      hashPassword("supervisor123"),
+      hashPassword("manager123"),
+      hashPassword("procurement123"),
+    ]);
+    return await ctx.runMutation(internal.seed.seedData, {
+      adminHash,
+      supervisorHash,
+      managerHash,
+      procurementHash,
+    });
+  },
+});
 
-    // Deduplicate any repeated users by username
-    const currentUsers = await ctx.db.query("users").collect();
-    const seenUsernames = new Set<string>();
-    for (const u of currentUsers) {
-      if (u.username) {
-        if (seenUsernames.has(u.username)) {
-          await ctx.db.delete(u._id);
-        } else {
-          seenUsernames.add(u.username);
-        }
-      }
-    }
-
+export const seedData = internalMutation({
+  args: {
+    adminHash: v.string(),
+    supervisorHash: v.string(),
+    managerHash: v.string(),
+    procurementHash: v.string(),
+  },
+  handler: async (ctx, args) => {
     // ── 1. USERS (4 roles) ──────────────────────────────────────────────
     const admin = await ctx.db
       .query("users")
@@ -50,7 +54,7 @@ export const seedAll = internalMutation({
       adminId = await ctx.db.insert("users", {
         name: "Dev Admin",
         username: "admin",
-        passwordHash: "admin123",
+        passwordHash: args.adminHash,
         role: "admin",
         isActive: true,
       });
@@ -63,19 +67,19 @@ export const seedAll = internalMutation({
       {
         name: "Ravi Supervisor",
         username: "supervisor",
-        passwordHash: "supervisor123",
+        passwordHash: args.supervisorHash,
         role: "site_supervisor" as const,
       },
       {
         name: "Anil Manager",
         username: "manager",
-        passwordHash: "manager123",
+        passwordHash: args.managerHash,
         role: "project_manager" as const,
       },
       {
         name: "Priya Procurement",
         username: "procurement",
-        passwordHash: "procurement123",
+        passwordHash: args.procurementHash,
         role: "procurement_officer" as const,
       },
     ];

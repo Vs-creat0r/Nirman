@@ -23,6 +23,7 @@ const BASELINES = {
   filesWithHardcodedColors: 0,  // locked: 0 files with hardcoded status colors
   filesWithRelativeImports: 0,  // locked: 0 files with relative imports
   consoleCallsInConvex: 0,      // locked: 0 console calls in convex/
+  atAliasInConvex: 0,           // locked: 0 `@/` imports in convex/ (must use relative paths)
 };
 
 const SOURCE_ROOTS = ["app", "components", "convex", "lib", "hooks"];
@@ -91,6 +92,17 @@ function countConvexConsoleCalls() {
     .filter(x => x.count > 0);
 }
 
+function countAtAliasInConvex() {
+  return walkDir(["convex"], [".ts"], EXCLUDE)
+    .filter(f => {
+      try {
+        return /from ['"]@\//.test(readFileSync(f, "utf8"));
+      } catch {
+        return false;
+      }
+    });
+}
+
 // --- Main ---
 console.log("\n=================================================================");
 console.log("  NIRMAN CI - Code Quality Metric Ratchet  (baseline: v1.6.0 / Gate 3)");
@@ -146,6 +158,14 @@ check(
   totalConsole,
   BASELINES.consoleCallsInConvex,
   convexConsole.map(x => `${x.file} (${x.count} calls)`)
+);
+
+const atAliasInConvex = countAtAliasInConvex();
+check(
+  "`@/` imports in `convex/`   ",
+  atAliasInConvex.length,
+  BASELINES.atAliasInConvex,
+  atAliasInConvex
 );
 
 console.log("\n=================================================================");

@@ -22,11 +22,6 @@ jobs:
       - name: Contract codegen is in sync
         run: npm run gen:check
 
-      # Convex codegen — ensures convex/ code bundles cleanly with relative imports
-      - name: Convex codegen
-        run: npx convex codegen --typecheck disable
-
-
       # 500-line cap, no `any`, no relative imports
       - name: Lint
         run: npm run lint
