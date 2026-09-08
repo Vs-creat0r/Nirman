@@ -120,7 +120,7 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const { project, sites, items, stats } = data;
+  const { project, sites, stats } = data;
 
   return (
     <div className="space-y-6">
