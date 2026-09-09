@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   UserScope,
+  buildUserScope,
   canAccessDocument,
   assertDocumentAccess,
   filterScopedList,
@@ -130,6 +131,37 @@ describe("Data Scoping & Authorization Boundaries (S1-04)", () => {
           projectId: "proj_A" as any,
         })
       ).toBe(true);
+    });
+
+    it("seeds allowedProjectIds from assignedProjectIds for single-site project supervisors without sub-sites", async () => {
+      const mockCtx: any = {
+        db: {
+          get: async (id: string) => null,
+        },
+      };
+
+      const singleSiteSupervisor: any = {
+        _id: "user_sup_namo",
+        _creationTime: 0,
+        username: "sup_namo",
+        role: "site_supervisor",
+        isActive: true,
+        name: "Ravi Supervisor",
+        assignedProjectIds: ["proj_NAMO" as any],
+        assignedSiteIds: [],
+      };
+
+      const scope = await buildUserScope(mockCtx, singleSiteSupervisor);
+
+      expect(scope.isSiteScoped).toBe(true);
+      expect(scope.allowedProjectIds.has("proj_NAMO")).toBe(true);
+      expect(scope.allowedSiteIds.size).toBe(0);
+
+      // Project-level access check succeeds (shows in listProjects / form dropdown)
+      expect(canAccessDocument(scope, { projectId: "proj_NAMO" as any })).toBe(true);
+
+      // Foreign project blocked
+      expect(canAccessDocument(scope, { projectId: "proj_OTHER" as any })).toBe(false);
     });
   });
 

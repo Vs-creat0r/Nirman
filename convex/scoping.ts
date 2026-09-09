@@ -61,7 +61,7 @@ export async function buildUserScope(
   // Site Supervisor is strictly site-scoped
   if (user.role === "site_supervisor") {
     const allowedSiteIds = new Set<string>(rawSiteIds);
-    const allowedProjectIds = new Set<string>();
+    const allowedProjectIds = new Set<string>(rawProjectIds);
 
     for (const siteIdStr of rawSiteIds) {
       try {
