@@ -29,6 +29,14 @@ export default function NewMaterialRequestPage() {
   const submitImmediatelyRef = React.useRef(false);
 
   const optionsMap = {
+    projects: (projects || []).map((p) => ({
+      value: p._id,
+      label: `${p.name} (${p.code})`,
+    })),
+    sites: (sites || []).map((s) => ({
+      value: s._id,
+      label: `${s.name} (${s.code})`,
+    })),
     projectId: (projects || []).map((p) => ({
       value: p._id,
       label: `${p.name} (${p.code})`,
@@ -38,6 +46,21 @@ export default function NewMaterialRequestPage() {
       label: `${s.name} (${s.code})`,
     })),
   };
+
+  const defaultProjectId = React.useMemo(() => {
+    if (projects && projects.length === 1) {
+      return projects[0]._id;
+    }
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem("nirman_selected_project_id") : null;
+      if (saved && saved !== "all" && projects?.some((p) => p._id === saved)) {
+        return saved;
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return undefined;
+  }, [projects]);
 
   const handleSave = async (data: Record<string, unknown>) => {
     setIsSubmitting(true);
@@ -117,6 +140,7 @@ export default function NewMaterialRequestPage() {
         defaultValues={{
           status: "draft",
           priority: "normal",
+          ...(defaultProjectId ? { projectId: defaultProjectId } : {}),
         }}
         footerActions={
           <Button

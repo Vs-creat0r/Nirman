@@ -35,10 +35,14 @@ export function FieldRenderer({
   }
 
   // Resolve options for select / reference fields
+  // Resolve options for select / reference fields (support optionsFrom key or field key)
   const resolvedOptions: FieldOption[] | undefined =
     fieldDef.optionsFrom && optionsMap?.[fieldDef.optionsFrom]
       ? optionsMap[fieldDef.optionsFrom]
       : undefined;
+    (fieldDef.optionsFrom && optionsMap?.[fieldDef.optionsFrom]) ||
+    optionsMap?.[fieldDef.field] ||
+    undefined;
 
   switch (fieldDef.input) {
     case "text":
