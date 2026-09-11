@@ -221,4 +221,13 @@ describe("Gate 3: UI Action Parity & Server Authority", () => {
     expect(docViewContent.includes("action.reason")).toBe(true);
     expect(docViewContent.includes("!action.enabled")).toBe(true);
   });
+
+  it("DocumentView filters out actions where caller lacks required role (e.g. supervisor viewing pending MR)", () => {
+    const docViewContent = fs.readFileSync(
+      path.resolve(process.cwd(), "components/document/document-view.tsx"),
+      "utf-8"
+    );
+
+    expect(docViewContent.includes('action.reason?.startsWith("Requires role")')).toBe(true);
+  });
 });

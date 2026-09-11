@@ -16,6 +16,7 @@ const CONVEX_DIR = path.resolve(__dirname, "../convex");
 const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
   "material_requests.ts": {
     createMR: "material_requests:create",
+    updateMR: "material_requests:update",
     submitMR: "material_requests:submit",
     approveMR: "material_requests:approve",
     rejectMR: "material_requests:reject",
