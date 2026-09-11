@@ -27,6 +27,8 @@ export default function EditQueriedMaterialRequestPage() {
     token ? { token } : "skip"
   );
   const sites = useQuery(api.sites.listSites, token ? { token } : "skip");
+  const updateMRMutation = useMutation(api.material_requests.updateMR);
+  const submitMRMutation = useMutation(api.material_requests.submitMR);
   const resubmitMRMutation = useMutation(api.material_requests.resubmitMR);
   const deleteMRMutation = useMutation(api.material_requests.deleteMR);
 
@@ -43,6 +45,7 @@ export default function EditQueriedMaterialRequestPage() {
   const [isDiscarding, setIsDiscarding] = React.useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const saveOnlyRef = React.useRef(false);
 
   const handleDiscardDraft = async () => {
     setError(null);
@@ -77,11 +80,21 @@ export default function EditQueriedMaterialRequestPage() {
   const optionsMap = {
     projects: projects || [],
     sites: sites || [],
+    projectId: (projects || []).map((p) => ({
+      value: p._id,
+      label: `${p.name} (${p.code})`,
+    })),
+    siteId: (sites || []).map((s) => ({
+      value: s._id,
+      label: `${s.name} (${s.code})`,
+    })),
   };
 
   const handleSubmit = async (data: Record<string, unknown>) => {
     setError(null);
     setIsSubmitting(true);
+    const isSaveOnly = saveOnlyRef.current;
+    saveOnlyRef.current = false;
 
     try {
       const items = Array.isArray(data.items) ? data.items : [];
@@ -100,7 +113,7 @@ export default function EditQueriedMaterialRequestPage() {
         }
       }
 
-      await resubmitMRMutation({
+      const payload = {
         id,
         projectId: data.projectId as Id<"projects">,
         siteId: data.siteId ? (data.siteId as Id<"sites">) : undefined,
@@ -116,11 +129,24 @@ export default function EditQueriedMaterialRequestPage() {
         requiredBy: data.requiredBy ? String(data.requiredBy) : undefined,
         notes: data.notes ? String(data.notes).trim() : undefined,
         token: token || undefined,
-      });
+      };
+
+      if (isSaveOnly) {
+        await updateMRMutation(payload);
+        router.push(`/dashboard/supervisor/material-requests/${id}`);
+        return;
+      }
+
+      if (isResubmission) {
+        await resubmitMRMutation(payload);
+      } else {
+        await updateMRMutation(payload);
+        await submitMRMutation({ id, token: token || undefined });
+      }
 
       router.push(`/dashboard/supervisor/material-requests/${id}`);
     } catch (err: any) {
-      setError(err.message || "Failed to resubmit material request.");
+      setError(err.message || "Failed to save material request.");
       setIsSubmitting(false);
     }
   };
@@ -178,17 +204,34 @@ export default function EditQueriedMaterialRequestPage() {
         submitLabel={isResubmission ? "Resubmit for Approval" : "Submit for Approval"}
         isSubmitting={isSubmitting || isDiscarding}
         footerActions={
-          canSubmit ? (
+          <div className="flex items-center gap-2">
             <button
               type="button"
               disabled={isSubmitting || isDiscarding}
-              onClick={() => setShowDiscardConfirm(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-md transition-colors cursor-pointer"
+              onClick={(e) => {
+                saveOnlyRef.current = true;
+                const form = (e.currentTarget as HTMLElement).closest("form");
+                if (form) {
+                  const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+                  if (submitBtn) submitBtn.click();
+                }
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-md border border-border bg-surface hover:bg-muted text-foreground transition-colors cursor-pointer shadow-xs"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              Discard draft
+              {isResubmission ? "Save Changes" : "Save Draft"}
             </button>
-          ) : undefined
+            {canSubmit && (
+              <button
+                type="button"
+                disabled={isSubmitting || isDiscarding}
+                onClick={() => setShowDiscardConfirm(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 px-3 py-2 rounded-md transition-colors cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Discard draft
+              </button>
+            )}
+          </div>
         }
         defaultValues={{
           projectId: mr.projectId,

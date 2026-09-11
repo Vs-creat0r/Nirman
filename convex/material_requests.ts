@@ -269,6 +269,111 @@ export const sendToCc = mutation({
 });
 
 /**
+ * Update an editable draft or queried Material Request without triggering transition.
+ */
+export const updateMR = mutation({
+  args: {
+    id: v.id("material_request"),
+    projectId: v.optional(v.id("projects")),
+    siteId: v.optional(v.id("sites")),
+    items: v.optional(
+      v.array(
+        v.object({
+          itemName: v.string(),
+          description: v.optional(v.string()),
+          quantity: v.number(),
+          unit: v.string(),
+          hsnSacCode: v.optional(v.string()),
+          projectItemId: v.optional(v.id("project_items")),
+        })
+      )
+    ),
+    priority: v.optional(
+      v.union(
+        v.literal("low"),
+        v.literal("normal"),
+        v.literal("high"),
+        v.literal("urgent")
+      )
+    ),
+    requiredBy: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requirePermission(
+      ctx,
+      "material_requests:update",
+      args.token
+    );
+
+    const mr = await ctx.db.get(args.id);
+    if (!mr) throw new Error("Material Request not found.");
+
+    if (mr.status !== "draft" && mr.status !== "queried") {
+      throw new Error(`Cannot edit Material Request in "${mr.status}" status.`);
+    }
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, mr, mr.refNo);
+
+    if (scope.user.role === "site_supervisor" && mr.createdBy && mr.createdBy !== scope.user._id) {
+      throw new Error("Forbidden: You can only edit your own material requests.");
+    }
+
+    const patchData: Record<string, unknown> = {};
+    if (args.projectId) patchData.projectId = args.projectId;
+    if (args.siteId !== undefined) patchData.siteId = args.siteId;
+    if (args.items) {
+      if (args.items.length === 0) {
+        throw new Error("A material request must have at least one line item.");
+      }
+      for (let i = 0; i < args.items.length; i++) {
+        const it = args.items[i];
+        if (!it.itemName || !it.itemName.trim()) {
+          throw new Error(`Item #${i + 1} must have a valid item name.`);
+        }
+        if (typeof it.quantity !== "number" || isNaN(it.quantity) || it.quantity <= 0) {
+          throw new Error(`Quantity for item "${it.itemName}" must be greater than zero.`);
+        }
+      }
+      patchData.items = args.items.map((it) => ({
+        itemName: it.itemName.trim(),
+        description: it.description?.trim() || undefined,
+        quantity: it.quantity,
+        unit: it.unit,
+        hsnSacCode: it.hsnSacCode?.trim() || undefined,
+        projectItemId: it.projectItemId || undefined,
+      }));
+    }
+    if (args.priority) patchData.priority = args.priority;
+    if (args.requiredBy !== undefined) patchData.requiredBy = args.requiredBy;
+    if (args.notes !== undefined) patchData.notes = args.notes?.trim() || undefined;
+
+    const now = new Date().toISOString();
+    patchData.updatedBy = scope.user._id;
+    patchData.updatedAt = now;
+
+    await ctx.db.patch(args.id, patchData);
+
+    await ctx.db.insert("logs", {
+      actorId: scope.user._id,
+      actorRole: scope.user.role,
+      action: "update_draft",
+      documentType: "material_request",
+      documentId: args.id,
+      referenceId: mr.refNo,
+      fromStatus: mr.status,
+      toStatus: mr.status,
+      note: `Material Request ${mr.refNo} draft updated`,
+      timestamp: now,
+    });
+
+    return { id: args.id, refNo: mr.refNo, status: mr.status };
+  },
+});
+
+/**
  * Supervisor updates & resubmits a queried Material Request.
  */
 export const resubmitMR = mutation({

@@ -238,7 +238,11 @@ export function DocumentView({
     }
   };
 
-  const actions = availableActionsData?.actions || [];
+  // Filter out actions where caller lacks the required role entirely
+  const actions = (availableActionsData?.actions || []).filter((action) => {
+    if (action.reason?.startsWith("Requires role")) return false;
+    return true;
+  });
   const hasEditAction = actions.some((a) => a.name === "submit" || a.name === "resubmit");
 
   return (
@@ -271,9 +275,9 @@ export function DocumentView({
 
             let customClass = "gap-1.5 text-xs font-semibold";
             if (isQueryAction) {
-              customClass += " text-[--warning] hover:text-[--warning] hover:bg-[--warning]/10 border-[--warning]/30";
+              customClass += " text-warning border-warning/40 hover:bg-warning/10 hover:text-warning shadow-xs";
             } else if (isApproveAction) {
-              customClass += " bg-[--success] text-white hover:bg-[--success]/90";
+              customClass += " bg-success text-white hover:bg-success/90 shadow-xs";
             }
 
             return (
