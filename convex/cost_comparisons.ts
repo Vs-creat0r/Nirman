@@ -45,6 +45,8 @@ export function processVendorQuotes(
     vendorId: Id<"vendors">;
     items: Array<{
       itemName: string;
+      description?: string;
+      hsnSacCode?: string;
       quantity: number;
       unit: string;
       rate: number;
@@ -60,6 +62,8 @@ export function processVendorQuotes(
   }>,
   mrItems?: Array<{
     itemName: string;
+    description?: string;
+    hsnSacCode?: string;
     projectItemId?: Id<"project_items">;
   }>
 ) {
@@ -97,17 +101,30 @@ export function processVendorQuotes(
       subtotal += amount;
 
       let projectItemId = it.projectItemId;
-      if (!projectItemId && mrItems) {
+      let description = it.description;
+      let hsnSacCode = it.hsnSacCode;
+
+      if (mrItems) {
         const match = mrItems.find(
           (m) => m.itemName.toLowerCase().trim() === it.itemName.toLowerCase().trim()
         );
-        if (match?.projectItemId) {
-          projectItemId = match.projectItemId;
+        if (match) {
+          if (!projectItemId && match.projectItemId) {
+            projectItemId = match.projectItemId;
+          }
+          if (!description && match.description) {
+            description = match.description;
+          }
+          if (!hsnSacCode && match.hsnSacCode) {
+            hsnSacCode = match.hsnSacCode;
+          }
         }
       }
 
       return {
         itemName: it.itemName,
+        description: description || undefined,
+        hsnSacCode: hsnSacCode || undefined,
         quantity: qty,
         unit: it.unit,
         rate: rate,
@@ -159,6 +176,8 @@ export const createCC = mutation({
         items: v.array(
           v.object({
             itemName: v.string(),
+            description: v.optional(v.string()),
+            hsnSacCode: v.optional(v.string()),
             quantity: v.number(),
             unit: v.string(),
             rate: v.number(),
@@ -255,6 +274,67 @@ export const createCC = mutation({
       refNo,
       status: initialStatus,
     };
+  },
+});
+
+/**
+ * Update an editable draft or queried Cost Comparison without triggering transition.
+ */
+export const updateCC = mutation({
+  args: {
+    id: v.id("cost_comparison"),
+    vendorQuotes: v.array(
+      v.object({
+        vendorId: v.id("vendors"),
+        items: v.array(
+          v.object({
+            itemName: v.string(),
+            description: v.optional(v.string()),
+            hsnSacCode: v.optional(v.string()),
+            quantity: v.number(),
+            unit: v.string(),
+            rate: v.number(),
+            projectItemId: v.optional(v.id("project_items")),
+          })
+        ),
+        taxRate: v.number(),
+        freight: v.optional(v.number()),
+        deliveryDays: v.optional(v.number()),
+        paymentTerms: v.optional(v.string()),
+        quoteFileId: v.optional(v.id("_storage")),
+        notes: v.optional(v.string()),
+      })
+    ),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requirePermission(
+      ctx,
+      "cost_comparisons:update",
+      args.token
+    );
+
+    const cc = await ctx.db.get(args.id);
+    if (!cc) throw new Error("Cost comparison not found.");
+
+    if (cc.status !== "draft" && cc.status !== "queried") {
+      throw new Error(`Cannot edit Cost Comparison in "${cc.status}" status.`);
+    }
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, cc, cc.refNo);
+
+    const mr = cc.materialRequestId ? await ctx.db.get(cc.materialRequestId) : null;
+    const processedQuotes = processVendorQuotes(args.vendorQuotes, mr?.items);
+
+    const now = new Date().toISOString();
+    await ctx.db.patch(args.id, {
+      vendorQuotes: processedQuotes,
+      updatedBy: scope.user._id,
+      updatedAt: now,
+    });
+
+    return { success: true, id: args.id };
   },
 });
 
@@ -434,6 +514,8 @@ export const resubmitCC = mutation({
         items: v.array(
           v.object({
             itemName: v.string(),
+            description: v.optional(v.string()),
+            hsnSacCode: v.optional(v.string()),
             quantity: v.number(),
             unit: v.string(),
             rate: v.number(),

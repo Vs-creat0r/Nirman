@@ -25,7 +25,12 @@ export { formatInr, formatQty, formatDate } from "@/lib/pdf/styles";
 
 export function buildDocumentDefinition(data: PdfDocumentData): TDocumentDefinitions {
   const docTitle = DOC_TYPE_LABELS[data.docType] || "DOCUMENT";
-  const statusColor = STATUS_COLORS[data.status.toLowerCase()] || "#64748B";
+  const docStatus = typeof data.status === "string" && data.status
+    ? data.status
+    : data.docType === "grn"
+    ? "delivered"
+    : "draft";
+  const statusColor = STATUS_COLORS[docStatus.toLowerCase()] || "#64748B";
 
   const content: Content[] = [];
 
@@ -48,7 +53,7 @@ export function buildDocumentDefinition(data: PdfDocumentData): TDocumentDefinit
               { text: "Ref: ", bold: true, color: "#64748B", fontSize: 10, width: "auto" },
               { text: data.refNo, bold: true, color: "#0F172A", fontSize: 10, width: "auto" },
               {
-                text: `  [ ${data.status.toUpperCase().replace(/_/g, " ")} ]`,
+                text: `  [ ${docStatus.toUpperCase().replace(/_/g, " ")} ]`,
                 bold: true,
                 color: statusColor,
                 fontSize: 9,

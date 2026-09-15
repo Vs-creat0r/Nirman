@@ -287,7 +287,7 @@ export const getDocumentForPdf = internalQuery({
       for (const item of docRecord.lineItems as Record<string, unknown>[]) {
         lineItems.push({
           itemName: String(item.itemName || ""),
-          description: typeof item.additionReason === "string" ? item.additionReason : undefined,
+          description: typeof item.description === "string" ? item.description : typeof item.additionReason === "string" ? item.additionReason : undefined,
           hsnSacCode: typeof item.hsnSacCode === "string" ? item.hsnSacCode : undefined,
           quantity: Number(item.quantity || 0),
           unit: String(item.unit || "NOS"),
@@ -402,7 +402,7 @@ export const getDocumentForPdf = internalQuery({
       docType: args.docType,
       docId: String(docRecord._id),
       refNo: docRecord.refNo,
-      status: docRecord.status,
+      status: typeof docRecord.status === "string" ? docRecord.status : (args.docType === "grn" ? "delivered" : "draft"),
       createdAt: new Date(docRecord._creationTime).toISOString(),
       project,
       site,

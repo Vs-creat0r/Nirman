@@ -33,7 +33,7 @@ export function ItemListInput({ fieldDef, optionsMap }: ItemListInputProps) {
         } else if (sf.field === "unit") {
           initialRow[sf.field] = "bags";
         } else if (sf.field === "quantity") {
-          initialRow[sf.field] = 1;
+          initialRow[sf.field] = "";
         } else {
           initialRow[sf.field] = "";
         }
@@ -50,7 +50,7 @@ export function ItemListInput({ fieldDef, optionsMap }: ItemListInputProps) {
       } else if (sf.field === "unit") {
         newRow[sf.field] = "bags";
       } else if (sf.field === "quantity") {
-        newRow[sf.field] = 1;
+        newRow[sf.field] = "";
       } else {
         newRow[sf.field] = "";
       }
@@ -166,13 +166,14 @@ export function ItemListInput({ fieldDef, optionsMap }: ItemListInputProps) {
                                     className="h-8 text-xs text-right font-mono"
                                     {...field}
                                     value={field.value ?? ""}
+                                    onFocus={(e) => e.target.select()}
                                     onChange={(e) => {
                                       const raw = e.target.value;
                                       if (raw === "") {
                                         field.onChange("");
                                       } else {
                                         const val = Number(raw);
-                                        field.onChange(isNaN(val) ? 0 : Math.max(0, val));
+                                        field.onChange(isNaN(val) ? "" : Math.max(0, val));
                                       }
                                     }}
                                   />

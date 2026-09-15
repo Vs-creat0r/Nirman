@@ -53,6 +53,11 @@ Before implementing any feature or change:
 ### Uniqueness Check Rule
 - When creating any named entity (Vendor, Project, Site, User), check for name duplicates **both at the backend (Convex mutation) AND at the form (inline error)**.
 
+### Git & Deployment Rules (Strict)
+- **NEVER directly commit (`git commit`) or push (`git push`) to GitHub / git remote automatically**.
+- Only commit or push when the user explicitly instructs you to do so in the chat.
+- Always leave changes in the local working directory, verify with tests/typechecks, and wait for explicit user confirmation before committing or pushing.
+
 ---
 
 ## Tech Stack Quick Reference

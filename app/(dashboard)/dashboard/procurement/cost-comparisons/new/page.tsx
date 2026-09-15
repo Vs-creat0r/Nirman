@@ -78,10 +78,13 @@ function NewCostComparisonForm() {
     if (currentMR && currentMR.items && currentMR.items.length > 0) {
       const initialItems = currentMR.items.map((it: any) => ({
         itemName: it.itemName,
-        quantity: Number(it.quantity) || 1,
+        description: it.description || undefined,
+        hsnSacCode: it.hsnSacCode || undefined,
+        quantity: Number(it.quantity) || 0,
         unit: it.unit || "bags",
         rate: undefined,
         amount: 0,
+        projectItemId: it.projectItemId || undefined,
       }));
 
       setQuotes((prev) => {
@@ -93,6 +96,8 @@ function NewCostComparisonForm() {
               const rate = existingItem?.rate ?? undefined;
               return {
                 ...newItem,
+                description: existingItem?.description ?? newItem.description,
+                hsnSacCode: existingItem?.hsnSacCode ?? newItem.hsnSacCode,
                 rate,
                 amount: rate !== undefined ? Math.round(newItem.quantity * rate * 100) / 100 : 0,
               };

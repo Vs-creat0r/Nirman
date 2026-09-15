@@ -28,6 +28,7 @@ export function NumberInput({ fieldDef }: { fieldDef: FieldDef }) {
             max={fieldDef.validation?.max}
             {...field}
             value={field.value ?? ""}
+            onFocus={(e) => e.target.select()}
             onChange={(e) => {
               const raw = e.target.value;
               if (raw === "") {

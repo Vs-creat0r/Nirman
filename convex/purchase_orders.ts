@@ -90,26 +90,31 @@ export const createPOFromCC = mutation({
     const activePO = existingPOs.find((p) => ["draft", "submitted", "queried", "approved"].includes(p.status));
     if (activePO) throw new Error(`A Purchase Order (${activePO.refNo}) already exists for this Cost Comparison.`);
 
-    // Load parent MR items if available to inherit HSN/SAC code
+    // Load parent MR items if available to inherit HSN/SAC code and description
     const mr = cc.materialRequestId ? await ctx.db.get(cc.materialRequestId) : null;
-    const mrItemMap = new Map<string, string | undefined>();
+    const mrHsnMap = new Map<string, string | undefined>();
+    const mrDescMap = new Map<string, string | undefined>();
     if (mr && mr.items) {
       for (const item of mr.items) {
-        if (item.itemName && item.hsnSacCode) {
-          mrItemMap.set(item.itemName.toLowerCase().trim(), item.hsnSacCode);
+        if (item.itemName) {
+          const key = item.itemName.toLowerCase().trim();
+          if (item.hsnSacCode) mrHsnMap.set(key, item.hsnSacCode);
+          if (item.description) mrDescMap.set(key, item.description);
         }
       }
     }
 
-    // Snapshot line items with amounts and projectItemId [FIX-B1]
+    // Snapshot line items with amounts, description, HSN/SAC, and projectItemId [FIX-B1]
     const snapshottedLineItems = winningQuote.items.map((item) => {
       const qty = Number(item.quantity) || 0;
       const rate = Number(item.rate) || 0;
-      const hsnSacCode = mrItemMap.get(item.itemName.toLowerCase().trim()) || undefined;
+      const key = item.itemName.toLowerCase().trim();
+      const hsnSacCode = item.hsnSacCode || mrHsnMap.get(key) || undefined;
+      const description = item.description || mrDescMap.get(key) || undefined;
       let projectItemId = item.projectItemId;
       if (!projectItemId && mr?.items) {
         const match = mr.items.find(
-          (m) => m.itemName.toLowerCase().trim() === item.itemName.toLowerCase().trim()
+          (m) => m.itemName.toLowerCase().trim() === key
         );
         if (match?.projectItemId) {
           projectItemId = match.projectItemId;
@@ -118,11 +123,12 @@ export const createPOFromCC = mutation({
 
       return {
         itemName: item.itemName,
+        description: description,
+        hsnSacCode: hsnSacCode,
         quantity: qty,
         unit: item.unit,
         rate: rate,
         amount: Math.round(qty * rate * 100) / 100,
-        hsnSacCode: hsnSacCode,
         projectItemId: projectItemId || undefined,
       };
     });
@@ -242,6 +248,159 @@ export const createPOFromCC = mutation({
       refNo,
       status: initialStatus,
     };
+  },
+});
+
+/**
+ * Update an editable draft or queried Purchase Order without triggering transition.
+ */
+export const updatePO = mutation({
+  args: {
+    id: v.id("purchase_order"),
+    vendorId: v.optional(v.id("vendors")),
+    siteId: v.optional(v.id("sites")),
+    lineItems: v.optional(
+      v.array(
+        v.object({
+          itemName: v.string(),
+          description: v.optional(v.string()),
+          quantity: v.number(),
+          unit: v.string(),
+          hsnSacCode: v.optional(v.string()),
+          rate: v.number(),
+          amount: v.optional(v.number()),
+          projectItemId: v.optional(v.id("project_items")),
+          isUnquotedAddition: v.optional(v.boolean()),
+          additionReason: v.optional(v.string()),
+        })
+      )
+    ),
+    expectedDelivery: v.optional(v.string()),
+    validUntil: v.optional(v.string()),
+    paymentTerms: v.optional(
+      v.union(
+        v.literal("advance"),
+        v.literal("on_delivery"),
+        v.literal("7_days"),
+        v.literal("15_days"),
+        v.literal("30_days"),
+        v.literal("45_days")
+      )
+    ),
+    placeOfSupplyStateCode: v.optional(v.string()),
+    siteContactPerson: v.optional(v.string()),
+    siteContactPhone: v.optional(v.string()),
+    unloadingScope: v.optional(
+      v.union(v.literal("buyer_scope"), v.literal("vendor_scope"))
+    ),
+    freightTerms: v.optional(
+      v.union(
+        v.literal("inclusive_in_rate"),
+        v.literal("extra_at_actuals"),
+        v.literal("fixed_freight"),
+        v.literal("to_pay_by_site")
+      )
+    ),
+    freight: v.optional(v.number()),
+    taxRate: v.optional(v.number()),
+    procurementNotes: v.optional(v.string()),
+    termsAndConditions: v.optional(v.string()),
+    token: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requirePermission(
+      ctx,
+      "purchase_orders:update",
+      args.token
+    );
+
+    const po = await ctx.db.get(args.id);
+    if (!po) throw new Error("Purchase Order not found.");
+
+    if (po.status !== "draft" && po.status !== "queried") {
+      throw new Error(`Cannot edit Purchase Order in "${po.status}" status.`);
+    }
+
+    const scope = await resolveCallerScope(ctx, args.token);
+    assertDocumentAccess(scope, po, po.refNo);
+
+    const patchData: Record<string, unknown> = {};
+
+    if (args.vendorId) patchData.vendorId = args.vendorId;
+    if (args.siteId !== undefined) patchData.siteId = args.siteId;
+    if (args.expectedDelivery !== undefined) patchData.expectedDelivery = args.expectedDelivery;
+    if (args.validUntil !== undefined) patchData.validUntil = args.validUntil;
+    if (args.paymentTerms !== undefined) patchData.paymentTerms = args.paymentTerms;
+    if (args.placeOfSupplyStateCode !== undefined) patchData.placeOfSupplyStateCode = args.placeOfSupplyStateCode;
+    if (args.siteContactPerson !== undefined) patchData.siteContactPerson = args.siteContactPerson;
+    if (args.siteContactPhone !== undefined) patchData.siteContactPhone = args.siteContactPhone;
+    if (args.unloadingScope !== undefined) patchData.unloadingScope = args.unloadingScope;
+    if (args.freightTerms !== undefined) patchData.freightTerms = args.freightTerms;
+    if (args.procurementNotes !== undefined) patchData.procurementNotes = args.procurementNotes;
+    if (args.termsAndConditions !== undefined) patchData.termsAndConditions = args.termsAndConditions;
+
+    let currentLineItems = po.lineItems;
+    if (args.lineItems) {
+      if (args.lineItems.length === 0) {
+        throw new Error("A purchase order must have at least one line item.");
+      }
+      currentLineItems = args.lineItems.map((item) => {
+        const qty = Number(item.quantity);
+        if (isNaN(qty) || qty <= 0) {
+          throw new Error(`Quantity for "${item.itemName}" must be greater than 0.`);
+        }
+        const rate = Number(item.rate);
+        if (isNaN(rate) || rate < 0) {
+          throw new Error(`Rate for "${item.itemName}" must be non-negative.`);
+        }
+        const amount = Math.round(qty * rate * 100) / 100;
+        return {
+          itemName: item.itemName.trim(),
+          description: item.description?.trim() || undefined,
+          hsnSacCode: item.hsnSacCode?.trim() || undefined,
+          quantity: qty,
+          unit: item.unit,
+          rate: rate,
+          amount: amount,
+          projectItemId: item.projectItemId || undefined,
+          isUnquotedAddition: item.isUnquotedAddition || false,
+          additionReason: item.additionReason?.trim() || undefined,
+        };
+      });
+      patchData.lineItems = currentLineItems;
+    }
+
+    const subtotal = Math.round(
+      currentLineItems.reduce((acc, cur) => acc + cur.amount, 0) * 100
+    ) / 100;
+    patchData.subtotal = subtotal;
+
+    const taxRate =
+      args.taxRate !== undefined
+        ? Math.max(0, Math.min(100, Number(args.taxRate)))
+        : po.taxRate !== undefined
+        ? po.taxRate
+        : 18;
+    patchData.taxRate = taxRate;
+    const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
+    patchData.taxAmount = taxAmount;
+
+    const freight =
+      args.freight !== undefined
+        ? Math.max(0, Number(args.freight))
+        : po.freight !== undefined
+        ? po.freight
+        : 0;
+    patchData.freight = freight;
+
+    const totalAmount = Math.round((subtotal + taxAmount + freight) * 100) / 100;
+    patchData.totalAmount = totalAmount;
+
+    patchData.updatedBy = scope.user._id;
+    patchData.updatedAt = new Date().toISOString();
+
+    await ctx.db.patch(args.id, patchData);
+    return { success: true, id: args.id };
   },
 });
 

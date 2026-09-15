@@ -174,9 +174,17 @@ export function DocumentView({
 }: DocumentViewProps) {
   const { token } = useSession();
 
+  const isLifecycleDoc = [
+    "material_request",
+    "cost_comparison",
+    "purchase_order",
+    "delivery_challan",
+    "rfq",
+  ].includes(docType);
+
   const availableActionsData = useQuery(
     api.lifecycle.availableActions,
-    doc._id
+    doc._id && isLifecycleDoc
       ? { table: docType, documentId: doc._id, token: token || undefined }
       : "skip"
   );
