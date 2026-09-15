@@ -9,6 +9,7 @@ export const purchase_orderSchema = z.object({
   siteId: z.string().min(1, "Deliver to site is required").optional(),
   lineItems: z.array(z.object({
       itemName: z.string(),
+      description: z.string().max(300, "Description is too long").optional(),
       quantity: z.coerce.number().min(0.001, "Qty must be at least 0.001"),
       unit: z.string(),
       hsnSacCode: z.string().max(20, "HSN/SAC Code is too long").optional(),

@@ -10,6 +10,8 @@ export const cost_comparisonSchema = z.object({
       vendorId: z.string().min(1, "Vendor is required"),
       items: z.array(z.object({
       itemName: z.string(),
+      description: z.string().max(300, "Description is too long").optional(),
+      hsnSacCode: z.string().max(20, "HSN/SAC Code is too long").optional(),
       quantity: z.coerce.number().min(0.001, "Qty must be at least 0.001"),
       unit: z.string(),
       rate: z.coerce.number().min(0, "Rate must be at least 0"),

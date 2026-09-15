@@ -37,6 +37,8 @@ export default function EditQueriedCostComparisonPage() {
     token ? { token } : "skip"
   );
 
+  const updateCCMutation = useMutation(api.cost_comparisons.updateCC);
+  const submitCCMutation = useMutation(api.cost_comparisons.submitCC);
   const resubmitCCMutation = useMutation(api.cost_comparisons.resubmitCC);
   const deleteCCMutation = useMutation(api.cost_comparisons.deleteCC);
 
@@ -76,7 +78,9 @@ export default function EditQueriedCostComparisonPage() {
           vendorId: q.vendorId,
           items: q.items.map((it: any) => ({
             itemName: it.itemName,
-            quantity: Number(it.quantity) || 1,
+            description: it.description || undefined,
+            hsnSacCode: it.hsnSacCode || undefined,
+            quantity: Number(it.quantity) || 0,
             unit: it.unit || "bags",
             rate: Number(it.rate) || 0,
             amount: Number(it.amount) || 0,
@@ -85,7 +89,7 @@ export default function EditQueriedCostComparisonPage() {
           subtotal: Number(q.subtotal) || 0,
           taxRate: q.taxRate !== undefined && !isNaN(Number(q.taxRate)) ? Number(q.taxRate) : 18,
           taxAmount: Number(q.taxAmount) || 0,
-          freight: Number(q.freight) || 0,
+          freight: q.freight !== undefined && q.freight !== null ? Number(q.freight) : undefined,
           total: Number(q.total) || 0,
           deliveryDays: q.deliveryDays,
           paymentTerms: q.paymentTerms || "30_days",
@@ -150,7 +154,7 @@ export default function EditQueriedCostComparisonPage() {
     setQuotes((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  const handleSubmit = async () => {
+  const handleSaveOrSubmit = async (isSaveOnly: boolean) => {
     setError(null);
     setIsSubmitting(true);
 
@@ -177,12 +181,14 @@ export default function EditQueriedCostComparisonPage() {
         throw new Error("All participating vendor quotes must be from distinct vendors.");
       }
 
-      await resubmitCCMutation({
+      const payload = {
         id,
         vendorQuotes: quotes.map((q) => ({
           vendorId: q.vendorId as Id<"vendors">,
           items: q.items.map((it) => ({
             itemName: it.itemName,
+            description: (it as any).description || undefined,
+            hsnSacCode: (it as any).hsnSacCode || undefined,
             quantity: Number(it.quantity),
             unit: it.unit,
             rate: Number(it.rate),
@@ -195,14 +201,29 @@ export default function EditQueriedCostComparisonPage() {
           notes: q.notes?.trim() || undefined,
         })),
         token: token || undefined,
-      });
+      };
+
+      if (isSaveOnly) {
+        await updateCCMutation(payload);
+        router.push(`/dashboard/procurement/cost-comparisons/${id}`);
+        return;
+      }
+
+      if (isResubmission) {
+        await resubmitCCMutation(payload);
+      } else {
+        await updateCCMutation(payload);
+        await submitCCMutation({ id, token: token || undefined });
+      }
 
       router.push(`/dashboard/procurement/cost-comparisons/${id}`);
     } catch (err: any) {
-      setError(err.message || "Failed to resubmit cost comparison.");
+      setError(err.message || "Failed to save cost comparison.");
       setIsSubmitting(false);
     }
   };
+
+  const handleSubmit = () => handleSaveOrSubmit(false);
 
   const usedVendorIds = quotes.map((q) => q.vendorId).filter(Boolean);
   const minTotal =
@@ -327,6 +348,17 @@ export default function EditQueriedCostComparisonPage() {
                   Cancel
                 </Button>
               </Link>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isSubmitting || isDiscarding}
+                onClick={() => handleSaveOrSubmit(true)}
+                className="text-xs"
+              >
+                {isResubmission ? "Save Changes" : "Save Draft"}
+              </Button>
 
               <Button
                 type="button"

@@ -81,6 +81,16 @@
             "required": true
           },
           {
+            "field": "description",
+            "label": "Description",
+            "type": "string",
+            "input": "text",
+            "required": false,
+            "validation": {
+              "maxLength": 300
+            }
+          },
+          {
             "field": "quantity",
             "label": "Qty",
             "type": "number",

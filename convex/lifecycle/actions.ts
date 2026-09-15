@@ -42,7 +42,7 @@ export function computeAvailableActions(
 ): AvailableActionsResult {
   const machine = LIFECYCLE_REGISTRY[table as LifecycleTable];
   if (!machine) {
-    throw new Error(`Lifecycle machine not found for table "${table}".`);
+    return { status: doc.status || "completed", actions: [] };
   }
 
   const currentStatus = doc.status;

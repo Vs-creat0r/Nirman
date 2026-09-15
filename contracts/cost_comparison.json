@@ -89,6 +89,26 @@
                   "required": true
                 },
                 {
+                  "field": "description",
+                  "label": "Description",
+                  "type": "string",
+                  "input": "text",
+                  "required": false,
+                  "validation": {
+                    "maxLength": 300
+                  }
+                },
+                {
+                  "field": "hsnSacCode",
+                  "label": "HSN/SAC Code",
+                  "type": "string",
+                  "input": "text",
+                  "required": false,
+                  "validation": {
+                    "maxLength": 20
+                  }
+                },
+                {
                   "field": "quantity",
                   "label": "Qty",
                   "type": "number",

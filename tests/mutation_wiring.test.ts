@@ -28,6 +28,7 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
   },
   "cost_comparisons.ts": {
     createCC: "cost_comparisons:create",
+    updateCC: "cost_comparisons:update",
     submitCC: "cost_comparisons:submit",
     approveCC: "cost_comparisons:approve",
     rejectCC: "cost_comparisons:reject",
@@ -37,6 +38,7 @@ const EXPECTED_MUTATION_WIRING: Record<string, Record<string, string>> = {
   },
   "purchase_orders.ts": {
     createPOFromCC: "purchase_orders:create",
+    updatePO: "purchase_orders:update",
     submitPO: "purchase_orders:submit",
   },
   "purchase_order_approvals.ts": {

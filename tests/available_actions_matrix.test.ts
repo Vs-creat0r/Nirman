@@ -297,5 +297,14 @@ describe("🔴 GATE 2 — Role-by-State Available Actions Matrix", () => {
         evaluateGuard("nonExistentGuardName", {})
       ).toThrow(/Unknown lifecycle guard/i);
     });
+
+    it("returns empty actions for non-lifecycle tables (e.g. grn)", () => {
+      const doc = { _id: "grn_1", status: "delivered" };
+      for (const role of ALL_ROLES) {
+        const res = computeAvailableActions("grn", doc as any, { _id: "u1", role });
+        expect(res.actions).toHaveLength(0);
+        expect(res.status).toBe("delivered");
+      }
+    });
   });
 });

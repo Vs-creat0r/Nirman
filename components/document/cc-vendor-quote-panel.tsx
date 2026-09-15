@@ -10,6 +10,8 @@ import { Id } from "@/convex/_generated/dataModel";
 
 export interface CCQuoteItem {
   itemName: string;
+  description?: string;
+  hsnSacCode?: string;
   quantity: number;
   unit: string;
   rate: number | undefined;
@@ -23,7 +25,7 @@ export interface CCVendorQuoteData {
   subtotal: number;
   taxRate: number;
   taxAmount: number;
-  freight: number;
+  freight?: number;
   total: number;
   deliveryDays?: number;
   paymentTerms?: string;
@@ -63,7 +65,7 @@ export function CCVendorQuotePanel({
   const updateCalculations = (
     items: CCQuoteItem[],
     taxRate: number,
-    freight: number,
+    freight?: number,
     otherFields: Partial<CCVendorQuoteData> = {}
   ) => {
     const updatedItems = items.map((it) => ({
@@ -76,7 +78,7 @@ export function CCVendorQuotePanel({
     ) / 100;
     const cleanTaxRate = Math.max(0, Math.min(100, Number(taxRate) || 0));
     const taxAmount = Math.round(subtotal * (cleanTaxRate / 100) * 100) / 100;
-    const cleanFreight = Math.max(0, Number(freight) || 0);
+    const cleanFreight = freight === undefined || isNaN(freight) ? 0 : Math.max(0, Number(freight));
     const total = Math.round((subtotal + taxAmount + cleanFreight) * 100) / 100;
 
     onChange({
@@ -86,7 +88,7 @@ export function CCVendorQuotePanel({
       subtotal,
       taxRate: cleanTaxRate,
       taxAmount,
-      freight: cleanFreight,
+      freight: freight === undefined || isNaN(freight) ? undefined : cleanFreight,
       total,
     });
   };
@@ -210,8 +212,9 @@ export function CCVendorQuotePanel({
                         min="0"
                         step="any"
                         placeholder="Enter rate"
-                        value={item.rate === undefined || item.rate === null || (item.rate === 0 && (item.amount === 0)) ? "" : item.rate}
+                        value={item.rate === undefined || item.rate === null ? "" : item.rate}
                         onChange={(e) => handleRateChange(itIdx, e.target.value)}
+                        onFocus={(e) => e.target.select()}
                         className="h-7 text-xs text-right font-mono"
                       />
                     </td>
@@ -265,9 +268,10 @@ export function CCVendorQuotePanel({
                 updateCalculations(
                   quote.items,
                   quote.taxRate,
-                  e.target.value === "" ? 0 : Math.max(0, parseFloat(e.target.value) || 0)
+                  e.target.value === "" ? undefined : Math.max(0, parseFloat(e.target.value) || 0)
                 )
               }
+              onFocus={(e) => e.target.select()}
               className="h-8 text-xs font-mono"
             />
           </div>
@@ -282,13 +286,14 @@ export function CCVendorQuotePanel({
               type="number"
               min="1"
               placeholder="e.g. 3"
-              value={quote.deliveryDays || ""}
+              value={quote.deliveryDays ?? ""}
               onChange={(e) =>
                 onChange({
                   ...quote,
                   deliveryDays: e.target.value ? parseInt(e.target.value, 10) : undefined,
                 })
               }
+              onFocus={(e) => e.target.select()}
               className="h-8 text-xs font-mono"
             />
           </div>
@@ -340,7 +345,7 @@ export function CCVendorQuotePanel({
             <span>GST ({quote.taxRate}%):</span>
             <span>+₹{quote.taxAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
           </div>
-          {quote.freight > 0 && (
+          {quote.freight !== undefined && quote.freight > 0 && (
             <div className="flex justify-between text-muted-foreground">
               <span>Freight:</span>
               <span>+₹{quote.freight.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>

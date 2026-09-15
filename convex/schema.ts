@@ -18,6 +18,8 @@ export default defineSchema({
         items: v.array(
           v.object({
             itemName: v.string(),
+            description: v.optional(v.string()),
+            hsnSacCode: v.optional(v.string()),
             quantity: v.number(),
             unit: v.string(),
             rate: v.number(),
@@ -228,6 +230,7 @@ export default defineSchema({
     lineItems: v.array(
       v.object({
         itemName: v.string(),
+        description: v.optional(v.string()),
         quantity: v.number(),
         unit: v.string(),
         hsnSacCode: v.optional(v.string()),

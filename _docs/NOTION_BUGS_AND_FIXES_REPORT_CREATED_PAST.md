@@ -497,3 +497,9 @@
 | `lib/auth/jwt.ts` | JWT CryptoKey fix |
 | `lib/handle-error.ts` | Centralized error handling |
 | `components/performance-error-suppressor.tsx` | Hydration/CSP warning suppression |
+
+---
+
+## 13. Subsequent Sessions & Ongoing Reports
+
+- **11 September 2026**: Full report of supervisor draft saving, role-based action filtering, GRN lifecycle error fix, and git safety rules documented in [`_docs/SOLVED_ISSUES_AND_BUGS_2026_09_11.md`](./SOLVED_ISSUES_AND_BUGS_2026_09_11.md).

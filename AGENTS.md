@@ -28,4 +28,9 @@ Convex agent skills for common tasks can be installed by running
   2. Never allow mouse wheel scrolling to alter numeric values.
   3. Never allow negative numbers (all values must be >= 0). Blocking negative keydown and clamping `Math.max(0, val)` is mandatory.
 
+## Git & Deployment Rules (Strict)
+- **NEVER directly commit (`git commit`) or push (`git push`) to GitHub / git remote automatically**.
+- Only commit or push when the user explicitly instructs you to do so in the chat.
+- Always leave changes in the local working directory, verify with tests/typechecks, and wait for the user's explicit command before running `git commit` or `git push`.
+
 

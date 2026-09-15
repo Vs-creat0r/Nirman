@@ -207,4 +207,29 @@ describe("Vector PDF Generation — Universal Template", () => {
     expect(pdfRaw.includes("/FontDescriptor")).toBe(true);
     expect(pdfRaw.includes("/FontFile2")).toBe(true);
   });
+
+  it("handles GRN documents without status gracefully without crashing", async () => {
+    const grnData: PdfDocumentData = {
+      ...samplePoData,
+      docType: "grn",
+      refNo: "GRN-2026-0001",
+      status: undefined as unknown as string,
+      lineItems: [
+        {
+          itemName: "OPC 53 Grade Cement",
+          quantity: 200,
+          expectedQty: 200,
+          receivedQty: 200,
+          unit: "BAGS",
+        },
+      ],
+    };
+
+    const docDef = buildDocumentDefinition(grnData);
+    expect(docDef).toBeDefined();
+
+    const pdfBuffer = await renderPdfBuffer(grnData);
+    expect(Buffer.isBuffer(pdfBuffer)).toBe(true);
+    expect(pdfBuffer.subarray(0, 5).toString("utf-8")).toBe("%PDF-");
+  });
 });
