@@ -3,27 +3,24 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
 import { Id } from "@/convex/_generated/dataModel";
-import {
-  CCVendorQuotePanel,
-  CCVendorQuoteData,
-} from "@/components/document/cc-vendor-quote-panel";
+import { CCVendorQuotePanel, CCVendorQuoteData } from "@/components/document/cc-vendor-quote-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import {
-  ArrowLeft,
-  Plus,
-  Send,
-  Save,
-  AlertTriangle,
-  Building2,
-  Calendar,
-  FileText,
-} from "lucide-react";
+import { ArrowLeft, Plus, Send, Save, Sparkles, Info, Calendar, FileText, AlertTriangle } from "lucide-react";
+
+interface MaterialRequestItem {
+  itemName: string;
+  description?: string;
+  hsnSacCode?: string;
+  quantity: number;
+  unit: string;
+  projectItemId?: Id<"project_items">;
+}
 
 function NewCostComparisonForm() {
   const router = useRouter();
@@ -32,63 +29,55 @@ function NewCostComparisonForm() {
 
   const urlMrId = searchParams.get("mrId") as Id<"material_request"> | null;
   const urlRfqId = searchParams.get("fromRfq") as Id<"rfq"> | null;
-  const [selectedMrId, setSelectedMrId] = React.useState<Id<"material_request"> | "">(
-    urlMrId || ""
-  );
+  const [selectedMrId, setSelectedMrId] = React.useState<Id<"material_request"> | "">(urlMrId || "");
 
   // Queries
-  const readyMRs = useQuery(
-    api.cost_comparisons.listApprovedMRsForCC,
-    token ? { token } : "skip"
+  const readyMRs = useQuery(api.cost_comparisons.listApprovedMRsForCC, token ? { token } : "skip");
+  const currentRfq = useQuery(api.rfqs.getRfq, urlRfqId && token ? { id: urlRfqId, token } : "skip");
+  const currentMR = useQuery(
+    api.material_requests.getMR,
+    selectedMrId && token ? { id: selectedMrId as Id<"material_request">, token } : "skip"
   );
-  const currentRfq = useQuery(
-    api.rfqs.getRfq,
-    urlRfqId && token ? { id: urlRfqId, token } : "skip"
-  );
-  const rfqQuotes = useQuery(
-    api.rfq_quotes.getQuotesByRfq,
-    urlRfqId && token ? { rfqId: urlRfqId, token } : "skip"
-  );
+  const vendors = useQuery(api.vendors.listVendors, token ? { token } : "skip");
 
-  // If seeded from RFQ with source MR, auto-set MR
+  // Mutations / Actions
+  const createCCMutation = useMutation(api.cost_comparisons.createCC);
+  const proposeAction = useAction(api.agent.propose.proposeCostComparison);
+
+  // Form State
+  const [quotes, setQuotes] = React.useState<CCVendorQuoteData[]>([]);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [isDrafting, setIsDrafting] = React.useState(false);
+  const [agentContext, setAgentContext] = React.useState<{
+    proposalId?: string;
+    provider?: string;
+    model?: string;
+    promptVersion?: string;
+  } | null>(null);
+  const [aiPlanSummary, setAiPlanSummary] = React.useState<string | null>(null);
+  const [aiIncompleteReason, setAiIncompleteReason] = React.useState<string | null>(null);
+
   React.useEffect(() => {
     if (currentRfq?.sourceMrId && !selectedMrId) {
       setSelectedMrId(currentRfq.sourceMrId);
     }
   }, [currentRfq, selectedMrId]);
 
-  const currentMR = useQuery(
-    api.material_requests.getMR,
-    selectedMrId && token ? { id: selectedMrId as Id<"material_request">, token } : "skip"
-  );
-  const vendors = useQuery(
-    api.vendors.listVendors,
-    token ? { token } : "skip"
-  );
-
-  const createCCMutation = useMutation(api.cost_comparisons.createCC);
-
-  // Multi-vendor quote state
-  const [quotes, setQuotes] = React.useState<CCVendorQuoteData[]>([]);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-
-  // Initialize or re-populate quotes when MR items load
   React.useEffect(() => {
-    if (currentMR && currentMR.items && currentMR.items.length > 0) {
-      const initialItems = currentMR.items.map((it: any) => ({
+    if (currentMR?.items && currentMR.items.length > 0 && !agentContext) {
+      const initialItems = (currentMR.items as MaterialRequestItem[]).map((it) => ({
         itemName: it.itemName,
         description: it.description || undefined,
         hsnSacCode: it.hsnSacCode || undefined,
         quantity: Number(it.quantity) || 0,
         unit: it.unit || "bags",
-        rate: undefined,
+        rate: undefined as unknown as number,
         amount: 0,
         projectItemId: it.projectItemId || undefined,
       }));
 
       setQuotes((prev) => {
-        // If we already had quotes with selected vendors, preserve vendor metadata
         if (prev.length >= 2) {
           return prev.map((q) => {
             const updatedItems = initialItems.map((newItem) => {
@@ -98,74 +87,109 @@ function NewCostComparisonForm() {
                 ...newItem,
                 description: existingItem?.description ?? newItem.description,
                 hsnSacCode: existingItem?.hsnSacCode ?? newItem.hsnSacCode,
-                rate,
+                rate: rate as number,
                 amount: rate !== undefined ? Math.round(newItem.quantity * rate * 100) / 100 : 0,
               };
             });
-            const subtotal = Math.round(
-              updatedItems.reduce((acc, cur) => acc + (cur.amount || 0), 0) * 100
-            ) / 100;
+            const subtotal = Math.round(updatedItems.reduce((acc, cur) => acc + (cur.amount || 0), 0) * 100) / 100;
             const taxAmount = Math.round(subtotal * (q.taxRate / 100) * 100) / 100;
             const freight = Number(q.freight) || 0;
-            return {
-              ...q,
-              items: updatedItems,
-              subtotal,
-              taxAmount,
-              total: Math.round((subtotal + taxAmount + freight) * 100) / 100,
-            };
+            return { ...q, items: updatedItems, subtotal, taxAmount, total: Math.round((subtotal + taxAmount + freight) * 100) / 100 };
           });
         }
-
-        // Initialize with 2 empty vendor quotes
-        return [
-          {
-            vendorId: "",
-            items: initialItems.map((it) => ({ ...it })),
-            subtotal: 0,
-            taxRate: 18,
-            taxAmount: 0,
-            freight: 0,
-            total: 0,
-            paymentTerms: "30_days",
-          },
-          {
-            vendorId: "",
-            items: initialItems.map((it) => ({ ...it })),
-            subtotal: 0,
-            taxRate: 18,
-            taxAmount: 0,
-            freight: 0,
-            total: 0,
-            paymentTerms: "30_days",
-          },
-        ];
+        const makeEmptyQuote = (): CCVendorQuoteData => ({
+          vendorId: "",
+          items: initialItems.map((it) => ({ ...it })),
+          subtotal: 0,
+          taxRate: 18,
+          taxAmount: 0,
+          freight: 0,
+          total: 0,
+          paymentTerms: "30_days",
+        });
+        return [makeEmptyQuote(), makeEmptyQuote()];
       });
     }
-  }, [currentMR?._id]);
+  }, [currentMR?._id, agentContext]);
+
+  const handleGenerateAIProposal = async () => {
+    if (!selectedMrId) return;
+    setError(null);
+    setAiIncompleteReason(null);
+    setIsDrafting(true);
+
+    try {
+      const result = await proposeAction({
+        materialRequestId: selectedMrId as Id<"material_request">,
+        token: token || undefined,
+      });
+
+      if (result.status === "incomplete") {
+        setAiIncompleteReason(result.reason || result.planSummary || "Unable to draft proposal.");
+      } else if (result.status === "proposed" && result.proposal) {
+        setAiPlanSummary(result.planSummary);
+        setAgentContext({
+          proposalId: `prop_${Date.now()}`,
+          provider: "gemini",
+          model: "gemini-2.5-flash",
+          promptVersion: "s6-v1",
+        });
+
+        const newQuotes: CCVendorQuoteData[] = result.proposal.vendorQuotes.map((q) => {
+          const items = q.items.map((it) => {
+            const qty = Number(it.quantity) || 1;
+            const rate = Number(it.rate) || 0;
+            return {
+              itemName: it.itemName,
+              description: it.description,
+              hsnSacCode: it.hsnSacCode,
+              quantity: qty,
+              unit: it.unit,
+              rate: it.rate,
+              amount: Math.round(qty * rate * 100) / 100,
+              projectItemId: it.projectItemId ? (it.projectItemId as Id<"project_items">) : undefined,
+            };
+          });
+          const subtotal = Math.round(items.reduce((acc, cur) => acc + (cur.amount || 0), 0) * 100) / 100;
+          const taxRate = Number(q.taxRate) || 18;
+          const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
+          const freight = Number(q.freight) || 0;
+          return {
+            vendorId: q.vendorId,
+            items,
+            subtotal,
+            taxRate,
+            taxAmount,
+            freight,
+            total: Math.round((subtotal + taxAmount + freight) * 100) / 100,
+            deliveryDays: q.deliveryDays,
+            paymentTerms: q.paymentTerms || "30_days",
+            notes: q.notes,
+          };
+        });
+
+        if (newQuotes.length >= 2) setQuotes(newQuotes);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to generate AI proposal.";
+      setAiIncompleteReason(msg);
+    } finally {
+      setIsDrafting(false);
+    }
+  };
 
   const handleAddVendorQuote = () => {
-    if (!currentMR || !currentMR.items) return;
-    const initialItems = currentMR.items.map((it: any) => ({
+    if (!currentMR?.items) return;
+    const initialItems = (currentMR.items as MaterialRequestItem[]).map((it) => ({
       itemName: it.itemName,
       quantity: Number(it.quantity) || 1,
       unit: it.unit || "bags",
       rate: undefined as unknown as number,
       amount: 0,
     }));
-
     setQuotes((prev) => [
       ...prev,
-      {
-        vendorId: "",
-        items: initialItems,
-        subtotal: 0,
-        taxRate: 18,
-        taxAmount: 0,
-        freight: 0,
-        total: 0,
-        paymentTerms: "30_days",
-      },
+      { vendorId: "", items: initialItems, subtotal: 0, taxRate: 18, taxAmount: 0, freight: 0, total: 0, paymentTerms: "30_days" },
     ]);
   };
 
@@ -187,36 +211,21 @@ function NewCostComparisonForm() {
     setIsSubmitting(true);
 
     try {
-      if (!selectedMrId) {
-        throw new Error("Please select a Material Request to create the Cost Comparison for.");
-      }
-
-      if (quotes.length < 2) {
-        throw new Error("A minimum of 2 vendor quotes is required.");
-      }
-
-      // Check vendor selection
+      if (!selectedMrId) throw new Error("Please select a Material Request.");
+      if (quotes.length < 2) throw new Error("A minimum of 2 vendor quotes is required.");
       for (let i = 0; i < quotes.length; i++) {
-        if (!quotes[i].vendorId) {
-          throw new Error(`Please select a vendor for Quote #${i + 1}.`);
-        }
+        if (!quotes[i].vendorId) throw new Error(`Please select a vendor for Quote #${i + 1}.`);
       }
 
-      // Check distinct vendors
       const vendorIds = quotes.map((q) => q.vendorId);
       if (new Set(vendorIds).size !== vendorIds.length) {
         throw new Error("All participating vendor quotes must be from distinct vendors.");
       }
 
-      // Check rates
       for (let i = 0; i < quotes.length; i++) {
         for (const item of quotes[i].items) {
           const r = item.rate ?? -1;
-          if (r < 0 || isNaN(r)) {
-            throw new Error(
-              `Please enter a valid non-negative rate for "${item.itemName}" in Quote #${i + 1}.`
-            );
-          }
+          if (r < 0 || isNaN(r)) throw new Error(`Please enter a valid rate for "${item.itemName}" in Quote #${i + 1}.`);
         }
       }
 
@@ -227,9 +236,12 @@ function NewCostComparisonForm() {
           vendorId: q.vendorId as Id<"vendors">,
           items: q.items.map((it) => ({
             itemName: it.itemName,
+            description: it.description || undefined,
+            hsnSacCode: it.hsnSacCode || undefined,
             quantity: Number(it.quantity),
             unit: it.unit,
             rate: Number(it.rate),
+            projectItemId: it.projectItemId || undefined,
           })),
           taxRate: Number(q.taxRate),
           freight: q.freight ? Number(q.freight) : undefined,
@@ -237,14 +249,16 @@ function NewCostComparisonForm() {
           paymentTerms: q.paymentTerms || undefined,
           notes: q.notes?.trim() || undefined,
         })),
+        agentContext: agentContext || undefined,
         submitImmediately,
         token: token || undefined,
       };
 
       const result = await createCCMutation(payload);
       router.push(`/dashboard/procurement/cost-comparisons/${result.id}`);
-    } catch (err: any) {
-      setError(err.message || "Failed to create cost comparison.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to create cost comparison.";
+      setError(msg);
       setIsSubmitting(false);
     }
   };
@@ -257,7 +271,6 @@ function NewCostComparisonForm() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Top Header */}
       <div className="flex items-center justify-between border-b border-border pb-4">
         <div>
           <Link
@@ -267,60 +280,80 @@ function NewCostComparisonForm() {
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to Cost Comparisons
           </Link>
-          <h1 className="text-xl font-bold text-foreground">
-            New Cost Comparison (CC)
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Compare quotes from at least 2 vendors for an approved Material Request.
+          <h1 className="text-xl font-bold text-foreground tracking-tight">Create Cost Comparison</h1>
+          <p className="text-xs text-muted-foreground">
+            Compare vendor quotes against approved Material Request BOQ requirements.
           </p>
         </div>
       </div>
 
       {error && (
-        <div className="p-3.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold">
-          {error}
+        <div className="p-3.5 rounded-md bg-[--danger]/10 border border-[--danger]/20 text-[--danger] text-xs flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
-      {/* ── STEP 1: Select Material Request ── */}
-      <Card>
-        <CardHeader className="py-3 px-4 border-b border-border bg-muted/30">
-          <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground">
-            Step 1: Source Material Request
+      {/* Step 1 */}
+      <Card className="border-border bg-surface rounded-md">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center justify-between">
+            <span>Step 1: Select Approved Material Request</span>
+            {selectedMrId && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isDrafting}
+                onClick={handleGenerateAIProposal}
+                className="gap-1.5 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {isDrafting ? "Drafting Quotes…" : "Draft Quotes with AI"}
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 space-y-4">
+        <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-foreground">
-              Select Approved Material Request <span className="text-destructive">*</span>
+            <Label htmlFor="mr-select" className="text-xs font-medium text-foreground">
+              Approved Material Request <span className="text-[--danger]">*</span>
             </Label>
             <select
+              id="mr-select"
               value={selectedMrId}
-              onChange={(e) => setSelectedMrId(e.target.value as any)}
-              className="flex h-9 w-full rounded-md border border-border bg-input px-3 py-1.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              onChange={(e) => {
+                setSelectedMrId(e.target.value as Id<"material_request">);
+                setAgentContext(null);
+                setAiPlanSummary(null);
+                setAiIncompleteReason(null);
+              }}
+              disabled={!!urlMrId || !!urlRfqId}
+              className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
             >
-              <option value="">-- Choose Approved Material Request --</option>
-              {(readyMRs || []).map((mr) => (
+              <option value="">-- Choose an approved MR ready for CC --</option>
+              {readyMRs?.map((mr) => (
                 <option key={mr._id} value={mr._id}>
-                  {mr.refNo} &bull; {mr.projectName} ({mr.siteName}) &bull; {mr.itemCount} items ({mr.priority} priority)
+                  {mr.refNo} — {mr.items.length} item(s) (Priority: {mr.priority || "medium"})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* MR Summary Context */}
           {currentMR && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-muted/40 border border-border text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-md bg-muted/40 text-xs">
               <div>
-                <span className="text-muted-foreground block text-[11px]">Project & Site</span>
-                <span className="font-semibold text-foreground">
-                  {currentMR.projectName} &bull; {currentMR.siteName}
+                <span className="text-muted-foreground block text-[11px]">Material Request</span>
+                <span className="font-semibold text-foreground font-mono flex items-center gap-1">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  {currentMR.refNo}
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground block text-[11px]">Required By Date</span>
-                <span className="font-semibold text-foreground font-mono">
-                  {currentMR.requiredBy || "As soon as possible"}
+                <span className="text-muted-foreground block text-[11px]">Required By</span>
+                <span className="font-semibold text-foreground flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                  {currentMR.requiredBy ? new Date(currentMR.requiredBy).toLocaleDateString() : "Not specified"}
                 </span>
               </div>
               <div>
@@ -331,17 +364,42 @@ function NewCostComparisonForm() {
               </div>
             </div>
           )}
+
+          {aiIncompleteReason && (
+            <div className="p-3 rounded-md bg-[--warning]/10 border border-[--warning]/20 text-[--warning] text-xs flex items-start gap-2">
+              <Info className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold block">AI Assistant Notice:</span>
+                <span>{aiIncompleteReason} Manual quote entry remains fully available below.</span>
+              </div>
+            </div>
+          )}
+
+          {aiPlanSummary && agentContext && (
+            <div className="p-3.5 rounded-md bg-primary/5 border border-primary/20 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-semibold text-primary">
+                  <Sparkles className="h-4 w-4" />
+                  <span>AI Proposal Draft Loaded</span>
+                </div>
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                  Review &amp; Edit Before Confirm
+                </span>
+              </div>
+              <p className="text-muted-foreground text-[11px]">
+                Vendor rates and quantities have been pre-filled based on past purchase history and active suppliers. You can freely edit quotation values below before confirming.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* ── STEP 2: Vendor Quotes Panels ── */}
+      {/* Step 2 */}
       {selectedMrId && currentMR && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-bold text-foreground">
-                Step 2: Enter Vendor Quotations
-              </h2>
+              <h2 className="text-sm font-bold text-foreground">Step 2: Enter Vendor Quotations</h2>
               <p className="text-xs text-muted-foreground">
                 Enter quotes from at least 2 distinct vendors. Totals are calculated live.
               </p>
@@ -359,7 +417,6 @@ function NewCostComparisonForm() {
             </Button>
           </div>
 
-          {/* Quote Panels Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {quotes.map((quote, idx) => (
               <CCVendorQuotePanel
@@ -376,8 +433,7 @@ function NewCostComparisonForm() {
             ))}
           </div>
 
-          {/* ── Summary & Actions ── */}
-          <Card className="border-border bg-surface">
+          <Card className="border-border bg-surface rounded-md">
             <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-xs space-y-0.5">
                 <span className="text-muted-foreground">Comparison Summary:</span>
@@ -399,7 +455,7 @@ function NewCostComparisonForm() {
                   className="gap-1.5 text-xs font-semibold"
                 >
                   <Save className="h-3.5 w-3.5" />
-                  Save as Draft
+                  {agentContext ? "Confirm & Create Draft" : "Save as Draft"}
                 </Button>
 
                 <Button
@@ -435,4 +491,3 @@ export default function NewCostComparisonPage() {
     </React.Suspense>
   );
 }
-

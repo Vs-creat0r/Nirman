@@ -192,6 +192,14 @@ export const createCC = mutation({
         notes: v.optional(v.string()),
       })
     ),
+    agentContext: v.optional(
+      v.object({
+        proposalId: v.optional(v.string()),
+        provider: v.optional(v.string()),
+        model: v.optional(v.string()),
+        promptVersion: v.optional(v.string()),
+      })
+    ),
     submitImmediately: v.optional(v.boolean()),
     token: v.optional(v.string()),
   },
@@ -238,6 +246,12 @@ export const createCC = mutation({
       updatedAt: now,
     });
 
+    const isAgentAssisted = Boolean(args.agentContext);
+    const source = isAgentAssisted ? "agent-assisted" : "manual";
+    const auditNote = isAgentAssisted
+      ? `AI-proposed, confirmed by ${user.name} (MR ${mr.refNo} with ${processedQuotes.length} vendor quotes)`
+      : `Cost comparison created for ${mr.refNo} with ${processedQuotes.length} vendor quotes`;
+
     // Write audit log entry
     await ctx.db.insert("logs", {
       actorId: user._id,
@@ -248,7 +262,9 @@ export const createCC = mutation({
       referenceId: refNo,
       fromStatus: undefined,
       toStatus: initialStatus,
-      note: `Cost comparison created for ${mr.refNo} with ${processedQuotes.length} vendor quotes`,
+      note: auditNote,
+      source,
+      agentContext: args.agentContext,
       timestamp: now,
     });
 

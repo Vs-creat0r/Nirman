@@ -148,6 +148,13 @@ export default defineSchema({
     fromStatus: v.optional(v.string()),
     toStatus: v.optional(v.string()),
     note: v.optional(v.string()),
+    source: v.optional(v.union(v.literal("manual"), v.literal("agent-assisted"))),
+    agentContext: v.optional(v.object({
+      proposalId: v.optional(v.string()),
+      provider: v.optional(v.string()),
+      model: v.optional(v.string()),
+      promptVersion: v.optional(v.string()),
+    })),
     timestamp: v.string(),
   })
     .index("by_timestamp", ["timestamp"])

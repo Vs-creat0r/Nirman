@@ -115,6 +115,56 @@
       }
     },
     {
+      "field": "source",
+      "label": "Source",
+      "type": "enum",
+      "input": "readonly",
+      "required": false,
+      "validation": {
+        "enum": [
+          "manual",
+          "agent-assisted"
+        ]
+      }
+    },
+    {
+      "field": "agentContext",
+      "label": "Agent Context",
+      "type": "object",
+      "input": "readonly",
+      "required": false,
+      "fields": [
+        {
+          "field": "proposalId",
+          "label": "Proposal ID",
+          "type": "string",
+          "input": "readonly",
+          "required": false
+        },
+        {
+          "field": "provider",
+          "label": "Provider",
+          "type": "string",
+          "input": "readonly",
+          "required": false
+        },
+        {
+          "field": "model",
+          "label": "Model",
+          "type": "string",
+          "input": "readonly",
+          "required": false
+        },
+        {
+          "field": "promptVersion",
+          "label": "Prompt Version",
+          "type": "string",
+          "input": "readonly",
+          "required": false
+        }
+      ]
+    },
+    {
       "field": "timestamp",
       "label": "Timestamp",
       "type": "date",
