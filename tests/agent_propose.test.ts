@@ -17,6 +17,8 @@ describe("S6-4 Agent Planner & proposeCostComparison", () => {
     role: "procurement_officer" as const,
     isActive: true,
     name: "Priya PO",
+    allowed: true,
+    agentEnabled: true,
   };
 
   const supervisorUser = {
@@ -183,8 +185,10 @@ describe("S6-4 Agent Planner & proposeCostComparison", () => {
   });
 
   it("executes executeProposeCostComparisonAction with ActionQueryRunner mock", async () => {
+    let callCount = 0;
     const mockRunner: ActionQueryRunner = {
-      runQuery: async (q: unknown, args: Record<string, unknown>) => {
+      runQuery: async (_q: unknown, args: Record<string, unknown>) => {
+        callCount++;
         if (args && "table" in args && args.table === "material_request") {
           return validMR;
         }
@@ -193,6 +197,10 @@ describe("S6-4 Agent Planner & proposeCostComparison", () => {
         }
         if (args && "itemName" in args) {
           return [];
+        }
+        if (callCount === 1) {
+          // 1st query is checkAgentSafety
+          return { allowed: true, agentEnabled: true };
         }
         // validateCallerScope
         return poUser;

@@ -1,23 +1,23 @@
 /**
  * @fileoverview Cost Comparison Drafting Agent Action (Planner + Proposer).
  *
- * Implements S6-4:
+ * Implements S6-4 & S6-7:
+ * - Runtime Safety Switch & Rate Limit Gates (Kill switch, Daily user cap, Monthly org ceiling).
  * - Scoped multi-source grounding (Approved MR, Active Vendors, Rate History) via Convex queries.
  * - Input-sanitized prompt assembly with §11.5 privacy filtering.
  * - Provider-agnostic model drafting with self-correction retry loop (max 3 attempts).
  * - Human-readable plan summary generation.
- * - Strict zero database writes / zero mutation calls.
+ * - Strict zero database writes / zero procurement document writes.
  */
 
 import { v } from "convex/values";
-import { action, ActionCtx, QueryCtx } from "../_generated/server";
+import { action } from "../_generated/server";
 import { api } from "../_generated/api";
+import { Id } from "../_generated/dataModel";
 import { UserRole } from "../permissions";
 import { GENERATED_LIFECYCLE_PERMISSIONS } from "../lifecycle/permissions.generated";
 import { MATERIAL_REQUEST_TRANSITIONS } from "../lifecycle/index";
-import { resolveCallerScope } from "../scoping";
-import { readDocumentHelper, searchVendorsHelper } from "./tools";
-import { projectSafeFields, retrieveByItemHelper } from "./retrieval";
+import { projectSafeFields } from "./retrieval";
 import { sanitizeAgentInput, validateProposal, evaluateSelfCorrection, ProposalValidationResult } from "./guardrails";
 import { ModelProvider, getDefaultModelProvider, VendorQuoteDraft } from "./model-provider";
 
@@ -47,6 +47,12 @@ export interface CostComparisonPlannerInput {
   readonly itemRateHistory: readonly Record<string, unknown>[];
   readonly userPrompt?: string;
   readonly modelProvider?: ModelProvider;
+  readonly safetyConfig?: {
+    readonly agentEnabled?: boolean;
+    readonly dailyCapExceeded?: boolean;
+    readonly monthlyCapExceeded?: boolean;
+    readonly customRefusalReason?: string;
+  };
 }
 
 /**
@@ -68,7 +74,6 @@ export function generatePlanSummary(params: {
     `**Quoted Vendors:** ${quotes.length} suppliers evaluated`,
     "",
   ];
-
   if (reasoning) {
     lines.push(`**Agent Rationale:** ${reasoning}`, "");
   }
@@ -77,7 +82,6 @@ export function generatePlanSummary(params: {
   lines.push("| :--- | :--- | :--- | :--- | :--- | :--- |");
 
   for (const q of quotes) {
-    const itemCount = Array.isArray(q.items) ? q.items.length : 0;
     let estSubtotal = 0;
     if (Array.isArray(q.items)) {
       for (const it of q.items) {
@@ -85,7 +89,7 @@ export function generatePlanSummary(params: {
       }
     }
     const freightStr = q.freight ? `₹${q.freight}` : "₹0";
-    lines.push(`| \`${q.vendorId}\` | ${itemCount} item(s) | ₹${estSubtotal.toLocaleString("en-IN")} | ${q.taxRate}% | ${freightStr} | ${q.paymentTerms || "Standard"} |`);
+    lines.push(`| \`${q.vendorId}\` | ${q.items.length} item(s) | ₹${estSubtotal.toLocaleString("en-IN")} | ${q.taxRate}% | ${freightStr} | ${q.paymentTerms || "Standard"} |`);
   }
 
   lines.push("");
@@ -106,9 +110,38 @@ export function generatePlanSummary(params: {
 export async function planCostComparison(
   input: CostComparisonPlannerInput
 ): Promise<ProposeCostComparisonResult> {
-  const { caller, rawMR, candidateVendors, itemRateHistory, userPrompt, modelProvider } = input;
+  const { caller, rawMR, candidateVendors, itemRateHistory, userPrompt, modelProvider, safetyConfig } = input;
   const provider = modelProvider || getDefaultModelProvider();
   const mrId = String(rawMR._id || "");
+
+  // 0. Safety Switches & Cap Checks (S6-7)
+  if (safetyConfig?.agentEnabled === false) {
+    return {
+      status: "incomplete",
+      reason: safetyConfig.customRefusalReason || "AI assistant is turned off.",
+      grounding: { materialRequest: rawMR, candidateVendors, itemRateHistory },
+      planSummary: "Action aborted: AI assistant is currently disabled by administrator.",
+      attemptCount: 0,
+    };
+  }
+  if (safetyConfig?.dailyCapExceeded) {
+    return {
+      status: "incomplete",
+      reason: safetyConfig.customRefusalReason || "Daily AI request limit reached. Manual quote entry remains fully available.",
+      grounding: { materialRequest: rawMR, candidateVendors, itemRateHistory },
+      planSummary: "Action aborted: Daily AI request limit reached for this user.",
+      attemptCount: 0,
+    };
+  }
+  if (safetyConfig?.monthlyCapExceeded) {
+    return {
+      status: "incomplete",
+      reason: safetyConfig.customRefusalReason || "Monthly organization AI request limit reached. Manual quote entry remains fully available.",
+      grounding: { materialRequest: rawMR, candidateVendors, itemRateHistory },
+      planSummary: "Action aborted: Monthly organization AI request ceiling reached.",
+      attemptCount: 0,
+    };
+  }
 
   // 1. RBAC Gate
   const allowedRoles = GENERATED_LIFECYCLE_PERMISSIONS["cost_comparisons:submit"] as readonly UserRole[];
@@ -156,7 +189,7 @@ export async function planCostComparison(
     };
   }
 
-  // 4. Grounding Field Projection (§11.5 Safe Business Boundaries)
+  // 4. Grounding Field Projection & Sanitization (§11.5 Safe Business Boundaries)
   const safeMR = projectSafeFields("material_request", rawMR);
   const safeVendors = activeVendors.map((v) => projectSafeFields("vendors", v));
   const safeRateHistory = itemRateHistory.map((h) => ({
@@ -166,14 +199,13 @@ export async function planCostComparison(
     matchedItem: h.matchedItem,
   }));
 
-  // 5. Input Sanitization Boundary
   const sanitizedContext = sanitizeAgentInput({
     userPrompt: userPrompt || "Draft a balanced multi-vendor Cost Comparison based on the approved Material Request.",
     documentContext: { table: "material_request", id: mrId, content: safeMR },
     additionalData: { vendors: safeVendors, history: safeRateHistory },
   });
 
-  // 6. Model Drafting Loop with Self-Correction (Max 3 attempts)
+  // 5. Model Drafting Loop with Self-Correction (Max 3 attempts)
   let attempt = 0;
   const maxAttempts = 3;
   let lastErrors: readonly string[] = [];
@@ -182,14 +214,19 @@ export async function planCostComparison(
 
   while (attempt < maxAttempts) {
     attempt++;
-
-    const draftResponse = await provider.draftCostComparison({
-      userPrompt: sanitizedContext.instructionSlot,
-      materialRequest: safeMR,
-      candidateVendors: safeVendors,
-      itemRateHistory: safeRateHistory,
-      selfCorrectionFeedback: lastErrors.length > 0 ? lastErrors.join("; ") : undefined,
-    });
+    let draftResponse;
+    try {
+      draftResponse = await provider.draftCostComparison({
+        userPrompt: sanitizedContext.instructionSlot,
+        materialRequest: safeMR,
+        candidateVendors: safeVendors,
+        itemRateHistory: safeRateHistory,
+        selfCorrectionFeedback: lastErrors.length > 0 ? lastErrors.join("; ") : undefined,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      draftResponse = { ok: false as const, error: `Model provider error: ${msg}` };
+    }
 
     if (!draftResponse.ok || !draftResponse.vendorQuotes) {
       if (attempt >= maxAttempts) {
@@ -232,7 +269,7 @@ export async function planCostComparison(
 
     const candidateProposal: CostComparisonProposalPayload = { materialRequestId: mrId, vendorQuotes };
 
-    // 7. Output Guardrail Validation Gate
+    // 6. Output Guardrail Validation Gate
     const validation = validateProposal(candidateProposal, {
       table: "cost_comparison",
       caller: { _id: caller._id, role: caller.role },
@@ -280,6 +317,7 @@ export const proposeCostComparisonPlanner = planCostComparison;
 
 export interface ActionQueryRunner {
   runQuery: (query: unknown, args: Record<string, unknown>) => Promise<unknown>;
+  runMutation?: (mutation: unknown, args: Record<string, unknown>) => Promise<unknown>;
 }
 
 export async function executeProposeCostComparisonAction(
@@ -287,6 +325,23 @@ export async function executeProposeCostComparisonAction(
   args: { materialRequestId: string; userPrompt?: string; token?: string },
   modelProvider?: ModelProvider
 ): Promise<ProposeCostComparisonResult> {
+  // 1. Safety Switches & Cap Check
+  try {
+    const safetyCheck = (await ctx.runQuery(api.agent.usage.checkAgentSafety, { token: args.token })) as { allowed: boolean; reason?: string };
+    if (safetyCheck && !safetyCheck.allowed) {
+      return {
+        status: "incomplete",
+        reason: safetyCheck.reason || "AI assistant is turned off.",
+        grounding: { materialRequest: {}, candidateVendors: [], itemRateHistory: [] },
+        planSummary: `Action aborted: ${safetyCheck.reason || "AI assistant is disabled."}`,
+        attemptCount: 0,
+      };
+    }
+  } catch {
+    // Non-fatal
+  }
+
+  // 2. Resolve caller
   let caller: { _id: string; name: string; role: UserRole; isAdmin: boolean };
   try {
     const rawCaller = await ctx.runQuery(api.agent.tools.validateCallerScope, { token: args.token });
@@ -311,6 +366,7 @@ export async function executeProposeCostComparisonAction(
     };
   }
 
+  // 3. Read parent MR
   let rawMR: Record<string, unknown>;
   try {
     const rawDoc = await ctx.runQuery(api.agent.tools.readDocument, {
@@ -330,6 +386,7 @@ export async function executeProposeCostComparisonAction(
     };
   }
 
+  // 4. Candidate Vendors & Historical Rate Grounding
   let candidateVendors: Array<Record<string, unknown>> = [];
   try {
     const vendorSearchResult = (await ctx.runQuery(api.agent.tools.searchVendors, {
@@ -384,7 +441,7 @@ export async function executeProposeCostComparisonAction(
     }
   }
 
-  return await planCostComparison({
+  const planResult = await planCostComparison({
     caller: { _id: String(caller._id), role: caller.role },
     rawMR,
     candidateVendors,
@@ -392,75 +449,19 @@ export async function executeProposeCostComparisonAction(
     userPrompt: args.userPrompt,
     modelProvider,
   });
-}
 
-export async function proposeCostComparisonHelper(
-  ctx: ActionCtx | QueryCtx,
-  args: { materialRequestId: string; userPrompt?: string; token?: string },
-  modelProvider?: ModelProvider
-): Promise<ProposeCostComparisonResult> {
-  const queryCtx = ctx as unknown as QueryCtx;
-  const scope = await resolveCallerScope(queryCtx, args.token);
-
-  let rawMR: Record<string, unknown>;
-  try {
-    rawMR = await readDocumentHelper(queryCtx, {
-      table: "material_request",
-      id: args.materialRequestId,
-      token: args.token,
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return {
-      status: "incomplete",
-      reason: `Could not access Material Request "${args.materialRequestId}": ${msg}`,
-      grounding: { materialRequest: {}, candidateVendors: [], itemRateHistory: [] },
-      planSummary: "Action Failed: Material Request not accessible.",
-      attemptCount: 0,
-    };
-  }
-
-  let candidateVendors: Array<Record<string, unknown>> = [];
-  const vendorSearchResult = await searchVendorsHelper(queryCtx, { query: "materials", token: args.token });
-  candidateVendors = vendorSearchResult.map((v) =>
-    projectSafeFields("vendors", v.vendor as unknown as Record<string, unknown>)
-  );
-
-  if (candidateVendors.length < 2) {
-    const steelSearch = await searchVendorsHelper(queryCtx, { query: "steel", token: args.token });
-    const additional = steelSearch.map((v) =>
-      projectSafeFields("vendors", v.vendor as unknown as Record<string, unknown>)
-    );
-    const seen = new Set(candidateVendors.map((v) => String(v._id)));
-    for (const v of additional) {
-      if (!seen.has(String(v._id))) {
-        candidateVendors.push(v);
-        seen.add(String(v._id));
-      }
+  if (planResult.status === "proposed" && ctx.runMutation) {
+    try {
+      await ctx.runMutation(api.agent.usage.recordAgentUsage, {
+        userId: caller._id as Id<"users">,
+        token: args.token,
+      });
+    } catch {
+      // Non-fatal
     }
   }
 
-  const safeMR = projectSafeFields("material_request", rawMR);
-  const mrItems = (Array.isArray(safeMR.items) ? safeMR.items : []) as Array<Record<string, unknown>>;
-  const itemRateHistory: Array<Record<string, unknown>> = [];
-  for (const it of mrItems) {
-    const itemName = String(it.itemName || "").trim();
-    if (itemName) {
-      const historyMatches = await retrieveByItemHelper(queryCtx, { itemName, token: args.token });
-      for (const match of historyMatches) {
-        itemRateHistory.push(match.matchedItem);
-      }
-    }
-  }
-
-  return await planCostComparison({
-    caller: { _id: String(scope.user._id), role: scope.user.role as UserRole },
-    rawMR,
-    candidateVendors,
-    itemRateHistory,
-    userPrompt: args.userPrompt,
-    modelProvider,
-  });
+  return planResult;
 }
 
 export const proposeCostComparison = action({

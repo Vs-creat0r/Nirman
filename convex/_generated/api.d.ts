@@ -13,6 +13,7 @@ import type * as agent_model_provider from "../agent/model-provider.js";
 import type * as agent_propose from "../agent/propose.js";
 import type * as agent_retrieval from "../agent/retrieval.js";
 import type * as agent_tools from "../agent/tools.js";
+import type * as agent_usage from "../agent/usage.js";
 import type * as auth from "../auth.js";
 import type * as company_settings from "../company_settings.js";
 import type * as cost_comparisons from "../cost_comparisons.js";
@@ -67,6 +68,7 @@ declare const fullApi: ApiFromModules<{
   "agent/propose": typeof agent_propose;
   "agent/retrieval": typeof agent_retrieval;
   "agent/tools": typeof agent_tools;
+  "agent/usage": typeof agent_usage;
   auth: typeof auth;
   company_settings: typeof company_settings;
   cost_comparisons: typeof cost_comparisons;

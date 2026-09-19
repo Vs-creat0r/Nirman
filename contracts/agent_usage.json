@@ -1,0 +1,61 @@
+{
+  "$schema": "contract.v1",
+  "name": "agent_usage",
+  "label": "Agent Usage",
+  "version": "1.0.0",
+  "description": "Tracks AI agent proposal request volume per user and organization to enforce daily and monthly caps.",
+  "fields": [
+    {
+      "field": "userId",
+      "label": "User",
+      "type": "reference",
+      "input": "hidden",
+      "required": true,
+      "relation": {
+        "table": "users"
+      }
+    },
+    {
+      "field": "date",
+      "label": "Date",
+      "type": "string",
+      "input": "hidden",
+      "required": true
+    },
+    {
+      "field": "month",
+      "label": "Month",
+      "type": "string",
+      "input": "hidden",
+      "required": true
+    },
+    {
+      "field": "requestCount",
+      "label": "Request Count",
+      "type": "number",
+      "input": "hidden",
+      "required": true,
+      "default": 1
+    },
+    {
+      "field": "lastRequestAt",
+      "label": "Last Request At",
+      "type": "string",
+      "input": "hidden",
+      "required": true
+    }
+  ],
+  "statuses": [],
+  "relations": {
+    "userId": "users"
+  },
+  "indexes": [
+    ["userId", "date"],
+    ["month"],
+    ["date"]
+  ],
+  "audit": {
+    "enabled": false
+  }
+}
+

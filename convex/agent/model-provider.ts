@@ -1,9 +1,12 @@
 /**
  * @fileoverview Provider-agnostic model adapter for Nirman Agentic Layer.
  *
- * Implements S6-4 T1:
+ * Implements S6-4 T1 (+ smoke-hardening):
  * - ModelProvider interface with structured drafting.
- * - OpenAI-compatible HTTP adapter with 30s timeout and graceful degradation.
+ * - OpenAI-compatible HTTP adapter with timeout and graceful degradation.
+ * - Stream-tolerant response parsing: handles a single JSON body OR a
+ *   Server-Sent-Events (`data: {...}`) stream, and strips ```json fences /
+ *   surrounding prose that some gateways (Omniroute, Gemini) emit.
  * - Injectable FakeModelProvider for deterministic testing without external API keys.
  *
  * Zero database writes, zero mutations.
@@ -72,6 +75,63 @@ export class OpenAICompatibleModelProvider implements ModelProvider {
     this.timeoutMs = config?.timeoutMs ?? 30000;
   }
 
+  /**
+   * Extract the assistant message content from either a normal JSON body
+   * or a Server-Sent-Events (`data: {...}`) stream. Returns null if none found.
+   */
+  private extractCompletionContent(raw: string, contentType: string): string | null {
+    const trimmed = raw.trimStart();
+    const isSSE = contentType.includes("text/event-stream") || trimmed.startsWith("data:");
+
+    if (isSSE) {
+      let acc = "";
+      for (const line of raw.split(/\r?\n/)) {
+        const l = line.trim();
+        if (!l.startsWith("data:")) continue;
+        const payload = l.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          const obj = JSON.parse(payload) as {
+            choices?: Array<{ delta?: { content?: string }; message?: { content?: string } }>;
+          };
+          const choice = obj.choices?.[0];
+          const piece = choice?.delta?.content ?? choice?.message?.content ?? "";
+          if (piece) acc += piece;
+        } catch {
+          // skip keepalive / non-JSON stream lines
+        }
+      }
+      return acc.length > 0 ? acc : null;
+    }
+
+    try {
+      const obj = JSON.parse(raw) as { choices?: Array<{ message?: { content?: string } }> };
+      return obj.choices?.[0]?.message?.content ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Parse model JSON tolerantly: strip ```json fences and any prose around
+   * the first/last brace before parsing.
+   */
+  private parseLooseJson(content: string): Record<string, unknown> {
+    let s = content.trim();
+    const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence && fence[1]) s = fence[1].trim();
+    try {
+      return JSON.parse(s) as Record<string, unknown>;
+    } catch {
+      const first = s.indexOf("{");
+      const last = s.lastIndexOf("}");
+      if (first >= 0 && last > first) {
+        return JSON.parse(s.slice(first, last + 1)) as Record<string, unknown>;
+      }
+      throw new Error("No JSON object found in model output.");
+    }
+  }
+
   async draftCostComparison(context: DraftCostComparisonContext): Promise<DraftCostComparisonResult> {
     if (!this.apiKey) {
       return {
@@ -87,7 +147,8 @@ export class OpenAICompatibleModelProvider implements ModelProvider {
       "1. You must include at least 2 distinct vendor quotes from the provided candidate vendors.",
       "2. Only quote items that appear in the Material Request.",
       "3. Use realistic rates grounded in the historical rate benchmarks provided.",
-      "4. Output MUST be valid, raw JSON matching this exact structure:",
+      "4. Respond with ONLY raw JSON — no markdown, no code fences, no prose before or after.",
+      "5. The JSON MUST match this exact structure:",
       "{",
       '  "reasoning": "Brief explanation of vendor selection and rate grounding",',
       '  "vendorQuotes": [',
@@ -132,6 +193,7 @@ export class OpenAICompatibleModelProvider implements ModelProvider {
           response_format: { type: "json_object" },
           temperature: 0.1,
           max_tokens: 2500,
+          stream: false,
         }),
         signal: controller.signal,
       });
@@ -146,11 +208,8 @@ export class OpenAICompatibleModelProvider implements ModelProvider {
         };
       }
 
-      const json = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-
-      const content = json.choices?.[0]?.message?.content;
+      const rawText = await response.text();
+      const content = this.extractCompletionContent(rawText, response.headers.get("content-type") || "");
       if (!content) {
         return {
           ok: false,
@@ -158,10 +217,15 @@ export class OpenAICompatibleModelProvider implements ModelProvider {
         };
       }
 
-      const parsed = JSON.parse(content) as {
-        reasoning?: string;
-        vendorQuotes?: VendorQuoteDraft[];
-      };
+      let parsed: { reasoning?: string; vendorQuotes?: VendorQuoteDraft[] };
+      try {
+        parsed = this.parseLooseJson(content) as { reasoning?: string; vendorQuotes?: VendorQuoteDraft[] };
+      } catch {
+        return {
+          ok: false,
+          error: `Model output was not valid JSON: ${content.slice(0, 200)}`,
+        };
+      }
 
       if (!Array.isArray(parsed.vendorQuotes)) {
         return {
@@ -310,4 +374,3 @@ export class FakeModelProvider implements ModelProvider {
 export function getDefaultModelProvider(): ModelProvider {
   return new OpenAICompatibleModelProvider();
 }
-

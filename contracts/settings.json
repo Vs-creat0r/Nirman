@@ -15,6 +15,33 @@
       "help": "When OFF, approved-by-default: requests route straight to 'ready_for_cc' without manager sign-off."
     },
     {
+      "field": "agentEnabled",
+      "label": "Enable AI Assistant",
+      "type": "boolean",
+      "input": "toggle",
+      "required": false,
+      "default": true,
+      "help": "When OFF, all AI agent drafting and assistance is disabled across the platform without requiring a code redeploy."
+    },
+    {
+      "field": "agentDailyUserCap",
+      "label": "Agent Daily User Request Cap",
+      "type": "number",
+      "input": "number",
+      "required": false,
+      "default": 40,
+      "help": "Maximum number of AI proposal drafting requests allowed per user per day."
+    },
+    {
+      "field": "agentMonthlyOrgCap",
+      "label": "Agent Monthly Organization Cap",
+      "type": "number",
+      "input": "number",
+      "required": false,
+      "default": 1000,
+      "help": "Maximum number of AI proposal drafting requests allowed organization-wide per month."
+    },
+    {
       "field": "companyName",
       "label": "Company Name",
       "type": "string",

@@ -5,6 +5,18 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Agent Usage — Tracks AI agent proposal request volume per user and organization to enforce daily and monthly caps.
+  agent_usage: defineTable({
+    userId: v.id("users"),
+    date: v.string(),
+    month: v.string(),
+    requestCount: v.number(),
+    lastRequestAt: v.string(),
+  })
+    .index("by_userId_date", ["userId", "date"])
+    .index("by_month", ["month"])
+    .index("by_date", ["date"]),
+
   // Cost Comparison — Side-by-side vendor quotes. Requires a minimum of 2 quotes; the Project Manager approves by selecting a vendor.
   cost_comparison: defineTable({
     refNo: v.string(),
@@ -354,6 +366,9 @@ export default defineSchema({
   // System Settings — Single-document system-wide configuration row. Controls approval chain behavior across the platform and company profile.
   settings: defineTable({
     requireManagerApprovalForRequests: v.boolean(),
+    agentEnabled: v.optional(v.boolean()),
+    agentDailyUserCap: v.optional(v.number()),
+    agentMonthlyOrgCap: v.optional(v.number()),
     companyName: v.optional(v.string()),
     companyGstNo: v.optional(v.string()),
     companyBillingAddress: v.optional(v.string()),

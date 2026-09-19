@@ -20,6 +20,7 @@ import {
   Star,
   AlertCircle,
   Save,
+  Bot,
 } from "lucide-react";
 
 export default function AdminSettingsPage() {
@@ -43,6 +44,9 @@ export default function AdminSettingsPage() {
     requireManagerApprovalForRequests: true,
     defaultReorderLevel: 10,
     allowNegativeStock: true,
+    agentEnabled: true,
+    agentDailyUserCap: 40,
+    agentMonthlyOrgCap: 1000,
   });
   const [companySaveSuccess, setCompanySaveSuccess] = React.useState(false);
   const [companySaving, setCompanySaving] = React.useState(false);
@@ -62,6 +66,9 @@ export default function AdminSettingsPage() {
           companyProfile.requireManagerApprovalForRequests ?? true,
         defaultReorderLevel: companyProfile.defaultReorderLevel ?? 10,
         allowNegativeStock: companyProfile.allowNegativeStock ?? true,
+        agentEnabled: companyProfile.agentEnabled ?? true,
+        agentDailyUserCap: companyProfile.agentDailyUserCap ?? 40,
+        agentMonthlyOrgCap: companyProfile.agentMonthlyOrgCap ?? 1000,
       });
     }
   }, [companyProfile]);
@@ -83,6 +90,9 @@ export default function AdminSettingsPage() {
         requireManagerApprovalForRequests: companyForm.requireManagerApprovalForRequests,
         defaultReorderLevel: Number(companyForm.defaultReorderLevel) || 10,
         allowNegativeStock: companyForm.allowNegativeStock,
+        agentEnabled: companyForm.agentEnabled,
+        agentDailyUserCap: Number(companyForm.agentDailyUserCap) || 40,
+        agentMonthlyOrgCap: Number(companyForm.agentMonthlyOrgCap) || 1000,
         token: token || undefined,
       });
       setCompanySaveSuccess(true);
@@ -464,9 +474,11 @@ export default function AdminSettingsPage() {
             <CardTitle className="text-sm font-bold flex items-center gap-2">
               <Sliders className="h-4 w-4 text-primary" />
               System Approval Policies
+              System Approval & Safety Policies
             </CardTitle>
             <CardDescription className="text-xs">
               Configure system-wide workflow constraints and auto-approval policies.
+              Configure system-wide workflow constraints, auto-approval rules, and AI safety switches.
             </CardDescription>
           </CardHeader>
 
@@ -547,6 +559,79 @@ export default function AdminSettingsPage() {
                   value={companyForm.defaultReorderLevel}
                   onChange={(e) => {
                     setCompanyForm({ ...companyForm, defaultReorderLevel: Number(e.target.value) || 0 });
+                  }}
+                  className="text-xs h-8 text-right font-mono"
+                />
+              </div>
+            </div>
+
+            {/* AI Copilot Kill Switch */}
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
+              <div className="space-y-0.5 max-w-lg">
+                <div className="flex items-center gap-1.5">
+                  <Bot className="h-3.5 w-3.5 text-primary" />
+                  <Label className="text-xs font-bold text-foreground">
+                    Enable AI Copilot (Kill Switch)
+                  </Label>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Master runtime kill switch. When disabled, AI-assisted proposal actions immediately refuse without model invocation. Manual workflows remain 100% operational.
+                </p>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={companyForm.agentEnabled}
+                onChange={(e) => {
+                  const updated = e.target.checked;
+                  setCompanyForm({ ...companyForm, agentEnabled: updated });
+                }}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-ring cursor-pointer"
+              />
+            </div>
+
+            {/* AI Daily Cap Per User */}
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
+              <div className="space-y-0.5 max-w-lg">
+                <Label className="text-xs font-bold text-foreground">
+                  Daily AI Request Cap (Per User)
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Maximum number of AI proposal requests a single user can execute per day (default 40).
+                </p>
+              </div>
+
+              <div className="w-24">
+                <Input
+                  type="number"
+                  min="1"
+                  value={companyForm.agentDailyUserCap}
+                  onChange={(e) => {
+                    setCompanyForm({ ...companyForm, agentDailyUserCap: Number(e.target.value) || 1 });
+                  }}
+                  className="text-xs h-8 text-right font-mono"
+                />
+              </div>
+            </div>
+
+            {/* AI Monthly Org Cap */}
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
+              <div className="space-y-0.5 max-w-lg">
+                <Label className="text-xs font-bold text-foreground">
+                  Monthly AI Request Cap (Organization)
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Maximum total AI proposal requests across all users in the organization per calendar month (default 1000).
+                </p>
+              </div>
+
+              <div className="w-24">
+                <Input
+                  type="number"
+                  min="1"
+                  value={companyForm.agentMonthlyOrgCap}
+                  onChange={(e) => {
+                    setCompanyForm({ ...companyForm, agentMonthlyOrgCap: Number(e.target.value) || 1 });
                   }}
                   className="text-xs h-8 text-right font-mono"
                 />
