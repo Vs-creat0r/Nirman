@@ -34,6 +34,9 @@ export const getCompanyProfile = query({
         settingsDoc?.requireManagerApprovalForRequests ?? true,
       defaultReorderLevel: settingsDoc?.defaultReorderLevel ?? 10,
       allowNegativeStock: settingsDoc?.allowNegativeStock ?? true,
+      agentEnabled: settingsDoc?.agentEnabled ?? true,
+      agentDailyUserCap: settingsDoc?.agentDailyUserCap ?? 40,
+      agentMonthlyOrgCap: settingsDoc?.agentMonthlyOrgCap ?? 1000,
     };
   },
 });
@@ -52,6 +55,9 @@ export const updateCompanyProfile = mutation({
     requireManagerApprovalForRequests: v.optional(v.boolean()),
     defaultReorderLevel: v.optional(v.number()),
     allowNegativeStock: v.optional(v.boolean()),
+    agentEnabled: v.optional(v.boolean()),
+    agentDailyUserCap: v.optional(v.number()),
+    agentMonthlyOrgCap: v.optional(v.number()),
     token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -79,6 +85,15 @@ export const updateCompanyProfile = mutation({
     if (args.allowNegativeStock !== undefined) {
       patchData.allowNegativeStock = args.allowNegativeStock;
     }
+    if (args.agentEnabled !== undefined) {
+      patchData.agentEnabled = args.agentEnabled;
+    }
+    if (args.agentDailyUserCap !== undefined) {
+      patchData.agentDailyUserCap = args.agentDailyUserCap;
+    }
+    if (args.agentMonthlyOrgCap !== undefined) {
+      patchData.agentMonthlyOrgCap = args.agentMonthlyOrgCap;
+    }
 
     if (settingsDoc) {
       await ctx.db.patch(settingsDoc._id, patchData);
@@ -94,6 +109,9 @@ export const updateCompanyProfile = mutation({
         requireManagerApprovalForRequests: args.requireManagerApprovalForRequests ?? true,
         defaultReorderLevel: args.defaultReorderLevel ?? 10,
         allowNegativeStock: args.allowNegativeStock ?? true,
+        agentEnabled: args.agentEnabled ?? true,
+        agentDailyUserCap: args.agentDailyUserCap ?? 40,
+        agentMonthlyOrgCap: args.agentMonthlyOrgCap ?? 1000,
         updatedAt: now,
       });
     }

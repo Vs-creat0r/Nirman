@@ -13,6 +13,7 @@
     "gen:check": "node scripts/generate-from-contracts.mjs --check",
     "check:metrics": "node scripts/check-metrics.mjs",
     "check:gate3": "node scripts/gate3-parity-check.mjs",
+    "eval:agent": "npx tsx scripts/agent-eval.ts",
     "verify:pdf": "npx tsx scripts/verify-pdf-generation.mjs"
   },
   "dependencies": {
