@@ -6,8 +6,8 @@
  * and test scoring metrics across golden paths, adversarial attacks, and refusal boundaries.
  */
 
-import { UserRole } from "../../permissions";
-import { VendorQuoteDraft, DraftCostComparisonContext, DraftCostComparisonResult } from "../model-provider";
+import { UserRole } from "../../convex/permissions";
+import { VendorQuoteDraft, DraftCostComparisonContext, DraftCostComparisonResult } from "../../convex/agent/model-provider";
 
 export type EvalCategory =
   | "golden_path"
