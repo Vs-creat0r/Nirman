@@ -334,7 +334,7 @@ describe("S6-5 Human-Confirm → Real createCC Write & Agent Attribution", () =>
   });
 
   it("asserts zero parallel agent-write mutations exist across convex/agent/ and convex/cost_comparisons.ts", () => {
-    const agentFiles = ["propose.ts", "tools.ts", "retrieval.ts", "model-provider.ts", "guardrails.ts"];
+    const agentFiles = ["propose.ts", "tools.ts", "retrieval.ts", "model_provider.ts", "guardrails.ts"];
     const agentDir = join(__dirname, "../convex/agent");
 
     for (const file of agentFiles) {

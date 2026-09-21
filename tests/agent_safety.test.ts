@@ -22,7 +22,7 @@ import {
   getCurrentDateStrings,
 } from "../convex/agent/usage";
 import { createCC } from "../convex/cost_comparisons";
-import { FakeModelProvider, VendorQuoteDraft, ModelProvider } from "../convex/agent/model-provider";
+import { FakeModelProvider, VendorQuoteDraft, ModelProvider } from "../convex/agent/model_provider";
 import { Id } from "../convex/_generated/dataModel";
 import { UserRole } from "../convex/permissions";
 import { QueryCtx, MutationCtx } from "../convex/_generated/server";

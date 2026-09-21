@@ -7,7 +7,7 @@
  */
 
 import { UserRole } from "../../convex/permissions";
-import { VendorQuoteDraft } from "../../convex/agent/model-provider";
+import { VendorQuoteDraft } from "../../convex/agent/model_provider";
 
 export const EVAL_DATASET_VERSION = "eval-v1";
 export const EVAL_PROMPT_VERSION = "s6-v1";

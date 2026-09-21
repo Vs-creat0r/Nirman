@@ -9,7 +9,7 @@
  */
 
 import type * as agent_guardrails from "../agent/guardrails.js";
-import type * as agent_model_provider from "../agent/model-provider.js";
+import type * as agent_model_provider from "../agent/model_provider.js";
 import type * as agent_propose from "../agent/propose.js";
 import type * as agent_retrieval from "../agent/retrieval.js";
 import type * as agent_tools from "../agent/tools.js";
@@ -64,7 +64,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "agent/guardrails": typeof agent_guardrails;
-  "agent/model-provider": typeof agent_model_provider;
+  "agent/model_provider": typeof agent_model_provider;
   "agent/propose": typeof agent_propose;
   "agent/retrieval": typeof agent_retrieval;
   "agent/tools": typeof agent_tools;

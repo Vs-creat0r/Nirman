@@ -10,7 +10,7 @@
 
 import { EVAL_SCENARIOS, EVAL_DATASET_VERSION, EVAL_PROMPT_VERSION } from "./eval/eval-cases";
 import { planCostComparison } from "../convex/agent/propose";
-import { FakeModelProvider, OpenAICompatibleModelProvider } from "../convex/agent/model-provider";
+import { FakeModelProvider, OpenAICompatibleModelProvider } from "../convex/agent/model_provider";
 
 interface ScenarioResult {
   readonly id: string;

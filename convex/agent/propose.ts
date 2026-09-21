@@ -19,7 +19,7 @@ import { GENERATED_LIFECYCLE_PERMISSIONS } from "../lifecycle/permissions.genera
 import { MATERIAL_REQUEST_TRANSITIONS } from "../lifecycle/index";
 import { projectSafeFields } from "./retrieval";
 import { sanitizeAgentInput, validateProposal, evaluateSelfCorrection, ProposalValidationResult } from "./guardrails";
-import { ModelProvider, getDefaultModelProvider, VendorQuoteDraft } from "./model-provider";
+import { ModelProvider, getDefaultModelProvider, VendorQuoteDraft } from "./model_provider";
 
 export interface CostComparisonProposalPayload {
   readonly materialRequestId: string;

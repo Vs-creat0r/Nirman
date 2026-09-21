@@ -18,7 +18,7 @@
  */
 
 import { planCostComparison } from "../convex/agent/propose";
-import { OpenAICompatibleModelProvider } from "../convex/agent/model-provider";
+import { OpenAICompatibleModelProvider } from "../convex/agent/model_provider";
 
 // ── 1. FILL THESE for Omniroute (or set AGENT_MODEL_* env vars) ──────────────
 const BASE_URL = process.env.AGENT_MODEL_BASE_URL || "http://localhost:20128/v1"; // <-- your Omniroute OpenAI-compatible endpoint

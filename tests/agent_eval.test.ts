@@ -10,7 +10,7 @@
 import { describe, it, expect } from "vitest";
 import { EVAL_SCENARIOS, EVAL_DATASET_VERSION, EVAL_PROMPT_VERSION } from "../scripts/eval/eval-cases";
 import { planCostComparison } from "../convex/agent/propose";
-import { FakeModelProvider } from "../convex/agent/model-provider";
+import { FakeModelProvider } from "../convex/agent/model_provider";
 
 describe("Agent Evaluation Harness (Regression Net)", () => {
   it("verifies dataset and prompt versioning constants", () => {

@@ -7,7 +7,7 @@
  */
 
 import { UserRole } from "../../convex/permissions";
-import { VendorQuoteDraft, DraftCostComparisonContext, DraftCostComparisonResult } from "../../convex/agent/model-provider";
+import { VendorQuoteDraft, DraftCostComparisonContext, DraftCostComparisonResult } from "../../convex/agent/model_provider";
 
 export type EvalCategory =
   | "golden_path"

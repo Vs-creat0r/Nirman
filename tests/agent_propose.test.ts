@@ -9,7 +9,7 @@ import {
   executeProposeCostComparisonAction,
   ActionQueryRunner,
 } from "../convex/agent/propose";
-import { FakeModelProvider, VendorQuoteDraft } from "../convex/agent/model-provider";
+import { FakeModelProvider, VendorQuoteDraft } from "../convex/agent/model_provider";
 
 describe("S6-4 Agent Planner & proposeCostComparison", () => {
   const poUser = {
