@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { EVAL_SCENARIOS, EVAL_DATASET_VERSION, EVAL_PROMPT_VERSION } from "../convex/agent/eval/eval-cases";
+import { EVAL_SCENARIOS, EVAL_DATASET_VERSION, EVAL_PROMPT_VERSION } from "../scripts/eval/eval-cases";
 import { planCostComparison } from "../convex/agent/propose";
 import { FakeModelProvider } from "../convex/agent/model-provider";
 

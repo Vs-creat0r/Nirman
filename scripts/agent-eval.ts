@@ -8,7 +8,7 @@
  * - Formatted summary scorecard and CI exit codes
  */
 
-import { EVAL_SCENARIOS, EVAL_DATASET_VERSION, EVAL_PROMPT_VERSION } from "../convex/agent/eval/eval-cases";
+import { EVAL_SCENARIOS, EVAL_DATASET_VERSION, EVAL_PROMPT_VERSION } from "./eval/eval-cases";
 import { planCostComparison } from "../convex/agent/propose";
 import { FakeModelProvider, OpenAICompatibleModelProvider } from "../convex/agent/model-provider";
 
