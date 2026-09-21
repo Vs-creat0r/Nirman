@@ -12,6 +12,7 @@ import {
   UserCog,
   Settings,
   Building2,
+  Sparkles,
   type LucideIcon 
 } from "lucide-react";
 
@@ -102,6 +103,7 @@ export const navConfig: Record<UserRole, NavGroup[]> = {
       label: "System",
       items: [
         { title: "Settings", href: "/dashboard/admin/settings", icon: Settings },
+        { title: "AI Usage", href: "/dashboard/admin/ai-usage", icon: Sparkles },
         { title: "System Logs", href: "/dashboard/logs", icon: Activity },
       ]
     }

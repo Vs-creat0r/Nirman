@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as agent_activity from "../agent/activity.js";
 import type * as agent_guardrails from "../agent/guardrails.js";
 import type * as agent_model_provider from "../agent/model_provider.js";
 import type * as agent_propose from "../agent/propose.js";
@@ -63,6 +64,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "agent/activity": typeof agent_activity;
   "agent/guardrails": typeof agent_guardrails;
   "agent/model_provider": typeof agent_model_provider;
   "agent/propose": typeof agent_propose;
