@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -6,15 +6,12 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSession } from "@/components/providers/auth-provider";
 import { useRole } from "@/hooks/use-role";
-import { StatusBadge } from "@/components/document/status-badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { AgentActivityItem } from "@/convex/agent/activity";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Bot,
   Sparkles,
-  ShieldCheck,
   ShieldAlert,
   Activity,
   Users,
@@ -22,8 +19,6 @@ import {
   ExternalLink,
   Settings,
   Zap,
-  ArrowRight,
-  Clock,
   FileText,
   FileBarChart2,
   ShoppingBag,
@@ -96,7 +91,7 @@ export default function AdminAiUsageDashboardPage() {
         <ShieldAlert className="h-10 w-10 text-[--destructive] mx-auto" />
         <h2 className="text-base font-bold text-foreground">Access Restricted</h2>
         <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-          The AI Usage & Observability Dashboard is restricted to System Administrators.
+          The AI Usage &amp; Observability Dashboard is restricted to System Administrators.
         </p>
       </div>
     );
@@ -124,7 +119,7 @@ export default function AdminAiUsageDashboardPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-foreground select-none">
-              AI Usage & Observability
+              AI Usage &amp; Observability
             </h1>
             <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary flex items-center gap-1.5 border border-primary/20">
               <Sparkles className="h-3 w-3" />
@@ -140,7 +135,7 @@ export default function AdminAiUsageDashboardPage() {
           <Link href="/dashboard/admin/settings">
             <Button variant="outline" size="sm" className="gap-1.5 text-xs">
               <Settings className="h-3.5 w-3.5" />
-              Configure Caps & Switches
+              Configure Caps &amp; Switches
             </Button>
           </Link>
         </div>
@@ -334,7 +329,7 @@ export default function AdminAiUsageDashboardPage() {
                           <>
                             <span>{new Date(u.lastRequestAt).toLocaleDateString()}</span>{" "}
                             <span className="text-[10px] text-muted-foreground">
-                              {new Date(u.lastRequestAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(u.lastRequestAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                             </span>
                           </>
                         ) : (
@@ -392,7 +387,6 @@ export default function AdminAiUsageDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {activityLogs.map((log) => {
                   {activityLogs.map((log: AgentActivityItem) => {
                     const href = getDocumentHref(log.documentType, log.referenceId);
                     return (
@@ -495,4 +489,3 @@ export default function AdminAiUsageDashboardPage() {
     </div>
   );
 }
-
