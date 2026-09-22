@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -16,12 +16,25 @@ export default function NewMaterialRequestPage() {
   const router = useRouter();
   const { token } = useSession();
 
+  // Track the project the user has selected so the sites query can be scoped.
+  const [selectedProjectId, setSelectedProjectId] = React.useState<
+    Id<"projects"> | undefined
+  >(undefined);
+
   // Live Convex Master Data queries
   const projects = useQuery(
     api.projects.listProjects,
     token ? { token } : "skip"
   );
-  const sites = useQuery(api.sites.listSites, token ? { token } : "skip");
+
+  // Re-fetches automatically when selectedProjectId changes.
+  // When undefined (nothing selected yet) listSites returns all scoped sites,
+  // which is fine for the initial empty state.
+  const sites = useQuery(
+    api.sites.listSites,
+    token ? { token, projectId: selectedProjectId } : "skip"
+  );
+
   const createMRMutation = useMutation(api.material_requests.createMR);
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -52,7 +65,10 @@ export default function NewMaterialRequestPage() {
       return projects[0]._id;
     }
     try {
-      const saved = typeof window !== "undefined" ? localStorage.getItem("nirman_selected_project_id") : null;
+      const saved =
+        typeof window !== "undefined"
+          ? localStorage.getItem("nirman_selected_project_id")
+          : null;
       if (saved && saved !== "all" && projects?.some((p) => p._id === saved)) {
         return saved;
       }
@@ -61,6 +77,33 @@ export default function NewMaterialRequestPage() {
     }
     return undefined;
   }, [projects]);
+
+  // Initialise selectedProjectId when a defaultProjectId becomes available
+  // (single-project supervisor or localStorage restore) so sites are scoped
+  // from the very first render.
+  React.useEffect(() => {
+    if (defaultProjectId && !selectedProjectId) {
+      setSelectedProjectId(defaultProjectId as Id<"projects">);
+    }
+  }, [defaultProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ref to track the previous project so we can detect a project switch
+  // and update selectedProjectId to trigger a scoped listSites refetch.
+  const prevProjectIdRef = React.useRef<Id<"projects"> | undefined>(undefined);
+
+  // Called by DocumentForm on every field change (via its internal watch).
+  // Drives the selectedProjectId state; DocumentForm itself is responsible
+  // for clearing dependent fields via resetFieldsOnChange.
+  const handleValuesChange = React.useCallback(
+    (values: Record<string, unknown>) => {
+      const pid = values.projectId as Id<"projects"> | undefined;
+      if (pid !== prevProjectIdRef.current) {
+        prevProjectIdRef.current = pid;
+        setSelectedProjectId(pid ?? undefined);
+      }
+    },
+    []
+  );
 
   const handleSave = async (data: Record<string, unknown>) => {
     setIsSubmitting(true);
@@ -81,7 +124,9 @@ export default function NewMaterialRequestPage() {
         }
         const qty = Number(it.quantity);
         if (isNaN(qty) || qty <= 0) {
-          throw new Error(`Quantity for "${it.itemName}" must be greater than 0.`);
+          throw new Error(
+            `Quantity for "${it.itemName}" must be greater than 0.`
+          );
         }
       }
 
@@ -120,7 +165,8 @@ export default function NewMaterialRequestPage() {
           New Material Request
         </h1>
         <p className="text-xs text-muted-foreground">
-          Raise a new material request for site delivery. Items will be routed for manager approval.
+          Raise a new material request for site delivery. Items will be routed
+          for manager approval.
         </p>
       </div>
 
@@ -142,6 +188,8 @@ export default function NewMaterialRequestPage() {
           priority: "normal",
           ...(defaultProjectId ? { projectId: defaultProjectId } : {}),
         }}
+        onValuesChange={handleValuesChange}
+        resetFieldsOnChange={{ projectId: ["siteId"] }}
         footerActions={
           <Button
             type="button"

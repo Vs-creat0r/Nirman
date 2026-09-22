@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import * as React from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import {
   Card,
@@ -35,6 +36,14 @@ interface DocumentFormProps {
   renderItemList?: (fieldDef: FieldDef) => React.ReactNode;
   /** Extra actions to render in the form footer (e.g. Approve/Reject) */
   footerActions?: React.ReactNode;
+  /** Called whenever form field values change (live watch). */
+  onValuesChange?: (values: Record<string, unknown>) => void;
+  /**
+   * When a named field changes, reset the listed dependent fields to undefined.
+   * e.g. { projectId: ["siteId"] } clears siteId whenever projectId changes.
+   * No field names are hardcoded here — the caller declares the dependency.
+   */
+  resetFieldsOnChange?: Record<string, string[]>;
 }
 
 /**
@@ -64,6 +73,8 @@ export function DocumentForm({
   readonly = false,
   renderItemList,
   footerActions,
+  onValuesChange,
+  resetFieldsOnChange,
 }: DocumentFormProps) {
   // Build default values from the contract's `default` properties
   const contractDefaults = buildDefaults(contract.fields);
@@ -73,6 +84,34 @@ export function DocumentForm({
     defaultValues: mergedDefaults,
     mode: "onBlur",
   });
+
+  // Forward live field-value changes to the parent (if requested).
+  // Intentionally additive: callers that omit onValuesChange are unaffected.
+  React.useEffect(() => {
+    if (!onValuesChange) return;
+    const sub = methods.watch((values) =>
+      onValuesChange(values as Record<string, unknown>)
+    );
+    return () => sub.unsubscribe();
+  }, [onValuesChange, methods]);
+
+  // When a named field changes, reset its declared dependents to undefined.
+  // This runs inside the FormProvider context so setValue is always valid.
+  // No field names are hardcoded — the caller supplies the map.
+  React.useEffect(() => {
+    if (!resetFieldsOnChange) return;
+    const sub = methods.watch((_values, { name }) => {
+      if (name && resetFieldsOnChange[name]) {
+        for (const dep of resetFieldsOnChange[name]) {
+          methods.setValue(dep, undefined, {
+            shouldValidate: false,
+            shouldDirty: true,
+          });
+        }
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [resetFieldsOnChange, methods]);
 
   const handleFormSubmit = methods.handleSubmit(async (data) => {
     if (onSubmit) {
